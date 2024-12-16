@@ -1,0 +1,16 @@
+.DS_Store
+
+.antlr/
+__pycache__/
+
+input*
+note.txt
+
+*.interp
+*.tokens
+*Lexer.py
+*Parser.py
+MyLangParserVisitor.py
+
+*.out
+tmp/
