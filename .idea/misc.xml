@@ -18,7 +18,7 @@
           <option name="fileName" value="$PROJECT_DIR$/src/main/antlr/SholParser.g4" />
           <option name="autoGen" value="true" />
           <option name="outputDir" value="" />
-          <option name="libDir" value="" />
+          <option name="libDir" value="$PROJECT_DIR$/build/generated-src/antlr/main" />
           <option name="encoding" value="" />
           <option name="pkg" value="" />
           <option name="language" value="" />
