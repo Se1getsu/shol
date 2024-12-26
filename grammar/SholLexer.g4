@@ -5,6 +5,8 @@ lexer grammar SholLexer;
     modify nqs1_char & nqs2_char in SholParser.g4.
 */
 
+IS    : ':';
+
 MUL   : '*';
 DIV   : '/';
 MOD   : '%';
@@ -12,13 +14,12 @@ MOD   : '%';
 ADD   : '+';
 SUB   : '-';
 
-EQ    : 'eq';
-NEQ   : 'ne';
+EQ    : '=';
+NEQ   : '!=';
 LT    : '<';
 GT    : '>';
 LEQ   : '<=';
 GEQ   : '>=';
-IS    : 'is';
 
 L_P   : '(';
 R_P   : ')';
@@ -29,8 +30,6 @@ R_SB  : ']';
 
 DOT   : '.';
 PIPE  : '|';
-TRNS  : '=>';
-PROD  : '=';
 COMMA : ',';
 DOL   : '$';
 HASH  : '#';

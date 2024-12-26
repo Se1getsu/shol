@@ -7,7 +7,8 @@ declarations
     : decl_colony (lx decl_colony)*
     ;
 decl_colony
-    : L_SB s IDENT s R_SB (lx colony_stmts)?
+    : MUL IDENT (lx colony_stmts)?
+    | MOD IDENT (lx colony_stmts)?
     ;
 colony_stmts
     : colony_stmt (lx colony_stmt)*
@@ -22,15 +23,13 @@ resource
     | non_quoted_string1 // lowest priority
     ;
 rule
-    : flag (l prtr)*
+    : DOT sx conditions (l outputs)* (l parallel_rule)*
     ;
-prtr
-    : producer
-    | transformer
+parallel_rule
+    : PIPE sx conditions (l outputs)*
     ;
-flag
-    : DOT IDENT? sx conditions
-    | PIPE IDENT? sx conditions
+outputs
+    : destination s expression (s COMMA s expression)*
     ;
 conditions
     : condition (s COMMA s condition)*
@@ -38,17 +37,8 @@ conditions
 condition
     : expression
     ;
-producer
-    : (dest_c s)? PROD s expression (s COMMA s expression)*
-    ;
-transformer
-    : (dest_c s)? TRNS s expression (s COMMA s expression)*
-    ;
-dest_c
-    : colony_ref
-    ;
-colony_ref
-    : HASH IDENT
+destination
+    : HASH IDENT?
     ;
 
 expression
@@ -61,7 +51,10 @@ expr_add
     : expr_mul (s op_add s expr_mul)*
     ;
 expr_mul
-    : factor (s op_mul s factor)*
+    : expr_is (s op_mul s expr_is)*
+    ;
+expr_is
+    : factor (s IS s factor)?
     ;
 factor
     : L_P s expression s R_P
@@ -85,13 +78,15 @@ type
 
 // String without ""
 non_quoted_string1
-    : nqs1_char ((nqs1_char|SP|DOT|PIPE)* (nqs1_char|DOT|PIPE))?
+    : nqs1_char ((nqs1_char|head_char|SP)* (nqs1_char|head_char))?
     ;
 non_quoted_string2
-    : (nqs2_char|DOT|PIPE) ((nqs2_char|SP|DOT|PIPE)* (nqs1_char|DOT|PIPE))?
+    : nqs2_char+
     ;
-// all terminators except NL, SP, DOT, PIPE
-nqs1_char: MUL|DIV|MOD|ADD|SUB|EQ|NEQ|LT|GT|LEQ|GEQ|IS|L_P|R_P|L_B|R_B|L_SB|R_SB|TRNS|PROD|COMMA|DOL|HASH|INT_T|STR_T|IDENT|N|S|UNKNOWN;
+// terminators with special meaning at the beginning of a line
+head_char: DOT|PIPE|MUL|MOD;
+// all terminators except NL, SP, head_char
+nqs1_char: IS|DIV|ADD|SUB|EQ|NEQ|LT|GT|LEQ|GEQ|L_P|R_P|L_B|R_B|L_SB|R_SB|COMMA|DOL|HASH|INT_T|STR_T|IDENT|N|S|UNKNOWN;
 // non-confusing terminators when used in flags and producers
 nqs2_char: IDENT|N|S|UNKNOWN;
 

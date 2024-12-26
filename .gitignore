@@ -4,7 +4,7 @@
 __pycache__/
 
 input*
-note.txt
+ignore/
 
 *.interp
 *.tokens
