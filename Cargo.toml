@@ -1,0 +1,11 @@
+[package]
+name = "shol"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lalrpop-util = { version = "0.22.1", features = ["lexer"] }
+logos = "0.14"
+
+[build-dependencies]
+lalrpop = "0.22.1"

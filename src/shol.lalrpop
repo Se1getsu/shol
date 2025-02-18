@@ -1,0 +1,162 @@
+use crate::tokens::{Token, LexicalError};
+use crate::ast;
+
+grammar;
+
+// MARK: 構文
+
+pub Program: Vec<ast::Statement> = {
+    nl? <stmts:Statement*> => stmts
+};
+
+Statement: ast::Statement = {
+    "*" <name:"identf"> nl <resources:Resource*> <prules:RuleSet*> => {
+        ast::Statement::ColonyDecl {
+            name,
+            resources,
+            rules: prules,
+        }
+    },
+    "%" <name:"identf"> nl <resources:Resource*> <prules:RuleSet*> => {
+        ast::Statement::ColonyExtension {
+            name,
+            resources,
+            rules: prules,
+        }
+    }
+}
+
+Resource: ast::Resource = {
+    <"int"> nl => ast::Resource::Number(<>),
+    <"identf"> nl => ast::Resource::Str(<>),
+}
+
+RuleSet: ast::RuleSet = {
+    <first:FirstRule> <later:ParallelRule*> => {
+        let mut rules = vec![first];
+        rules.extend(later.into_iter().map(|r| r));
+        ast::RuleSet::Rules(rules)
+    }
+}
+
+FirstRule: ast::Rule = {
+    "." sp <Rule> nl
+}
+
+ParallelRule: ast::Rule = {
+    "|" sp <Rule> nl
+}
+
+Rule: ast::Rule = {
+    <condition:CommaListing<Expr>> sp? "#" <dest:"identf"?> sp <output:CommaListing<Expr>> => {
+        ast::Rule::Rule {
+            conditions: condition.into_iter().map(|o| *o).collect(),
+            destination: dest,
+            outputs: output.into_iter().map(|o| *o).collect(),
+        }
+    }
+}
+
+// MARK: 式
+
+Expr: Box<ast::Expr> = {
+    #[precedence(level="1")]
+    <val:"int"> => {
+        Box::new(ast::Expr::Number(val))
+    },
+    "$" <name:"identf"> => {
+        Box::new(ast::Expr::Capture(name))
+    },
+    "(" <inner:Expr> ")" => inner,
+
+    #[precedence(level="2")] #[assoc(side="left")]
+    <lhs:Expr> "*" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Mul, rhs))
+    },
+    <lhs:Expr> "/" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Div, rhs))
+    },
+    <lhs:Expr> "%" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Mod, rhs))
+    },
+
+    #[precedence(level="3")] #[assoc(side="left")]
+    <lhs:Expr> "+" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Add, rhs))
+    },
+    <lhs:Expr> "-" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Sub, rhs))
+    },
+
+    #[precedence(level="4")] #[assoc(side="left")]
+    <lhs:Expr> "=" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Eq, rhs))
+    },
+    <lhs:Expr> "!=" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Ne, rhs))
+    },
+    <lhs:Expr> "<" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Lt, rhs))
+    },
+    <lhs:Expr> ">" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Gt, rhs))
+    },
+    <lhs:Expr> "<=" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Le, rhs))
+    },
+    <lhs:Expr> ">=" <rhs:Expr> => {
+        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Ge, rhs))
+    },
+}
+
+// MARK: ヘルパー非終端記号
+
+// カンマ区切りで 1 つ以上列挙する構文
+CommaListing<T>: Vec<T> = {
+    T => vec![<>],
+    <mut v:CommaListing<T>> "," sp? <e:T> => {
+        v.push(e);
+        v
+    }
+}
+
+// sp?  space*
+// sp    + 1 つ以上のスペースを含む
+// nl?  (space|newline)*
+// nl    + 1 つ以上の改行を含む
+sp: () = "space"+;
+nl: () = sp? "newline" spnl*;
+spnl: () = { "space", "newline" }
+
+// MARK: トークン (終端記号)
+
+extern {
+    type Location = usize;
+    type Error = LexicalError;
+
+    enum Token {
+        "identf" => Token::Identifier(<String>),
+        "int" => Token::Integer(<i32>),
+        "(" => Token::LParen,
+        ")" => Token::RParen,
+        "=" => Token::Equal,
+        "!=" => Token::NotEqual,
+        "<" => Token::LessThan,
+        ">" => Token::GreaterThan,
+        "<=" => Token::LessEqual,
+        ">=" => Token::GreaterEqual,
+        "+" => Token::Add,
+        "-" => Token::Sub,
+        "*" => Token::Mul,
+        "/" => Token::Div,
+        "%" => Token::Mod,
+        "." => Token::Dot,
+        "|" => Token::Pipe,
+        "," => Token::Comma,
+        "#" => Token::Hash,
+        "$" => Token::Dollar,
+        "space" => Token::Space(<String>),
+        "newline" => Token::NewLine(<String>),
+        "other" => Token::Other(<String>),
+    }
+}

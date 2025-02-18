@@ -1,0 +1,12 @@
+*nGen
+1
+. $ < 100 # $ + 1
+| $ #fizzBuzz $
+
+*fizzBuzz
+. $ % 3 = 0 # Fizz
+| $ % 5 = 0 # Buzz
+. Fizz, Buzz # FizzBuzz
+. $ #print $
+
+%print

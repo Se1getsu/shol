@@ -40,7 +40,7 @@ Hello, world!
 *nGen
 1
 . $<100 # $+1
-| 1 #fizzBuzz $
+| U #fizzBuzz $
 
 *fizzBuzz
 . $ % 3 = 0 # Fizz
