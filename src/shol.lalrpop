@@ -61,8 +61,11 @@ Rule: ast::Rule = {
 
 Expr: Box<ast::Expr> = {
     #[precedence(level="1")]
-    <val:"int"> => {
-        Box::new(ast::Expr::Number(val))
+    "int" => {
+        Box::new(ast::Expr::Number(<>))
+    },
+    "identf" => {
+        Box::new(ast::Expr::Str(<>))
     },
     "$" <name:"identf"?> => {
         Box::new(ast::Expr::Capture(name.unwrap_or_default()))

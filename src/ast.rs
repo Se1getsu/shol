@@ -23,6 +23,7 @@ pub enum Rule {
 #[derive(Debug)]
 pub enum Expr {
     Number(i32),
+    Str(String),
     Capture(String),
     BinaryOp(Box<Expr>, Opcode, Box<Expr>),
 }
