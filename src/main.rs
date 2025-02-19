@@ -3,6 +3,7 @@ use lalrpop_util::lalrpop_mod;
 pub mod ast;
 pub mod tokens;
 pub mod lexer;
+pub mod preprocessor; // 追加
 lalrpop_mod!(pub shol);
 
 fn main() {
@@ -18,14 +19,8 @@ fn main() {
     let program = std::fs::read_to_string(src_file)
         .expect("Failed to read program file");
 
-    // 構文解析の都合上, 入力の末尾には改行が必要
-    let program = {
-        let mut s = program;
-        if !s.ends_with('\n') {
-            s.push('\n');
-        }
-        s
-    };
+    // 前処理
+    let program = preprocessor::preprocess(&program);
 
     // AST 生成
     let mut lexer = lexer::Lexer::new(&program);

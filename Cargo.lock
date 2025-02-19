@@ -436,6 +436,7 @@ dependencies = [
  "lalrpop",
  "lalrpop-util",
  "logos",
+ "regex",
  "urlencoding",
 ]
 
