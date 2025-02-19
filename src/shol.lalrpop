@@ -64,8 +64,8 @@ Expr: Box<ast::Expr> = {
     <val:"int"> => {
         Box::new(ast::Expr::Number(val))
     },
-    "$" <name:"identf"> => {
-        Box::new(ast::Expr::Capture(name))
+    "$" <name:"identf"?> => {
+        Box::new(ast::Expr::Capture(name.unwrap_or_default()))
     },
     "(" <inner:Expr> ")" => inner,
     <Expr> "space",
