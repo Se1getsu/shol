@@ -20,7 +20,7 @@ pub enum Token {
     // 数値と識別子
     #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
     Identifier(String),
-    #[regex("[1-9][0-9]*", |lex| lex.slice().parse())]
+    #[regex("0|[1-9][0-9]*", |lex| lex.slice().parse())]
     Integer(i32),
 
     // 式に使われる記号
