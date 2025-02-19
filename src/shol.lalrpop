@@ -40,15 +40,15 @@ RuleSet: ast::RuleSet = {
 }
 
 FirstRule: ast::Rule = {
-    "." sp <Rule> nl
+    "." sp <Rule> "newline" spnl*
 }
 
 ParallelRule: ast::Rule = {
-    "|" sp <Rule> nl
+    "|" sp <Rule> "newline" spnl*
 }
 
 Rule: ast::Rule = {
-    <condition:CommaListing<Expr>> sp? "#" <dest:"identf"?> sp <output:CommaListing<Expr>> => {
+    <condition:CommaListing<Expr>> "#" <dest:"identf"?> sp <output:CommaListing<Expr>> => {
         ast::Rule::Rule {
             conditions: condition.into_iter().map(|o| *o).collect(),
             destination: dest,
@@ -68,43 +68,44 @@ Expr: Box<ast::Expr> = {
         Box::new(ast::Expr::Capture(name))
     },
     "(" <inner:Expr> ")" => inner,
+    <Expr> "space",
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <lhs:Expr> "*" <rhs:Expr> => {
+    <lhs:Expr> "*" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Mul, rhs))
     },
-    <lhs:Expr> "/" <rhs:Expr> => {
+    <lhs:Expr> "/" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Div, rhs))
     },
-    <lhs:Expr> "%" <rhs:Expr> => {
+    <lhs:Expr> "%" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Mod, rhs))
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <lhs:Expr> "+" <rhs:Expr> => {
+    <lhs:Expr> "+" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Add, rhs))
     },
-    <lhs:Expr> "-" <rhs:Expr> => {
+    <lhs:Expr> "-" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Sub, rhs))
     },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <lhs:Expr> "=" <rhs:Expr> => {
+    <lhs:Expr> "=" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Eq, rhs))
     },
-    <lhs:Expr> "!=" <rhs:Expr> => {
+    <lhs:Expr> "!=" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Ne, rhs))
     },
-    <lhs:Expr> "<" <rhs:Expr> => {
+    <lhs:Expr> "<" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Lt, rhs))
     },
-    <lhs:Expr> ">" <rhs:Expr> => {
+    <lhs:Expr> ">" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Gt, rhs))
     },
-    <lhs:Expr> "<=" <rhs:Expr> => {
+    <lhs:Expr> "<=" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Le, rhs))
     },
-    <lhs:Expr> ">=" <rhs:Expr> => {
+    <lhs:Expr> ">=" sp? <rhs:Expr> => {
         Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Ge, rhs))
     },
 }
