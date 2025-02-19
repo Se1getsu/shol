@@ -1,4 +1,5 @@
 use std::fmt;
+use urlencoding;
 
 // MARK: Statement
 
@@ -68,7 +69,7 @@ impl fmt::Debug for Expr {
             Expr::Number(n) =>
                 write!(f, "{{\"Number({})\": {{}}}}", n),
             Expr::Str(s) =>
-                write!(f, "{{\"Str({})\": {{}}}}", s),
+                write!(f, "{{\"Str({})\": {{}}}}", urlencoding::encode(s)),
             Expr::Capture(s) =>
                 write!(f, "{{\"Capture({})\": {{}}}}", s),
             Expr::BinaryOp(lhs, op, rhs) =>

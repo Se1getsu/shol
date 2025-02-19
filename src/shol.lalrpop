@@ -29,6 +29,7 @@ Statement: ast::Statement = {
 Resource: ast::Expr = {
     <"int"> nl => ast::Expr::Number(<>),
     <"identf"> nl => ast::Expr::Str(<>),
+    <"str"> nl => ast::Expr::Str(<>),
 }
 
 RuleSet: ast::RuleSet = {
@@ -65,6 +66,9 @@ Expr: Box<ast::Expr> = {
         Box::new(ast::Expr::Number(<>))
     },
     "identf" => {
+        Box::new(ast::Expr::Str(<>))
+    },
+    "str" => {
         Box::new(ast::Expr::Str(<>))
     },
     "$" <name:"identf"?> => {
@@ -140,7 +144,8 @@ extern {
 
     enum Token {
         "identf" => Token::Identifier(<String>),
-        "int" => Token::Integer(<i32>),
+        "int" => Token::IntegerLiteral(<i32>),
+        "str" => Token::StringLiteral(<String>),
         "(" => Token::LParen,
         ")" => Token::RParen,
         "=" => Token::Equal,

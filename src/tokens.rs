@@ -14,6 +14,34 @@ impl From<ParseIntError> for LexicalError {
     }
 }
 
+/// クォートで囲まれた文字列リテラルをデコードする
+fn decode_string(input: &str) -> String {
+    let without_quotes = &input[1..input.len()-1];
+    let mut result = String::with_capacity(without_quotes.len());
+    let mut chars = without_quotes.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(next) = chars.next() {
+                match next {
+                    'n' => result.push('\n'),
+                    'r' => result.push('\r'),
+                    't' => result.push('\t'),
+                    '\\' => result.push('\\'),
+                    '"' => result.push('"'),
+                    _ => {
+                        result.push('\\');
+                        result.push(next);
+                    }
+                }
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
 #[derive(Logos, Clone, Debug, PartialEq)]
 #[logos(error = LexicalError)]
 pub enum Token {
@@ -21,7 +49,9 @@ pub enum Token {
     #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
     Identifier(String),
     #[regex("0|[1-9][0-9]*", |lex| lex.slice().parse())]
-    Integer(i32),
+    IntegerLiteral(i32),
+    #[regex(r#""([^"\\\x00-\x1F]|\\.)*""#, |lex| decode_string(lex.slice()))]
+    StringLiteral(String),
 
     // 式に使われる記号
     #[token("(")]
