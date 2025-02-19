@@ -3,8 +3,8 @@ use std::fmt;
 // MARK: Statement
 
 pub enum Statement {
-    ColonyDecl { name: String, resources: Vec<Resource>, rules: Vec<RuleSet> },
-    ColonyExtension { name: String, resources: Vec<Resource>, rules: Vec<RuleSet> },
+    ColonyDecl { name: String, resources: Vec<Expr>, rules: Vec<RuleSet> },
+    ColonyExtension { name: String, resources: Vec<Expr>, rules: Vec<RuleSet> },
 }
 
 impl fmt::Debug for Statement {
@@ -14,24 +14,6 @@ impl fmt::Debug for Statement {
                 write!(f, "{{\"ColonyDecl({})\": {{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
             Statement::ColonyExtension { name, resources, rules } =>
                 write!(f, "{{\"ColonyExtension({})\": {{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
-        }
-    }
-}
-
-// MARK: Resource
-
-pub enum Resource {
-    Number(i32),
-    Str(String),
-}
-
-impl fmt::Debug for Resource {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Resource::Number(n) =>
-                write!(f, "{{\"Number({})\": {{}}}}", n),
-            Resource::Str(s) =>
-                write!(f, "{{\"Str({})\": {{}}}}", s),
         }
     }
 }

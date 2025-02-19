@@ -26,9 +26,9 @@ Statement: ast::Statement = {
     }
 }
 
-Resource: ast::Resource = {
-    <"int"> nl => ast::Resource::Number(<>),
-    <"identf"> nl => ast::Resource::Str(<>),
+Resource: ast::Expr = {
+    <"int"> nl => ast::Expr::Number(<>),
+    <"identf"> nl => ast::Expr::Str(<>),
 }
 
 RuleSet: ast::RuleSet = {
