@@ -21,9 +21,9 @@ impl fmt::Debug for Statement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Statement::ColonyDecl { name, resources, rules } =>
-                write!(f, "{{\"ColonyDecl({})\": {{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
+                write!(f, "{{\"ColonyDecl({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
             Statement::ColonyExtension { name, resources, rules } =>
-                write!(f, "{{\"ColonyExtension({})\": {{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
+                write!(f, "{{\"ColonyExtension({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
         }
     }
 }
@@ -38,7 +38,7 @@ impl fmt::Debug for RuleSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             RuleSet::Rules(rules) =>
-                write!(f, "{{\"Rules\": {{\".rules\": {:?}}}}}", rules),
+                write!(f, "{{\"Rules\":{{\".rules\": {:?}}}}}", rules),
         }
     }
 }
@@ -54,9 +54,9 @@ impl fmt::Debug for Rule {
         match self {
             Rule::Rule { conditions, destination, outputs } => {
                 if let Some(destination) = destination {
-                    write!(f, "{{\"Rule\": {{\".conditions\":{:?},\".destination\":{:?},\".outputs\":{:?}}}}}", conditions, destination, outputs)
+                    write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".destination\":{:?},\".outputs\":{:?}}}}}", conditions, destination, outputs)
                 } else {
-                    write!(f, "{{\"Rule\": {{\".conditions\":{:?},\".outputs\":{:?}}}}}", conditions, outputs)
+                    write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".outputs\":{:?}}}}}", conditions, outputs)
                 }
             }
         }
@@ -76,13 +76,13 @@ impl fmt::Debug for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expr::Number(n) =>
-                write!(f, "{{\"Number({})\": {{\"_\":{{}}}}}}", n),
+                write!(f, "{{\"Number({})\":{{\"_\":{{}}}}}}", n),
             Expr::Str(s) =>
-                write!(f, "{{\"Str({})\": {{\"_\":{{}}}}}}", urlencode(s)),
+                write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
             Expr::Capture(s) =>
-                write!(f, "{{\"Capture({})\": {{\"_\":{{}}}}}}", s),
+                write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
             Expr::BinaryOp(lhs, op, rhs) =>
-                write!(f, "{{\"BinaryOp({:?})\": {{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
+                write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
     }
 }
