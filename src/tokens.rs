@@ -46,7 +46,7 @@ fn decode_string(input: &str) -> String {
 #[logos(error = LexicalError)]
 pub enum Token {
     // 数値と識別子
-    #[regex("[_a-zA-Z][_0-9a-zA-Z]*", |lex| lex.slice().to_string())]
+    #[regex(r"(\p{XID_Start}|_)\p{XID_Continue}*", |lex| lex.slice().to_string())]
     Identifier(String),
     #[regex("0|[1-9][0-9]*", |lex| lex.slice().parse())]
     IntegerLiteral(i32),
