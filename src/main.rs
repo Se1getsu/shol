@@ -20,9 +20,12 @@ fn main() {
         .expect("Failed to read program file");
 
     // 前処理
+    println!("[*] Preprocessing...");
     let program = preprocessor::preprocess(&program);
+    println!("{}", program);
 
     // AST 生成
+    println!("[*] AST generating...");
     let mut lexer = lexer::Lexer::new(&program);
     let parser = shol::ProgramParser::new();
     let ast = parser.parse(&mut lexer)
