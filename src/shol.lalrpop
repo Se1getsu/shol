@@ -166,6 +166,5 @@ extern {
         "$" => Token::Dollar,
         "space" => Token::Space(<String>),
         "newline" => Token::NewLine(<String>),
-        "other" => Token::Other(<String>),
     }
 }

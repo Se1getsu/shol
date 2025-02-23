@@ -98,10 +98,6 @@ pub enum Token {
     Space(String),
     #[regex(r"[\r\n]", |lex| lex.slice().to_string())]
     NewLine(String),
-
-    // 任意の文字をトークン化
-    #[regex(r".", |lex| lex.slice().to_string(), priority = 1)]
-    Other(String),
 }
 
 impl fmt::Display for Token {
