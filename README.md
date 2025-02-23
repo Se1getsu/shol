@@ -40,13 +40,13 @@ Hello, world!
 *nGen
 1
 . $<100 # $+1
-| U #fizzBuzz $
+| $ #fizzBuzz $
 
 *fizzBuzz
 . $ % 3 = 0 # Fizz
 | $ % 5 = 0 # Buzz
 . Fizz, Buzz # FizzBuzz
-. U #print $
+. $ #print $
 
 %print
 ```
@@ -61,36 +61,11 @@ Hello, world!
 *nGen   // コロニー定義
 1       // リソース
 . $<100 # $+1       // 規則
-| 1 #fizzBuzz $     // 並列規則
+| $ #fizzBuzz $     // 並列規則
 
 *fizzBuzz           // コロニー定義
 . $ % 3 = 0 # Fizz  // 規則
 | $ % 5 = 0 # Buzz  // 並列規則
 . Fizz, Buzz # FizzBuzz  // 規則
-. U #print $        // 規則
+. $ #print $        // 規則
 ```
-
-### 関数
-
-```
-// (a,b) -> a + b
-*add
-. U #- $.0 + $.1
-
-// n -> n!
-*factorial
-. $:int # ($, 1)
-. $.0 <= 1 #- $.1
-. U # ($.0 - 1, $.1 * $.0)
-
-*send
-a
-. U #add-factorial-printResult (2, 3)
-
-*printResult
-. U #print "(2+3)! = ", $
-
-%print
-```
-
-コロニーチェーン `#add-factorial-printResult` はリソースの流れを表しています。
