@@ -3,7 +3,7 @@ use lalrpop_util::lalrpop_mod;
 pub mod ast;
 pub mod tokens;
 pub mod lexer;
-pub mod preprocessor; // 追加
+pub mod preprocessor;
 lalrpop_mod!(pub shol);
 
 fn main() {
