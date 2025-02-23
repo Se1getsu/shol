@@ -67,11 +67,11 @@ impl fmt::Debug for Expr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Expr::Number(n) =>
-                write!(f, "{{\"Number({})\": {{}}}}", n),
+                write!(f, "{{\"Number({})\": {{\"_\":{{}}}}}}", n),
             Expr::Str(s) =>
-                write!(f, "{{\"Str({})\": {{}}}}", urlencoding::encode(s)),
+                write!(f, "{{\"Str({})\": {{\"_\":{{}}}}}}", urlencoding::encode(s)),
             Expr::Capture(s) =>
-                write!(f, "{{\"Capture({})\": {{}}}}", s),
+                write!(f, "{{\"Capture({})\": {{\"_\":{{}}}}}}", s),
             Expr::BinaryOp(lhs, op, rhs) =>
                 write!(f, "{{\"BinaryOp({:?})\": {{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
