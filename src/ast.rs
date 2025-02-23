@@ -1,5 +1,14 @@
 use std::fmt;
-use urlencoding;
+use regex::Regex;
+
+/// URL エンコード
+fn urlencode(s: &str) -> String {
+    let re = Regex::new(r#"[()"\\%\x00-\x1F]"#).unwrap();
+    re.replace_all(s, |caps: &regex::Captures| {
+        let c = caps[0].chars().next().unwrap();
+        format!("%{:02X}", c as u32)
+    }).into_owned()
+}
 
 // MARK: Statement
 
@@ -69,7 +78,7 @@ impl fmt::Debug for Expr {
             Expr::Number(n) =>
                 write!(f, "{{\"Number({})\": {{\"_\":{{}}}}}}", n),
             Expr::Str(s) =>
-                write!(f, "{{\"Str({})\": {{\"_\":{{}}}}}}", urlencoding::encode(s)),
+                write!(f, "{{\"Str({})\": {{\"_\":{{}}}}}}", urlencode(s)),
             Expr::Capture(s) =>
                 write!(f, "{{\"Capture({})\": {{\"_\":{{}}}}}}", s),
             Expr::BinaryOp(lhs, op, rhs) =>

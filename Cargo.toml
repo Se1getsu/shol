@@ -7,7 +7,6 @@ edition = "2021"
 lalrpop-util = { version = "0.22.1", features = ["lexer"] }
 logos = "0.14"
 regex = "1.11.1"
-urlencoding = "2.1.3"
 
 [build-dependencies]
 lalrpop = "0.22.1"
