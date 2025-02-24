@@ -55,6 +55,13 @@ Rule: ast::Rule = {
             destination: dest,
             outputs: output.into_iter().map(|o| *o).collect(),
         }
+    },
+    <condition:CommaListing<Expr>> "#" <dest:"identf"?> sp? => {
+        ast::Rule::Rule {
+            conditions: condition.into_iter().map(|o| *o).collect(),
+            destination: dest,
+            outputs: vec![],
+        }
     }
 }
 
