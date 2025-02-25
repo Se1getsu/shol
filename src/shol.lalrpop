@@ -5,20 +5,20 @@ grammar;
 
 // MARK: 構文
 
-pub Program: Vec<ast::Statement> = {
+pub Program: Vec<ast::StatementAST> = {
     nl? <stmts:Statement*> => stmts
 };
 
-Statement: ast::Statement = {
+Statement: ast::StatementAST = {
     "*" <name:"identf"> nl <resources:Resource*> <prules:RuleSet*> => {
-        ast::Statement::ColonyDecl {
+        ast::StatementAST::ColonyDecl {
             name,
             resources,
             rules: prules,
         }
     },
     "%" <name:"identf"> nl <resources:Resource*> <prules:RuleSet*> => {
-        ast::Statement::ColonyExtension {
+        ast::StatementAST::ColonyExtension {
             name,
             resources,
             rules: prules,
@@ -26,38 +26,38 @@ Statement: ast::Statement = {
     }
 }
 
-Resource: ast::Expr = {
-    <"int"> nl => ast::Expr::Number(<>),
-    <"identf"> nl => ast::Expr::Str(<>),
-    <"str"> nl => ast::Expr::Str(<>),
+Resource: ast::ExprAST = {
+    <"int"> nl => ast::ExprAST::Number(<>),
+    <"identf"> nl => ast::ExprAST::Str(<>),
+    <"str"> nl => ast::ExprAST::Str(<>),
 }
 
-RuleSet: ast::RuleSet = {
+RuleSet: ast::RuleSetAST = {
     <first:FirstRule> <later:ParallelRule*> => {
         let mut rules = vec![first];
         rules.extend(later.into_iter().map(|r| r));
-        ast::RuleSet { rules }
+        ast::RuleSetAST { rules }
     }
 }
 
-FirstRule: ast::Rule = {
+FirstRule: ast::RuleAST = {
     "." sp <Rule> "newline" spnl*
 }
 
-ParallelRule: ast::Rule = {
+ParallelRule: ast::RuleAST = {
     "|" sp <Rule> "newline" spnl*
 }
 
-Rule: ast::Rule = {
+Rule: ast::RuleAST = {
     <condition:CommaListing<Expr>> "#" <dest:"identf"?> sp <output:CommaListing<Expr>> => {
-        ast::Rule {
+        ast::RuleAST {
             conditions: condition.into_iter().map(|o| *o).collect(),
             destination: dest,
             outputs: output.into_iter().map(|o| *o).collect(),
         }
     },
     <condition:CommaListing<Expr>> "#" <dest:"identf"?> sp? => {
-        ast::Rule {
+        ast::RuleAST {
             conditions: condition.into_iter().map(|o| *o).collect(),
             destination: dest,
             outputs: vec![],
@@ -67,60 +67,60 @@ Rule: ast::Rule = {
 
 // MARK: 式
 
-Expr: Box<ast::Expr> = {
+Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
     "int" => {
-        Box::new(ast::Expr::Number(<>))
+        Box::new(ast::ExprAST::Number(<>))
     },
     "identf" => {
-        Box::new(ast::Expr::Str(<>))
+        Box::new(ast::ExprAST::Str(<>))
     },
     "str" => {
-        Box::new(ast::Expr::Str(<>))
+        Box::new(ast::ExprAST::Str(<>))
     },
     "$" <name:"identf"?> => {
-        Box::new(ast::Expr::Capture(name.unwrap_or_default()))
+        Box::new(ast::ExprAST::Capture(name.unwrap_or_default()))
     },
     "(" <inner:Expr> ")" => inner,
     <Expr> "space",
 
     #[precedence(level="2")] #[assoc(side="left")]
     <lhs:Expr> "*" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Mul, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mul, rhs))
     },
     <lhs:Expr> "/" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Div, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Div, rhs))
     },
     <lhs:Expr> "%" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Mod, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mod, rhs))
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
     <lhs:Expr> "+" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Add, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Add, rhs))
     },
     <lhs:Expr> "-" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Sub, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Sub, rhs))
     },
 
     #[precedence(level="4")] #[assoc(side="left")]
     <lhs:Expr> "=" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Eq, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Eq, rhs))
     },
     <lhs:Expr> "!=" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Ne, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ne, rhs))
     },
     <lhs:Expr> "<" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Lt, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Lt, rhs))
     },
     <lhs:Expr> ">" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Gt, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Gt, rhs))
     },
     <lhs:Expr> "<=" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Le, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Le, rhs))
     },
     <lhs:Expr> ">=" sp? <rhs:Expr> => {
-        Box::new(ast::Expr::BinaryOp(lhs, ast::Opcode::Ge, rhs))
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs))
     },
 }
 

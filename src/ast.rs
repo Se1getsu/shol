@@ -10,45 +10,45 @@ fn urlencode(s: &str) -> String {
     }).into_owned()
 }
 
-// MARK: Statement
+// MARK: StatementAST
 
-pub enum Statement {
-    ColonyDecl { name: String, resources: Vec<Expr>, rules: Vec<RuleSet> },
-    ColonyExtension { name: String, resources: Vec<Expr>, rules: Vec<RuleSet> },
+pub enum StatementAST {
+    ColonyDecl { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
+    ColonyExtension { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
 }
 
-impl fmt::Debug for Statement {
+impl fmt::Debug for StatementAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Statement::ColonyDecl { name, resources, rules } =>
+            StatementAST::ColonyDecl { name, resources, rules } =>
                 write!(f, "{{\"ColonyDecl({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
-            Statement::ColonyExtension { name, resources, rules } =>
+            StatementAST::ColonyExtension { name, resources, rules } =>
                 write!(f, "{{\"ColonyExtension({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
         }
     }
 }
 
-// MARK: RuleSet
+// MARK: RuleSetAST
 
-pub struct RuleSet {
-    pub rules: Vec<Rule>,
+pub struct RuleSetAST {
+    pub rules: Vec<RuleAST>,
 }
 
-impl fmt::Debug for RuleSet {
+impl fmt::Debug for RuleSetAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{\"RuleSet\":{{\".rules\": {:?}}}}}", self.rules)
     }
 }
 
-// MARK: Rule
+// MARK: RuleAST
 
-pub struct Rule {
-    pub conditions: Vec<Expr>,
+pub struct RuleAST {
+    pub conditions: Vec<ExprAST>,
     pub destination: Option<String>,
-    pub outputs: Vec<Expr>,
+    pub outputs: Vec<ExprAST>,
 }
 
-impl fmt::Debug for Rule {
+impl fmt::Debug for RuleAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(destination) = &self.destination {
             write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".destination\":{:?},\".outputs\":{:?}}}}}", self.conditions, destination, self.outputs)
@@ -58,25 +58,25 @@ impl fmt::Debug for Rule {
     }
 }
 
-// MARK: Expr
+// MARK: ExprAST
 
-pub enum Expr {
+pub enum ExprAST {
     Number(i32),
     Str(String),
     Capture(String),
-    BinaryOp(Box<Expr>, Opcode, Box<Expr>),
+    BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>),
 }
 
-impl fmt::Debug for Expr {
+impl fmt::Debug for ExprAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Expr::Number(n) =>
+            ExprAST::Number(n) =>
                 write!(f, "{{\"Number({})\":{{\"_\":{{}}}}}}", n),
-            Expr::Str(s) =>
+            ExprAST::Str(s) =>
                 write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
-            Expr::Capture(s) =>
+            ExprAST::Capture(s) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
-            Expr::BinaryOp(lhs, op, rhs) =>
+            ExprAST::BinaryOp(lhs, op, rhs) =>
                 write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
     }
