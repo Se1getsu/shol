@@ -36,7 +36,7 @@ RuleSet: ast::RuleSet = {
     <first:FirstRule> <later:ParallelRule*> => {
         let mut rules = vec![first];
         rules.extend(later.into_iter().map(|r| r));
-        ast::RuleSet::Rules(rules)
+        ast::RuleSet { rules }
     }
 }
 
@@ -50,14 +50,14 @@ ParallelRule: ast::Rule = {
 
 Rule: ast::Rule = {
     <condition:CommaListing<Expr>> "#" <dest:"identf"?> sp <output:CommaListing<Expr>> => {
-        ast::Rule::Rule {
+        ast::Rule {
             conditions: condition.into_iter().map(|o| *o).collect(),
             destination: dest,
             outputs: output.into_iter().map(|o| *o).collect(),
         }
     },
     <condition:CommaListing<Expr>> "#" <dest:"identf"?> sp? => {
-        ast::Rule::Rule {
+        ast::Rule {
             conditions: condition.into_iter().map(|o| *o).collect(),
             destination: dest,
             outputs: vec![],

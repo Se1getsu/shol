@@ -30,35 +30,30 @@ impl fmt::Debug for Statement {
 
 // MARK: RuleSet
 
-pub enum RuleSet {
-    Rules(Vec<Rule>),
+pub struct RuleSet {
+    pub rules: Vec<Rule>,
 }
 
 impl fmt::Debug for RuleSet {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            RuleSet::Rules(rules) =>
-                write!(f, "{{\"Rules\":{{\".rules\": {:?}}}}}", rules),
-        }
+        write!(f, "{{\"RuleSet\":{{\".rules\": {:?}}}}}", self.rules)
     }
 }
 
 // MARK: Rule
 
-pub enum Rule {
-    Rule { conditions: Vec<Expr>, destination: Option<String>, outputs: Vec<Expr> },
+pub struct Rule {
+    pub conditions: Vec<Expr>,
+    pub destination: Option<String>,
+    pub outputs: Vec<Expr>,
 }
 
 impl fmt::Debug for Rule {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Rule::Rule { conditions, destination, outputs } => {
-                if let Some(destination) = destination {
-                    write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".destination\":{:?},\".outputs\":{:?}}}}}", conditions, destination, outputs)
-                } else {
-                    write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".outputs\":{:?}}}}}", conditions, outputs)
-                }
-            }
+        if let Some(destination) = &self.destination {
+            write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".destination\":{:?},\".outputs\":{:?}}}}}", self.conditions, destination, self.outputs)
+        } else {
+            write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".outputs\":{:?}}}}}", self.conditions, self.outputs)
         }
     }
 }
