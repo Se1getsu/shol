@@ -4,6 +4,7 @@ pub mod ast;
 pub mod tokens;
 pub mod lexer;
 pub mod preprocessor;
+pub mod semantics;
 lalrpop_mod!(pub shol);
 
 fn main() {
@@ -28,7 +29,13 @@ fn main() {
     println!("[*] AST generating...");
     let mut lexer = lexer::Lexer::new(&program);
     let parser = shol::ProgramParser::new();
-    let ast = parser.parse(&mut lexer)
+    let mut ast = parser.parse(&mut lexer)
         .expect("Failed to parse program");
     println!("{{\"AST\":{:?}}}", ast);
+
+    // 意味解析
+    println!("[*] Semantics analyzing...");
+    semantics::analyze_program(&mut ast);
+
+    println!("[*] Completed.");
 }

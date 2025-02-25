@@ -1,6 +1,8 @@
 use std::fmt;
 use regex::Regex;
 
+use crate::semantics;
+
 /// URL エンコード
 fn urlencode(s: &str) -> String {
     let re = Regex::new(r#"[()"\\%\x00-\x1F]"#).unwrap();
@@ -46,6 +48,7 @@ pub struct RuleAST {
     pub conditions: Vec<ExprAST>,
     pub destination: Option<String>,
     pub outputs: Vec<ExprAST>,
+    pub meta: Option<semantics::RuleASTMeta>,
 }
 
 impl fmt::Debug for RuleAST {
