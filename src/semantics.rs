@@ -36,7 +36,7 @@ pub enum ConditionKind {
     Equal(Type),
     /// キャプチャ単体
     Capture(String),
-    /// キャプチャを含む条件式 (条件式の型とキャプチャ名)
+    /// キャプチャを含む条件式 (キャプチャ名)
     CaptureCondition(String),
 }
 
