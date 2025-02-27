@@ -1,16 +1,5 @@
 .DS_Store
 
-.antlr/
-__pycache__/
+target/
 
-input*
-ignore/
-
-*.interp
-*.tokens
-*Lexer.py
-*Parser.py
-MyLangParserVisitor.py
-
-*.out
-tmp/
+ignored/
