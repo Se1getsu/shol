@@ -34,8 +34,9 @@ fn main() {
     println!("{{\"AST\":{:?}}}", ast);
 
     // 意味解析
-    println!("[*] Semantics analyzing...");
+    println!("\n[*] Semantics analyzing...");
     semantics::analyze_program(&mut ast);
+    println!("{{\"AST\":{:?}}}", ast);
 
     println!("[*] Completed.");
 }
