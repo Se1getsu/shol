@@ -252,6 +252,9 @@ fn analyze_condition(expr: &ast::ExprAST) -> HashSet<Type> {
             possible_types.insert(t);
         }
     });
+    if possible_types.is_empty() {
+        panic!("この条件式を計算できるキャプチャ型は存在しません: {:?}", expr);
+    }
     println!("possible_types: {:?}", possible_types);
     possible_types
 }
