@@ -79,6 +79,8 @@ impl OpcodeSignature {
             Opcode::Add => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
                 Self { lhs: Type::String, rhs: Type::String, result: Type::String },
+                Self { lhs: Type::String, rhs: Type::Int, result: Type::String },
+                Self { lhs: Type::String, rhs: Type::Bool, result: Type::String },
             ],
             Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
@@ -163,11 +165,14 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
         }
     }
 
-    for _output in rule.outputs.iter() {
-        // TODO: 出力式の型推論を行う
-    }
+    // 出力式を解析
+    analyze_output(&rule.outputs, &mut meta.captures);
+
+    // AST にメタデータを追加
     rule.meta = Some(meta);
 }
+
+// MARK: 条件式の型推論
 
 /// 条件式の種別を取得
 fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
@@ -281,6 +286,162 @@ fn analyze_condition_ast(expr: &ast::ExprAST, capture_type: Type) -> Result<Type
                 },
                 _ => Err(()),
             }
+        },
+    }
+}
+
+// MARK: 出力式の型推論
+
+/// infers 配列のインデックス
+#[derive(Clone, Copy)]
+struct InfersIndex(usize);
+
+impl Debug for InfersIndex {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// 推論された型
+#[derive(Debug, Clone)]
+enum InferredType {
+    /// 定数式
+    Constant(Type),
+    /// キャプチャ (possible_types に対応する型)
+    Capture(String),
+    /// キャプチャを含む二項演算式
+    BinaryExpr {
+        opcode: Opcode,
+        lhs: InfersIndex,
+        rhs: InfersIndex,
+        parent: Option<InfersIndex>,
+        result: HashSet<Type>,
+        needs_update: bool,
+    },
+}
+
+impl InferredType {
+    // 親を設定
+    fn set_parent(&mut self, parent: &InfersIndex) {
+        match self {
+            InferredType::BinaryExpr { parent: p, .. } => {
+                *p = Some(*parent);
+            },
+            _ => {},
+        }
+    }
+}
+
+/// 出力式の型推論をする
+fn analyze_output(expr: &Vec<ast::ExprAST>, captures: &mut HashMap<String, TypeHint>) {
+    // InferredType を保存するベクタ
+    let mut infers = build_infers(expr, captures);
+    println!("built infers: {}", fmt_infers(&infers));
+}
+
+/// infers 配列のデバッグ用文字列
+fn fmt_infers(infers: &Vec<InferredType>) -> String {
+    let mut s = String::from("[\n");
+    for (i, infer) in infers.iter().enumerate() {
+        s.push_str(&format!("{:>4}: {:?}\n", i, infer));
+    }
+    s.push_str("]");
+    s
+}
+
+/// infers 配列を作成する
+fn build_infers(expr: &Vec<ast::ExprAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
+    // InferredType を保存するベクタ
+    let mut infers: Vec<InferredType> = captures.keys()
+        .map(|name| {
+            InferredType::Capture(name.clone())
+        }).collect();
+
+    // キャプチャ名とインデックスの対応表
+    let capture_infers: HashMap<String, usize> = captures.keys()
+        .enumerate()
+        .map(|(i, name)| (name.clone(), i))
+        .collect();
+
+    // AST を探索して infers 配列を作成
+    expr.iter().for_each(|e| {
+        analyze_output_ast(e, &mut infers, &capture_infers);
+    });
+    infers
+}
+
+/// analyze_output_ast 関数の戻り値
+enum AOAResult {
+    Constant(Type),
+    Infer { index: InfersIndex },
+}
+
+// infers 配列作成のために AST を探索する
+fn analyze_output_ast(
+    expr: &ast::ExprAST,
+    infers: &mut Vec<InferredType>,
+    capture_infers: &HashMap<String, usize>,
+) -> AOAResult {
+    match expr {
+        // 定数式の型を返す
+        ast::ExprAST::Number(_) => AOAResult::Constant(Type::Int),
+        ast::ExprAST::Str(_) => AOAResult::Constant(Type::String),
+
+        // capture_infers に登録されているインデックスを返す
+        ast::ExprAST::Capture(name) => {
+            if let Some(index) = capture_infers.get(name) {
+                AOAResult::Infer { index: InfersIndex(*index) }
+            } else {
+                panic!("未定義のキャプチャ: {}", name);
+            }
+        },
+
+        // 自身を infers に追加し, そのインデックスを返す
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+            let lhs = analyze_output_ast(lhs, infers, capture_infers);
+            let rhs = analyze_output_ast(rhs, infers, capture_infers);
+
+            // 定数式なら AOAResult::Constant を返す
+            if let (AOAResult::Constant(t_l), AOAResult::Constant(t_r)) = (&lhs, &rhs) {
+                if let Some(result) = opcode.result_type(*t_l, *t_r) {
+                    return AOAResult::Constant(result);
+                } else {
+                    panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
+                }
+            }
+
+            // lhs または rhs が定数式なら infers に追加してインデックスを作成
+            let i_l = match &lhs {
+                AOAResult::Infer { index } => *index,
+                AOAResult::Constant(t) => {
+                    infers.push(InferredType::Constant(*t));
+                    InfersIndex(infers.len() - 1)
+                }
+            };
+            let i_r = match &rhs {
+                AOAResult::Infer { index } => *index,
+                AOAResult::Constant(t) => {
+                    infers.push(InferredType::Constant(*t));
+                    InfersIndex(infers.len() - 1)
+                }
+            };
+
+            // 自身を infer に追加する
+            infers.push(InferredType::BinaryExpr {
+                opcode: *opcode,
+                lhs: i_l,
+                rhs: i_r,
+                parent: None,
+                result: Type::all_types(),
+                needs_update: true,
+            });
+            let i_self = InfersIndex(infers.len() - 1);
+
+            // 自身を lhs, rhs の親ノードを設定
+            infers[i_l.0].set_parent(&i_self);
+            infers[i_r.0].set_parent(&i_self);
+
+            AOAResult::Infer { index: i_self }
         },
     }
 }
