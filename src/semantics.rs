@@ -228,20 +228,20 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
                 }
                 (ConditionKind::Capture(name_l), ConditionKind::Capture(name_r)) => {
                     if name_l != name_r {
-                        panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name_l, name_r);
+                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
                     }
                     return ConditionKind::CaptureCondition((*name_l).clone());
                 }
                 (ConditionKind::Capture(name_l), ConditionKind::CaptureCondition(name_r)) => {
                     if name_l != name_r {
-                        panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name_l, name_r);
+                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
                     }
                     return rhs_kind;
                 }
                 (ConditionKind::CaptureCondition(name_l), ConditionKind::Capture(name_r)) |
                 (ConditionKind::CaptureCondition(name_l), ConditionKind::CaptureCondition(name_r)) => {
                     if name_l != name_r {
-                        panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name_l, name_r);
+                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
                     }
                     return lhs_kind;
                 }
