@@ -16,7 +16,7 @@ impl Debug for RuleASTMeta {
 }
 
 /// キャプチャの型ヒント
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeHint {
     pub possible_types: HashSet<Type>,
 }
@@ -361,13 +361,15 @@ impl InferredType {
 }
 
 /// 出力式の型推論をする
-fn analyze_output(expr: &Vec<ast::ExprAST>, captures: &mut HashMap<String, TypeHint>) {
+fn analyze_output(exprs: &Vec<ast::ExprAST>, captures: &mut HashMap<String, TypeHint>) {
     // InferredType を保存するベクタ
-    let mut infers = build_infers(expr, captures);
+    let mut infers = build_infers(exprs, captures);
     println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
 
     infer_infers(&mut infers, captures);
     println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
+
+    validate_inference(captures, exprs);
 }
 
 /// infers 配列のデバッグ用文字列
@@ -386,7 +388,7 @@ fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) 
 }
 
 /// infers 配列を作成する
-fn build_infers(expr: &Vec<ast::ExprAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
+fn build_infers(exprs: &Vec<ast::ExprAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
     // InferredType を保存するベクタ
     let mut infers: Vec<InferredType> = captures.keys()
         .map(|name| {
@@ -400,7 +402,7 @@ fn build_infers(expr: &Vec<ast::ExprAST>, captures: &HashMap<String, TypeHint>) 
         .collect();
 
     // AST を探索して infers 配列を作成
-    expr.iter().for_each(|e| {
+    exprs.iter().for_each(|e| {
         analyze_output_ast(e, &mut infers, &capture_infers);
     });
     infers
@@ -600,4 +602,35 @@ fn request_update(
             }
         },
     }
+}
+
+/// 出力式の型推論結果の検証
+fn validate_inference(captures: &HashMap<String, TypeHint>, exprs: &Vec<ast::ExprAST>) {
+    // 再帰関数でキャプチャの型の組み合わせを総当たりで検証
+    fn _validate_inference(captures: &HashMap<String, TypeHint>, captures_type: &HashMap<String, Type>, expr: &ast::ExprAST) {
+        if captures.is_empty() {
+            // 型検証
+            println!("型検証: {:?}", captures_type);
+            if let Err(ast) = type_validate_expr(expr, captures_type) {
+                panic!("型検証に失敗しました: {:?}", ast);
+            }
+        } else {
+            // captures から 1 つ取り出す
+            let (name, type_hint) = captures.iter().next().unwrap();
+
+            // 取り出したキャプチャを captures から削除して captures_type に追加
+            let mut captures = captures.clone();
+            captures.remove(name);
+            type_hint.possible_types.iter().for_each(|t| {
+                let mut captures_type = captures_type.clone();
+                captures_type.insert(name.clone(), *t);
+                _validate_inference(&captures, &captures_type, expr); // 再帰
+            });
+        }
+    }
+
+    exprs.iter().for_each(|expr| {
+        let captures_type = HashMap::new();
+        _validate_inference(captures, &captures_type, expr);
+    });
 }
