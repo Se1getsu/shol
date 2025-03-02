@@ -607,12 +607,29 @@ fn request_update(
 /// 出力式の型推論結果の検証
 fn validate_inference(captures: &HashMap<String, TypeHint>, exprs: &Vec<ast::ExprAST>) {
     // 再帰関数でキャプチャの型の組み合わせを総当たりで検証
-    fn _validate_inference(captures: &HashMap<String, TypeHint>, captures_type: &HashMap<String, Type>, expr: &ast::ExprAST) {
+    fn _validate_inference(
+        captures: &HashMap<String, TypeHint>,
+        captures_type: &HashMap<String, Type>,
+        expr: &ast::ExprAST
+    ) -> Result<(), String> {
         if captures.is_empty() {
             // 型検証
-            println!("型検証: {:?}", captures_type);
             if let Err(ast) = type_validate_expr(expr, captures_type) {
-                panic!("型検証に失敗しました: {:?}", ast);
+                match ast {
+                    ast::ExprAST::Number(_) | ast::ExprAST::Str(_) | ast::ExprAST::Capture(_) => (),
+                    ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+                        // エラーメッセージの作成
+                        let mut err_msg = String::new();
+                        let type_list = captures_type.iter().map(|(name, t)| {
+                            format!("${}:{:?}", name, t)
+                        }).collect::<Vec<String>>().join(", ");
+                        err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
+                        err_msg.push_str(&format!("\n    {:?}", lhs));
+                        err_msg.push_str(&format!("\n    {:?}", opcode));
+                        err_msg.push_str(&format!("\n    {:?}", rhs));
+                        return Err(err_msg)
+                    },
+                }
             }
         } else {
             // captures から 1 つ取り出す
@@ -621,16 +638,27 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, exprs: &Vec<ast::Exp
             // 取り出したキャプチャを captures から削除して captures_type に追加
             let mut captures = captures.clone();
             captures.remove(name);
-            type_hint.possible_types.iter().for_each(|t| {
+            for t in type_hint.possible_types.iter() {
                 let mut captures_type = captures_type.clone();
                 captures_type.insert(name.clone(), *t);
-                _validate_inference(&captures, &captures_type, expr); // 再帰
-            });
+                _validate_inference(&captures, &captures_type, expr)?; // 再帰
+            }
         }
+        Ok(())
     }
 
     exprs.iter().for_each(|expr| {
         let captures_type = HashMap::new();
-        _validate_inference(captures, &captures_type, expr);
+        if let Err(detail) = _validate_inference(captures, &captures_type, expr) {
+            // エラーメッセージの作成
+            let mut err_msg = String::new();
+            err_msg.push_str(&format!("出力式の型検証に失敗しました:"));
+            err_msg.push_str(&format!("\n  推論されたキャプチャの型:"));
+            for (name, type_hint) in captures.iter() {
+                err_msg.push_str(&format!("\n    ${}: {:?}", name, type_hint.possible_types));
+            }
+            err_msg.push_str(&detail);
+            panic!("{}", err_msg);
+        }
     });
 }
