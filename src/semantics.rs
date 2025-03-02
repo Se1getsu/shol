@@ -633,7 +633,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, exprs: &Vec<ast::Exp
         if let Err(detail) = _validate_inference(captures, &captures_type, expr) {
             // エラーメッセージの作成
             let mut err_msg = String::new();
-            err_msg.push_str(&format!("出力式の型検証に失敗しました:"));
+            err_msg.push_str(&format!("出力式にキャプチャ間の型制約関係が含まれます:"));
             err_msg.push_str(&format!("\n  推論されたキャプチャの型:"));
             for (name, type_hint) in captures.iter() {
                 err_msg.push_str(&format!("\n    ${}: {:?}", name, type_hint.possible_types));
