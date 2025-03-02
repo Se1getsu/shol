@@ -110,6 +110,28 @@ impl Opcode {
     }
 }
 
+/// 式の型検証
+/// - Ok: 式の型を返す
+/// - Err: 型エラーが発生したノード
+///
+/// NOTE: 式に登場するキャプチャの型は captures に登録されている必要がある
+fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Type>) -> Result<Type, &'a ast::ExprAST> {
+    match expr {
+        ast::ExprAST::Number(_) => Ok(Type::Int),
+        ast::ExprAST::Str(_) => Ok(Type::String),
+        ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+            let lhs_type = type_validate_expr(lhs, captures)?;
+            let rhs_type = type_validate_expr(rhs, captures)?;
+            if let Some(result) = opcode.result_type(lhs_type, rhs_type) {
+                Ok(result)
+            } else {
+                Err(expr)
+            }
+        },
+    }
+}
+
 // MARK: AST 探索関数
 
 // 子ノードを探索するだけ
@@ -158,7 +180,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
                 if meta.captures.contains_key(name) {
                     panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
                 }
-                let types = analyze_condition(condition);
+                let types = analyze_condition(condition, name);
                 meta.captures.insert(name.clone(), TypeHint { possible_types: types });
                 meta.condition_kinds.push(kind);
             },
@@ -249,44 +271,26 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
 
 /// 条件式の型推論をする
 /// 戻り値: キャプチャの possible_types
-fn analyze_condition(expr: &ast::ExprAST) -> HashSet<Type> {
+fn analyze_condition(expr: &ast::ExprAST, capture_name: &String) -> HashSet<Type> {
+
+    // キャプチャに型を 1 つずつ割り当てて検証
     let mut possible_types = HashSet::new();
     Type::all_types().into_iter().for_each(|t| {
-        let result = analyze_condition_ast(expr, t);
-        if let Ok(_) = result {
+        // type_validate_expr に渡す用の型ヒント
+        let captures = {
+            let mut captures = HashMap::new();
+            captures.insert(capture_name.clone(), t);
+            captures
+        };
+        if let Ok(_) = type_validate_expr(expr, &captures) {
             possible_types.insert(t);
         }
     });
+
     if possible_types.is_empty() {
         panic!("この条件式を計算できるキャプチャ型は存在しません: {:?}", expr);
     }
     possible_types
-}
-
-/// 条件式の型推論のために AST を探索する
-/// 戻り値
-/// - Ok: キャプチャの型を capture_type とした時の式の型
-/// - Err: 型エラー
-fn analyze_condition_ast(expr: &ast::ExprAST, capture_type: Type) -> Result<Type, ()> {
-    match expr {
-        ast::ExprAST::Number(_) => Ok(Type::Int),
-        ast::ExprAST::Str(_) => Ok(Type::String),
-        ast::ExprAST::Capture(_) => Ok(capture_type),
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
-            let lhs_type = analyze_condition_ast(lhs, capture_type);
-            let rhs_type = analyze_condition_ast(rhs, capture_type);
-            match (lhs_type, rhs_type) {
-                (Ok(lhs_type), Ok(rhs_type)) => {
-                    if let Some(result) = opcode.result_type(lhs_type, rhs_type) {
-                        Ok(result)
-                    } else {
-                        Err(())
-                    }
-                },
-                _ => Err(()),
-            }
-        },
-    }
 }
 
 // MARK: 出力式の型推論
