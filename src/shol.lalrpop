@@ -69,19 +69,7 @@ Rule: ast::RuleAST = {
 
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
-    "int" => {
-        Box::new(ast::ExprAST::Number(<>))
-    },
-    "identf" => {
-        Box::new(ast::ExprAST::Str(<>))
-    },
-    "str" => {
-        Box::new(ast::ExprAST::Str(<>))
-    },
-    "$" <name:"identf"?> => {
-        Box::new(ast::ExprAST::Capture(name.unwrap_or_default()))
-    },
-    "(" <inner:Expr> ")" => inner,
+    <Factor>,
     <Expr> "space",
 
     #[precedence(level="2")] #[assoc(side="left")]
@@ -122,6 +110,22 @@ Expr: Box<ast::ExprAST> = {
     <lhs:Expr> ">=" sp? <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs))
     },
+}
+
+Factor: Box<ast::ExprAST> = {
+    "int" => {
+        Box::new(ast::ExprAST::Number(<>))
+    },
+    "identf" => {
+        Box::new(ast::ExprAST::Str(<>))
+    },
+    "str" => {
+        Box::new(ast::ExprAST::Str(<>))
+    },
+    "$" <name:"identf"?> => {
+        Box::new(ast::ExprAST::Capture(name.unwrap_or_default()))
+    },
+    "(" <inner:Expr> ")" => inner,
 }
 
 // MARK: ヘルパー非終端記号
