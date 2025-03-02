@@ -260,7 +260,6 @@ fn analyze_condition(expr: &ast::ExprAST) -> HashSet<Type> {
     if possible_types.is_empty() {
         panic!("この条件式を計算できるキャプチャ型は存在しません: {:?}", expr);
     }
-    println!("possible_types: {:?}", possible_types);
     possible_types
 }
 
@@ -293,7 +292,7 @@ fn analyze_condition_ast(expr: &ast::ExprAST, capture_type: Type) -> Result<Type
 // MARK: 出力式の型推論
 
 /// infers 配列のインデックス
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct InfersIndex(usize);
 
 impl Debug for InfersIndex {
@@ -321,13 +320,38 @@ enum InferredType {
 }
 
 impl InferredType {
-    // 親を設定
+    /// 親ノードを設定
     fn set_parent(&mut self, parent: &InfersIndex) {
         match self {
-            InferredType::BinaryExpr { parent: p, .. } => {
-                *p = Some(*parent);
+            InferredType::Constant(_) => (),
+            InferredType::Capture(_) => (),
+            InferredType::BinaryExpr { parent: p, .. } =>
+                *p = Some(*parent),
+        }
+    }
+
+    /// needs_update を設定
+    fn set_needs_update(&mut self, needs_update: bool) {
+        match self {
+            InferredType::Constant(_) => (),
+            InferredType::Capture(_) => (),
+            InferredType::BinaryExpr { needs_update: n, .. } =>
+                *n = needs_update,
+        }
+    }
+
+    /// 型を取得
+    fn get_types(&self, captures: &HashMap<String, TypeHint>) -> HashSet<Type> {
+        match self {
+            InferredType::Constant(t) => {
+                let mut types = HashSet::new();
+                types.insert(*t);
+                types
             },
-            _ => {},
+            InferredType::Capture(name) =>
+                captures.get(name).unwrap().possible_types.clone(),
+            InferredType::BinaryExpr { result, .. } =>
+                result.clone(),
         }
     }
 }
@@ -336,14 +360,22 @@ impl InferredType {
 fn analyze_output(expr: &Vec<ast::ExprAST>, captures: &mut HashMap<String, TypeHint>) {
     // InferredType を保存するベクタ
     let mut infers = build_infers(expr, captures);
-    println!("built infers: {}", fmt_infers(&infers));
+    println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
+
+    infer_infers(&mut infers, captures);
+    println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
 }
 
 /// infers 配列のデバッグ用文字列
-fn fmt_infers(infers: &Vec<InferredType>) -> String {
+fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) -> String {
     let mut s = String::from("[\n");
     for (i, infer) in infers.iter().enumerate() {
-        s.push_str(&format!("{:>4}: {:?}\n", i, infer));
+        s.push_str(&format!("{:>4}: ", i));
+        if let InferredType::Capture(name) = infer {
+            s.push_str(&format!("{:?} {:?}\n", infer, captures[name].possible_types));
+        } else {
+            s.push_str(&format!("{:?}\n", infer));
+        }
     }
     s.push_str("]");
     s
@@ -442,6 +474,126 @@ fn analyze_output_ast(
             infers[i_r.0].set_parent(&i_self);
 
             AOAResult::Infer { index: i_self }
+        },
+    }
+}
+
+// infers 配列について型推論を行う
+fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, TypeHint>) {
+    let mut updated = true;
+    while updated {
+        updated = false;
+        for myself in (0..infers.len()).map(|i| InfersIndex(i)) {
+            // ノードの型を更新する際は, ここに insert する
+            let mut updates: HashMap<InfersIndex, HashSet<Type>> = HashMap::new();
+
+            match &infers[myself.0] {
+                InferredType::Constant(_) => (),
+                InferredType::Capture(_) => (),
+                InferredType::BinaryExpr {
+                    opcode,
+                    lhs,
+                    rhs,
+                    result,
+                    needs_update,
+                    ..
+                } => {
+                    if !*needs_update { continue; }
+
+                    // 推論前の型
+                    let t_lhs = infers[lhs.0].get_types(captures);
+                    let t_rhs = infers[rhs.0].get_types(captures);
+                    let t_result = result;
+
+                    // 推論後の型
+                    let mut new_t_lhs: HashSet<Type> = HashSet::new();
+                    let mut new_t_rhs: HashSet<Type> = HashSet::new();
+                    let mut new_t_result: HashSet<Type> = HashSet::new();
+
+                    // 推論
+                    for signature in OpcodeSignature::get_signatures(*opcode) {
+                        if t_lhs.contains(&signature.lhs) && t_rhs.contains(&signature.rhs)
+                            && t_result.contains(&signature.result)
+                        {
+                            new_t_result.insert(signature.result);
+                            new_t_lhs.insert(signature.lhs);
+                            new_t_rhs.insert(signature.rhs);
+                        }
+                    }
+
+                    // 空集合があれば型エラー
+                    if new_t_lhs.is_empty() || new_t_rhs.is_empty() || new_t_result.is_empty() {
+                        panic!("出力式の型推論に失敗しました: {:?} {:?} {:?} = {:?}",
+                            t_lhs, opcode, t_rhs, new_t_result);
+                    }
+
+                    // 自身と隣接するノードの型を更新
+                    if t_lhs != new_t_lhs {
+                        updates.insert(*lhs, new_t_lhs);
+                    }
+                    if t_rhs != new_t_rhs {
+                        updates.insert(*rhs, new_t_rhs);
+                    }
+                    if t_result != &new_t_result {
+                        updates.insert(myself, new_t_result);
+                    }
+                },
+            } // match infers[myself]
+
+            // ノードの型を更新
+            for (index, types) in &updates {
+                request_update(index, &types, infers, captures);
+            }
+
+            // 更新があった場合のフラグ管理
+            if !updates.is_empty() {
+                infers[myself.0].set_needs_update(false);
+                updated = true;
+            }
+        } // for myself in index of infers
+    } // while updated
+}
+
+/// target の型を types に更新し, 隣接するノードの needs_update を更新にする
+fn request_update(
+    target: &InfersIndex,
+    types: &HashSet<Type>,
+    infers: &mut Vec<InferredType>,
+    captures: &mut HashMap<String, TypeHint>,
+) {
+    match &mut infers[target.0] {
+        InferredType::Constant(_) =>
+            panic!("logic error: 定数式 {:?} に型更新を要求した: {:?}", target, types),
+
+        InferredType::Capture(name) => {
+            // captures の型を更新
+            captures.get_mut(name).unwrap().possible_types = types.clone();
+
+            // このキャプチャに隣接するノードの needs_update を true にする
+            for infer in infers.iter_mut() {
+                match infer {
+                    InferredType::Constant(_) => (),
+                    InferredType::Capture(_) => (),
+                    InferredType::BinaryExpr { lhs, rhs, needs_update, .. } => {
+                        if lhs == target || rhs == target {
+                            *needs_update = true;
+                        }
+                    },
+                }
+            }
+        },
+
+        InferredType::BinaryExpr { lhs, rhs, parent, result, .. } => {
+            // 自身の型を更新
+            *result = types.clone();
+
+            // 隣接するノードの needs_update を true にする
+            let (lhs, rhs, parent) = (lhs.0, rhs.0, parent.map(|p| p.0));
+            infers[lhs].set_needs_update(true);
+            infers[rhs].set_needs_update(true);
+            if let Some(parent) = parent {
+                infers[parent].set_needs_update(true);
+            }
         },
     }
 }
