@@ -208,65 +208,46 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
             let rhs_kind = condition_kind(rhs);
 
             // 左辺と右辺のどちらかがキャプチャ条件式の場合, キャプチャ条件式を返す
-            match &lhs_kind {
-                ConditionKind::Equal(t) => {
-                    match &rhs_kind {
-                        ConditionKind::Equal(t_r) => {
-                            if let Some(result) = opcode.result_type(*t, *t_r) {
-                                return ConditionKind::Equal(result);
-                            } else {
-                                panic!("不正な型の演算です: {:?} {:?} {:?}", t, opcode, t_r);
-                            }
-                        },
-                        ConditionKind::Capture(name) => {
-                            return ConditionKind::CaptureCondition((*name).clone());
-                        },
-                        ConditionKind::CaptureCondition(_) => {
-                            return rhs_kind;
-                        },
-                    }
-                },
-                ConditionKind::Capture(name) => {
-                    match &rhs_kind {
-                        ConditionKind::Equal(_) => {
-                            return ConditionKind::CaptureCondition((*name).clone());
-                        },
-                        ConditionKind::Capture(name_r) => {
-                            if name != name_r {
-                                panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name, name_r);
-                            }
-                            return ConditionKind::CaptureCondition((*name).clone());
-                        },
-                        ConditionKind::CaptureCondition(name_r) => {
-                            if name != name_r {
-                                panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name, name_r);
-                            }
-                            return rhs_kind;
-                        },
+            match (&lhs_kind, &rhs_kind) {
+                (ConditionKind::Equal(t_l), ConditionKind::Equal(t_r)) => {
+                    if let Some(result) = opcode.result_type(*t_l, *t_r) {
+                        return ConditionKind::Equal(result);
+                    } else {
+                        panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
                     }
                 }
-                ConditionKind::CaptureCondition(name) => {
-                    match &rhs_kind {
-                        ConditionKind::Equal(_) => {
-                            return lhs_kind;
-                        },
-                        ConditionKind::Capture(name_r) => {
-                            if name != name_r {
-                                panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name, name_r);
-                            }
-                            return lhs_kind;
-                        },
-                        ConditionKind::CaptureCondition(name_r) => {
-                            if name != name_r {
-                                panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name, name_r);
-                            }
-                            return lhs_kind;
-                        },
-                    }
+                (ConditionKind::Equal(_), ConditionKind::Capture(name)) |
+                (ConditionKind::Capture(name), ConditionKind::Equal(_)) => {
+                    return ConditionKind::CaptureCondition((*name).clone());
                 },
-            }
+                (ConditionKind::Equal(_), ConditionKind::CaptureCondition(_)) => {
+                    return rhs_kind;
+                },
+                (ConditionKind::CaptureCondition(_), ConditionKind::Equal(_)) => {
+                    return lhs_kind;
+                }
+                (ConditionKind::Capture(name_l), ConditionKind::Capture(name_r)) => {
+                    if name_l != name_r {
+                        panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name_l, name_r);
+                    }
+                    return ConditionKind::CaptureCondition((*name_l).clone());
+                }
+                (ConditionKind::Capture(name_l), ConditionKind::CaptureCondition(name_r)) => {
+                    if name_l != name_r {
+                        panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name_l, name_r);
+                    }
+                    return rhs_kind;
+                }
+                (ConditionKind::CaptureCondition(name_l), ConditionKind::Capture(name_r)) |
+                (ConditionKind::CaptureCondition(name_l), ConditionKind::CaptureCondition(name_r)) => {
+                    if name_l != name_r {
+                        panic!("1 つの条件に複数のキャプチャが存在します: {}, {}", name_l, name_r);
+                    }
+                    return lhs_kind;
+                }
+            } // match (&lhs_kind, &rhs_kind)
         },
-    }
+    } // match expr
 }
 
 /// 条件式の型推論をする
