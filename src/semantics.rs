@@ -656,8 +656,21 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
     }
 
     outputs.iter().for_each(|output| {
+        // captures から output に登場するキャプチャだけを取り出す
+        let associated_captures = &output.meta.as_ref().unwrap().associated_captures;
+        let captures: HashMap<String, TypeHint> = associated_captures.iter()
+            .map(|name| (name.clone(), captures[name].clone()))
+            .collect();
+
+        // 再帰関数の呼び出し
         let captures_type = HashMap::new();
-        if let Err(detail) = _validate_inference(captures, &captures_type, output) {
+        let result = _validate_inference(
+            &captures,
+            &captures_type,
+            output,
+        );
+
+        if let Err(detail) = result {
             // エラーメッセージの作成
             let mut err_msg = String::new();
             err_msg.push_str(&format!("出力式にキャプチャ間の型制約関係が含まれます:"));
