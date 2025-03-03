@@ -6,18 +6,18 @@ grammar;
 // MARK: 構文
 
 pub Program: Vec<ast::StatementAST> = {
-    nl? <stmts:Statement*> => stmts
+    "nl"* <stmts:Statement*> => stmts
 };
 
 Statement: ast::StatementAST = {
-    "*" <name:"identf"> nl <resources:Resource*> <prules:RuleSet*> => {
+    "*" <name:"identf"> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
         ast::StatementAST::ColonyDecl {
             name,
             resources,
             rules: prules,
         }
     },
-    "%" <name:"identf"> nl <resources:Resource*> <prules:RuleSet*> => {
+    "%" <name:"identf"> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
         ast::StatementAST::ColonyExtension {
             name,
             resources,
@@ -27,9 +27,9 @@ Statement: ast::StatementAST = {
 }
 
 Resource: ast::ExprAST = {
-    <"int"> nl => ast::ExprAST::Number(<>),
-    <"identf"> nl => ast::ExprAST::Str(<>),
-    <"str"> nl => ast::ExprAST::Str(<>),
+    <"int"> "nl"+ => ast::ExprAST::Number(<>),
+    <"identf"> "nl"+ => ast::ExprAST::Str(<>),
+    <"str"> "nl"+ => ast::ExprAST::Str(<>),
 }
 
 RuleSet: ast::RuleSetAST = {
@@ -41,15 +41,15 @@ RuleSet: ast::RuleSetAST = {
 }
 
 FirstRule: ast::RuleAST = {
-    "." sp <Rule> "newline" spnl*
+    "." <Rule> "nl"+
 }
 
 ParallelRule: ast::RuleAST = {
-    "|" sp <Rule> "newline" spnl*
+    "|" <Rule> "nl"+
 }
 
 Rule: ast::RuleAST = {
-    <conds:CommaListing<Condition>> "#" <dest:"identf"?> sp <outs:CommaListing<Output>> => {
+    <conds:CommaListing<Condition>> <dest:"#xx"> <outs:CommaListing<Output>> => {
         ast::RuleAST {
             conditions: conds,
             destination: dest,
@@ -57,7 +57,7 @@ Rule: ast::RuleAST = {
             meta: None,
         }
     },
-    <conds:CommaListing<Condition>> "#" <dest:"identf"?> sp? => {
+    <conds:CommaListing<Condition>> <dest:"#xx"> => {
         ast::RuleAST {
             conditions: conds,
             destination: dest,
@@ -80,44 +80,43 @@ Output: ast::OutputAST = {
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
     <Factor>,
-    <Expr> "space",
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <lhs:Expr> "*" sp? <rhs:Expr> => {
+    <lhs:Expr> "*" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mul, rhs))
     },
-    <lhs:Expr> "/" sp? <rhs:Expr> => {
+    <lhs:Expr> "/" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Div, rhs))
     },
-    <lhs:Expr> "%" sp? <rhs:Expr> => {
+    <lhs:Expr> "%" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mod, rhs))
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <lhs:Expr> "+" sp? <rhs:Expr> => {
+    <lhs:Expr> "+" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Add, rhs))
     },
-    <lhs:Expr> "-" sp? <rhs:Expr> => {
+    <lhs:Expr> "-" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Sub, rhs))
     },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <lhs:Expr> "=" sp? <rhs:Expr> => {
+    <lhs:Expr> "=" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Eq, rhs))
     },
-    <lhs:Expr> "!=" sp? <rhs:Expr> => {
+    <lhs:Expr> "!=" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ne, rhs))
     },
-    <lhs:Expr> "<" sp? <rhs:Expr> => {
+    <lhs:Expr> "<" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Lt, rhs))
     },
-    <lhs:Expr> ">" sp? <rhs:Expr> => {
+    <lhs:Expr> ">" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Gt, rhs))
     },
-    <lhs:Expr> "<=" sp? <rhs:Expr> => {
+    <lhs:Expr> "<=" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Le, rhs))
     },
-    <lhs:Expr> ">=" sp? <rhs:Expr> => {
+    <lhs:Expr> ">=" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs))
     },
 }
@@ -132,8 +131,8 @@ Factor: Box<ast::ExprAST> = {
     "str" => {
         Box::new(ast::ExprAST::Str(<>))
     },
-    "$" <name:"identf"?> => {
-        Box::new(ast::ExprAST::Capture(name.unwrap_or_default()))
+    "$xx" => {
+        Box::new(ast::ExprAST::Capture(<>))
     },
     "(" <inner:Expr> ")" => inner,
 }
@@ -143,19 +142,11 @@ Factor: Box<ast::ExprAST> = {
 // カンマ区切りで 1 つ以上列挙する構文
 CommaListing<T>: Vec<T> = {
     T => vec![<>],
-    <mut v:CommaListing<T>> "," sp? <e:T> => {
+    <mut v:CommaListing<T>> "," <e:T> => {
         v.push(e);
         v
     }
 }
-
-// sp?  space*
-// sp    + 1 つ以上のスペースを含む
-// nl?  (space|newline)*
-// nl    + 1 つ以上の改行を含む
-sp: () = "space"+;
-nl: () = sp? "newline" spnl*;
-spnl: () = { "space", "newline" }
 
 // MARK: トークン (終端記号)
 
@@ -183,9 +174,8 @@ extern {
         "." => Token::Dot,
         "|" => Token::Pipe,
         "," => Token::Comma,
-        "#" => Token::Hash,
-        "$" => Token::Dollar,
-        "space" => Token::Space(<String>),
-        "newline" => Token::NewLine(<String>),
+        "#xx" => Token::Destination(<Option<String>>),
+        "$xx" => Token::Capture(<String>),
+        "nl" => Token::NewLine(<String>),
     }
 }

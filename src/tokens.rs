@@ -44,6 +44,7 @@ fn decode_string(input: &str) -> String {
 
 #[derive(Logos, Clone, Debug, PartialEq)]
 #[logos(error = LexicalError)]
+#[logos(skip r"[ \t]+")]
 pub enum Token {
     // 数値と識別子
     #[regex(r"(\p{XID_Start}|_)\p{XID_Continue}*", |lex| lex.slice().to_string())]
@@ -88,15 +89,15 @@ pub enum Token {
     Pipe,
     #[token(",")]
     Comma,
-    #[token("#")]
-    Hash,
-    #[token("$")]
-    Dollar,
+    #[regex(r"#((\p{XID_Start}|_)\p{XID_Continue}*)?", // #a -> Some("a"), # -> None
+        |lex| lex.slice().strip_prefix('#').filter(|s| !s.is_empty()).map(|s| s.to_string()))]
+    Destination(Option<String>),
+    #[regex(r"\$((\p{XID_Start}|_)\p{XID_Continue}*)?", // $a -> "a", $ -> ""
+        |lex| lex.slice().strip_prefix('$').unwrap().to_string())]
+    Capture(String),
 
-    // スペースや改行
-    #[regex(r"[ \t]", |lex| lex.slice().to_string())]
-    Space(String),
-    #[regex(r"[\r\n]", |lex| lex.slice().to_string())]
+    // 改行
+    #[regex(r"\n|\r\n|\r|\f", |lex| lex.slice().to_string())]
     NewLine(String),
 }
 
