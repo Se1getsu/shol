@@ -618,7 +618,8 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
     fn _validate_inference(
         captures: &HashMap<String, TypeHint>,
         captures_type: &HashMap<String, Type>,
-        output: &ast::OutputAST
+        output: &ast::OutputAST,
+        capture_print_order: &Vec<String>,
     ) -> Result<(), String> {
         if captures.is_empty() {
             // 型検証
@@ -628,8 +629,8 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
                     ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
                         // エラーメッセージの作成
                         let mut err_msg = String::new();
-                        let type_list = captures_type.iter().map(|(name, t)| {
-                            format!("${}:{:?}", name, t)
+                        let type_list = capture_print_order.iter().map(|name| {
+                            format!("${}: {:?}", name, captures_type[name])
                         }).collect::<Vec<String>>().join(", ");
                         err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
                         err_msg.push_str(&format!("\n    {:?}", lhs));
@@ -649,7 +650,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             for t in type_hint.possible_types.iter() {
                 let mut captures_type = captures_type.clone();
                 captures_type.insert(name.clone(), *t);
-                _validate_inference(&captures, &captures_type, output)?; // 再帰
+                _validate_inference(&captures, &captures_type, output, capture_print_order)?; // 再帰
             }
         }
         Ok(())
@@ -668,6 +669,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             &captures,
             &captures_type,
             output,
+            associated_captures
         );
 
         if let Err(detail) = result {
@@ -675,9 +677,9 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             let mut err_msg = String::new();
             err_msg.push_str(&format!("出力式にキャプチャ間の型制約関係が含まれます:"));
             err_msg.push_str(&format!("\n  推論されたキャプチャの型:"));
-            for (name, type_hint) in captures.iter() {
-                err_msg.push_str(&format!("\n    ${}: {:?}", name, type_hint.possible_types));
-            }
+            associated_captures.iter().for_each(|name| {
+                err_msg.push_str(&format!("\n    ${}: {:?}", name, captures[name].possible_types));
+            });
             err_msg.push_str(&detail);
             panic!("{}", err_msg);
         }
