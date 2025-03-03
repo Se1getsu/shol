@@ -5,6 +5,7 @@ pub mod tokens;
 pub mod lexer;
 pub mod preprocessor;
 pub mod semantics;
+pub mod code_generator;
 lalrpop_mod!(pub shol);
 
 fn main() {
@@ -37,6 +38,15 @@ fn main() {
     println!("\n[*] Semantics analyzing...");
     semantics::analyze_program(&mut ast);
     println!("{{\"AST\":{:?}}}", ast);
+
+    // 出力ファイルを開く
+    let mut out_file = std::fs::File::create("a.rs")
+        .expect("Failed to create output file");
+
+    // コード生成
+    println!("\n[*] Generating code...");
+    code_generator::generate(&mut out_file, &ast, src_file)
+        .expect("Failed to write code");
 
     println!("[*] Completed.");
 }
