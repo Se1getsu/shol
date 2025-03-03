@@ -84,7 +84,12 @@ impl fmt::Debug for ConditionAST {
 
 impl fmt::Debug for OutputAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\"Output\":{{\".expr\":{:?}}}}}", self.expr)
+        write!(
+            f,
+            "{{\"Output({})\":{{\".expr\":{:?}}}}}",
+            self.meta.as_ref().map(|m| format!("{}", m.associated_captures.join(","))).unwrap_or_default(),
+            self.expr
+        )
     }
 }
 

@@ -13,7 +13,8 @@ pub struct ConditionASTMeta {
 }
 
 pub struct OutputASTMeta {
-    // 保留
+    // 出力式に含まれるキャプチャのリスト
+    pub associated_captures: Vec<String>,
 }
 
 /// キャプチャの型ヒント
@@ -168,7 +169,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
     }
 
     // 出力式を解析
-    analyze_output(&rule.outputs, &mut meta.captures);
+    analyze_output(&mut rule.outputs, &mut meta.captures);
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
@@ -198,6 +199,38 @@ fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTM
 
     // AST にメタデータを追加
     condition.meta = Some(ConditionASTMeta { kind });
+}
+
+fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<String, TypeHint>) {
+    // 出力式に登場するキャプチャを調べる
+    fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
+        match expr {
+            ast::ExprAST::Number(_) => (),
+            ast::ExprAST::Str(_) => (),
+            ast::ExprAST::Capture(name) =>
+                if !captures.contains(name) { captures.push(name.clone()); },
+            ast::ExprAST::BinaryOp(lhs, _, rhs) => {
+                collect_captures(lhs, captures);
+                collect_captures(rhs, captures);
+            },
+        }
+    }
+    for output in outputs.iter_mut() {
+        let mut associated_captures = Vec::new();
+        collect_captures(&output.expr, &mut associated_captures);
+        output.meta = Some(OutputASTMeta { associated_captures });
+    }
+
+    // 型推論に必要な InferredType を保存するベクタ
+    let mut infers = build_infers(outputs, captures);
+    println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
+
+    // 型推論
+    infer_infers(&mut infers, captures);
+    println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
+
+    // 型検証
+    validate_inference(captures, outputs);
 }
 
 // MARK: 条件式の型推論
@@ -345,18 +378,6 @@ impl InferredType {
                 result.clone(),
         }
     }
-}
-
-/// 出力式の型推論をする
-fn analyze_output(outputs: &Vec<ast::OutputAST>, captures: &mut HashMap<String, TypeHint>) {
-    // InferredType を保存するベクタ
-    let mut infers = build_infers(outputs, captures);
-    println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
-
-    infer_infers(&mut infers, captures);
-    println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
-
-    validate_inference(captures, outputs);
 }
 
 /// infers 配列のデバッグ用文字列
