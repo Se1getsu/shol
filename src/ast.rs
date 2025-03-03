@@ -1,6 +1,8 @@
 use std::fmt;
 use regex::Regex;
 
+use crate::semantics;
+
 /// URL エンコード
 fn urlencode(s: &str) -> String {
     let re = Regex::new(r#"[()"\\%\x00-\x1F]"#).unwrap();
@@ -46,15 +48,17 @@ pub struct RuleAST {
     pub conditions: Vec<ExprAST>,
     pub destination: Option<String>,
     pub outputs: Vec<ExprAST>,
+    pub meta: Option<semantics::RuleASTMeta>,
 }
 
 impl fmt::Debug for RuleAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(destination) = &self.destination {
-            write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".destination\":{:?},\".outputs\":{:?}}}}}", self.conditions, destination, self.outputs)
-        } else {
-            write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".outputs\":{:?}}}}}", self.conditions, self.outputs)
-        }
+        write!(f, "{{\"Rule\":{{\".conditions\":{:?}{},\".outputs\":{:?}{}}}}}",
+            self.conditions,
+            self.destination.as_ref().map_or(String::new(), |d| format!(",\".destination\":{:?}", d)),
+            self.outputs,
+            self.meta.as_ref().map_or(String::new(), |m| format!(",\".meta\":{:?}", m)),
+        )
     }
 }
 
@@ -84,7 +88,7 @@ impl fmt::Debug for ExprAST {
 
 // MARK: Opcode
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {
     Mul,
     Div,
