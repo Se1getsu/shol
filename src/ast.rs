@@ -30,10 +30,17 @@ impl fmt::Debug for StatementAST {
     }
 }
 
-// MARK: RuleSetAST
+// MARK: RuleSetAST, RuleAST
 
 pub struct RuleSetAST {
     pub rules: Vec<RuleAST>,
+}
+
+pub struct RuleAST {
+    pub conditions: Vec<ConditionAST>,
+    pub destination: Option<String>,
+    pub outputs: Vec<OutputAST>,
+    pub meta: Option<semantics::RuleASTMeta>,
 }
 
 impl fmt::Debug for RuleSetAST {
@@ -42,23 +49,42 @@ impl fmt::Debug for RuleSetAST {
     }
 }
 
-// MARK: RuleAST
-
-pub struct RuleAST {
-    pub conditions: Vec<ExprAST>,
-    pub destination: Option<String>,
-    pub outputs: Vec<ExprAST>,
-    pub meta: Option<semantics::RuleASTMeta>,
-}
-
 impl fmt::Debug for RuleAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\"Rule\":{{\".conditions\":{:?}{},\".outputs\":{:?}{}}}}}",
+        write!(f, "{{\"Rule\":{{\".conditions\":{:?}{},\".outputs\":{:?}}}}}",
             self.conditions,
             self.destination.as_ref().map_or(String::new(), |d| format!(",\".destination\":{:?}", d)),
             self.outputs,
-            self.meta.as_ref().map_or(String::new(), |m| format!(",\".meta\":{:?}", m)),
         )
+    }
+}
+
+// MARK: ConditionAST, OutputAST
+
+pub struct ConditionAST {
+    pub expr: ExprAST,
+    pub meta: Option<semantics::ConditionASTMeta>,
+}
+
+pub struct OutputAST {
+    pub expr: ExprAST,
+    pub meta: Option<semantics::OutputASTMeta>,
+}
+
+impl fmt::Debug for ConditionAST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{{\"Condition{}\":{{\".expr\":{:?}}}}}",
+            self.meta.as_ref().map(|m| format!(":{:?}", m.kind)).unwrap_or_default(),
+            self.expr
+        )
+    }
+}
+
+impl fmt::Debug for OutputAST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{\"Output\":{{\".expr\":{:?}}}}}", self.expr)
     }
 }
 
