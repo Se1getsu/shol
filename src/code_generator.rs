@@ -17,14 +17,31 @@ impl Type {
 }
 
 /// 中間コードで使用する識別子を管理する
+///
+/// 命名規則
+/// - `EN_`: 列挙型, 列挙子
+/// - `ST_`: 構造体
+/// - `FN_`: 関数
+/// - `ME_`: メンバ変数
+/// - `V_`: 変数
+/// - `_REF`: & 参照
+/// - `_MUT`: &mut 参照
 struct Identf;
 impl Identf {
     /// リソースの型の列挙型
     const EN_TYPE: &'static str = "ResourceType";
     /// コロニーの規則を実行するメソッド
     const FN_RULE: &'static str = "rule";
-    /// リソースのメンバ変数
+    /// Vec<EN_TYPE>: リソースのメンバ変数
     const ME_RESOURCE: &'static str = "resources";
+    /// Vec<EN_TYPE>: 規則適用後のリソースを溜めるバッファ
+    const V_BUF: &'static str = "buf";
+    /// &EN_TYPE: ME_RESOURCE のリソース参照
+    const V_RSRS_REF: &'static str = "resource";
+    /// bool: どの規則の条件にもマッチしなかったか
+    const V_NO_MATCH: &'static str = "no_match";
+    /// &Type::actual: リソースの実際の値の参照
+    const V_VALUE_REF: &'static str = "value";
 
     /// コロニーの構造体
     fn st_colony(name: &str) -> String {
@@ -101,7 +118,7 @@ pub fn generate(
                 writeln!(f, "    {}: vec![", Identf::ME_RESOURCE)?;
                 for resource in resources {
                     write!(f, "      ")?;
-                    generate_resource(f, resource, &|name| {
+                    generate_resource(f, resource, &|_, name| {
                         // リソースは文法上リテラルしか許容してないので, このクロージャは呼ばれないはず
                         panic!("リソースにキャプチャが含まれます: ${}", name)
                     })?;
@@ -124,7 +141,7 @@ pub fn generate(
 fn generate_colony_decl(
     f: &mut impl Write,
     name: &str,
-    _rules: &Vec<ast::RuleSetAST>,
+    rules: &Vec<ast::RuleSetAST>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -133,7 +150,9 @@ fn generate_colony_decl(
     writeln!(f, "}}")?;
     writeln!(f, "impl {} {{", colony_name)?;
     writeln!(f, "  fn {}(&mut self) {{", Identf::FN_RULE)?;
-    writeln!(f, "    todo!();")?;
+    for rule_set in rules {
+        generate_rule_set(f, rule_set)?;
+    }
     writeln!(f, "  }}")?;
     writeln!(f, "}}")?;
 
@@ -159,12 +178,66 @@ fn generate_colony_extension(
     Ok(())
 }
 
+// MARK: コード生成 - 規則
+
+fn generate_rule_set(
+    f: &mut impl Write,
+    rule_set: &ast::RuleSetAST,
+) -> io::Result<()> {
+    writeln!(f, "    let mut {} = Vec::new();", Identf::V_BUF)?;
+    writeln!(f, "    for {} in self.{}.iter() {{", Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
+    writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
+
+    // 単一条件式の規則を適用
+    writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
+    for t in Type::all_types() {
+        writeln!(f, "        {}({}) => {{", Identf::en_type(t), Identf::V_VALUE_REF)?;
+        for rule in &rule_set.rules {
+            // 単一条件式か確認
+            if !(rule.conditions.len() == 1) { continue; }
+
+            // t が条件式のキャプチャ型と一致するか確認
+            let typehint = rule.meta.as_ref().unwrap().captures.iter().next().unwrap().1;
+            if !(typehint.possible_types.contains(&t)) { continue; }
+
+            let condition = &rule.conditions[0];
+            // TODO: 条件式のメタ情報を判定して, キャプチャ条件式以外もサポート
+            write!(f, "          if ")?;
+            generate_expr(f, &condition.expr, &|f, _| {
+                write!(f, "*{}", Identf::V_VALUE_REF)?;
+                Ok(t)
+            })?;
+            writeln!(f, " {{")?;
+            for output in &rule.outputs {
+                write!(f, "            {}.push(", Identf::V_BUF)?;
+                generate_resource(f, &output.expr, &|f, _| {
+                    write!(f, "*{}", Identf::V_VALUE_REF)?;
+                    Ok(t)
+                })?;
+                writeln!(f, ");")?;
+            }
+            writeln!(f, "          }}")?;
+        }
+        writeln!(f, "        }}")?;
+    }
+    writeln!(f, "      }}")?;
+
+    // どの規則にもマッチしなかったリソースはそのままバッファに追加
+    writeln!(f, "      if {} {{", Identf::V_NO_MATCH)?;
+    writeln!(f, "        {}.push({}.clone());", Identf::V_BUF, Identf::V_RSRS_REF)?;
+    writeln!(f, "      }}")?;
+
+    writeln!(f, "    }}")?;
+    writeln!(f, "    self.{} = {};", Identf::ME_RESOURCE, Identf::V_BUF)?;
+    Ok(())
+}
+
 // MARK: コード生成 - 式
 
 fn generate_resource(
     f: &mut impl Write,
     expr: &ast::ExprAST,
-    generate_capture: &impl Fn(&String) -> io::Result<Type>,
+    generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>,
 ) -> io::Result<()> {
     let (result_type, expr_str) = {
         let mut buffer = Vec::new();
@@ -178,7 +251,7 @@ fn generate_resource(
 fn generate_expr(
     f: &mut impl Write,
     expr: &ast::ExprAST,
-    generate_capture: &impl Fn(&String) -> io::Result<Type>,
+    generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>,
 ) -> io::Result<Type> {
     let result_type: Type;
     match expr {
@@ -191,7 +264,7 @@ fn generate_expr(
             result_type = Type::String;
         },
         ast::ExprAST::Capture(name) => {
-            return generate_capture(name);
+            return generate_capture(f, name);
         },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             write!(f, "(",)?;
