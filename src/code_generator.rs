@@ -42,6 +42,18 @@ impl Identf {
     const V_NO_MATCH: &'static str = "no_match";
     /// &Type::actual: リソースの実際の値の参照
     const V_VALUE_REF: &'static str = "value";
+    /// HashMap<usize, Vec<ResourceType>>: 新しいリソースと挿入位置をまとめたハッシュマップ
+    const V_INSERTIONS: &'static str = "insertions";
+    /// Vec<bool>: 1 つ以上の複数条件規則に使われたリソースのフラグ
+    const V_SOME_USED: &'static str = "some_used";
+    /// Vec<bool>: 現在の複数条件規則で使用済みのリソースのフラグ
+    const V_USED: &'static str = "used";
+    /// Vec<usize>: 各キャプチャのリソース探索の進度
+    const V_CAPT_PROG: &'static str = "capt_prog";
+    /// usize: 探索中のキャプチャのインデックス
+    const V_CAPT_IDX: &'static str = "capt_idx";
+    /// usize: for ループで使用
+    const V_I: &'static str = "i";
 
     /// コロニーの構造体
     fn st_colony(name: &str) -> String {
@@ -54,6 +66,10 @@ impl Identf {
     /// EN_TYPE の列挙子
     fn en_type(t: Type) -> String {
         format!("{}::{:?}", Identf::EN_TYPE, t)
+    }
+    /// &Type::actual: リソースの実際の値の参照
+    fn v_value_ref(i: usize) -> String {
+        format!("value{}", i)
     }
 }
 
@@ -80,6 +96,7 @@ pub fn generate(
     writeln!(f, "  unused_variables,")?;
     writeln!(f, "  unused_imports,")?;
     writeln!(f, "  unused_mut,")?;
+    writeln!(f, "  unreachable_patterns,")?;
     writeln!(f, ")]")?;
 
     // use 宣言
@@ -184,6 +201,19 @@ fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
 ) -> io::Result<()> {
+    // 複数条件式の結果を格納する変数
+    writeln!(f, "    let mut {}: HashMap<usize, Vec<ResourceType>> = HashMap::new();",
+        Identf::V_INSERTIONS)?;
+    writeln!(f, "    let mut {}: Vec<bool> = vec![false; self.{}.len()];",
+        Identf::V_SOME_USED, Identf::ME_RESOURCE)?;
+
+    // 複数条件式の規則を適用して, 上記の変数に結果を格納
+    for rule in &rule_set.rules {
+        if !(rule.conditions.len() >= 2) { continue; }
+        generate_multi_condition_rule(f, rule)?;
+    }
+
+    // 各リソースを for 文で処理
     writeln!(f, "    let mut {} = Vec::new();", Identf::V_BUF)?;
     writeln!(f, "    for {} in self.{}.iter() {{", Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
     writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
@@ -214,6 +244,61 @@ fn generate_rule_set(
 
     writeln!(f, "    }}")?;
     writeln!(f, "    self.{} = {};", Identf::ME_RESOURCE, Identf::V_BUF)?;
+    Ok(())
+}
+
+/// ME_RESOURCE の for 文の前に, 複数条件式の規則を適用するコードを生成
+/// NOTE: rule が複数条件式であることを確認してください
+fn generate_multi_condition_rule(
+    f: &mut impl Write,
+    rule: &ast::RuleAST,
+) -> io::Result<()> {
+    let captures = &rule.meta.as_ref().unwrap().captures;
+
+    writeln!(f, "    let mut {}: Vec<bool> = vec![false; self.{}.len()];",
+        Identf::V_USED, Identf::ME_RESOURCE)?;
+    writeln!(f, "    let mut {}: Vec<usize> = vec![0;{}];",
+        Identf::V_CAPT_PROG, rule.conditions.len())?;
+    writeln!(f, "    let mut {}: usize = 0;", Identf::V_CAPT_IDX)?;
+
+    // 条件に当てはまるリソースがこれ以上見つからなかった時点で終了
+    writeln!(f, "    while {}[{}] < self.{}.len() {{",
+        Identf::V_CAPT_PROG, Identf::V_CAPT_IDX, Identf::ME_RESOURCE)?;
+
+    // 使用済みのリソースはスキップ
+    writeln!(f, "      if {}[{}[{}]] {{",
+        Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_CAPT_IDX)?;
+    writeln!(f, "        {}[{}] += 1;", Identf::V_CAPT_PROG, Identf::V_CAPT_IDX)?;
+    writeln!(f, "        continue;")?;
+    writeln!(f, "      }}")?;
+
+    writeln!(f, "      match {} {{", Identf::V_CAPT_IDX)?;
+    for (i, condition) in rule.conditions.iter().enumerate() {
+        let is_last = i == rule.conditions.len() - 1;
+        let next_idx = if is_last { 0 } else { i + 1 };
+        writeln!(f, "        {} => {{", i)?;
+        // TODO: if condition {
+        writeln!(f, "          {} = {};", Identf::V_CAPT_IDX, next_idx)?;
+        writeln!(f, "          {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
+        writeln!(f, "          {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
+        // TODO: }
+        if is_last {
+            // TODO: insertions に outputs を push
+        }
+        writeln!(f, "          {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
+        writeln!(f, "        }},")?;
+    }
+    writeln!(f, "        _ => unreachable!()")?;
+    writeln!(f, "      }}")?;
+
+    writeln!(f, "    }}")?; // end while
+
+    // 使用済みフラグを立てたが, 最後の条件式までリソースが揃わなかったものを解除
+    writeln!(f, "    for {} in 0..{} {{", Identf::V_I, Identf::V_CAPT_IDX)?;
+    writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+    writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+    writeln!(f, "    }}")?;
+
     Ok(())
 }
 
