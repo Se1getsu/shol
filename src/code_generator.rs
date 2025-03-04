@@ -1,7 +1,7 @@
 use core::panic;
 use std::io::{ self, Write };
 use crate::ast::{ self, Opcode };
-use crate::semantics::{ Type, OpcodeSignatureExt };
+use crate::semantics::{ Type, OpcodeSignatureExt, ConditionKind };
 
 // MARK: ヘルパー関数など
 
@@ -195,28 +195,13 @@ fn generate_rule_set(
         for rule in &rule_set.rules {
             // 単一条件式か確認
             if !(rule.conditions.len() == 1) { continue; }
-
             // t が条件式のキャプチャ型と一致するか確認
-            let typehint = rule.meta.as_ref().unwrap().captures.iter().next().unwrap().1;
-            if !(typehint.possible_types.contains(&t)) { continue; }
-
-            let condition = &rule.conditions[0];
-            // TODO: 条件式のメタ情報を判定して, キャプチャ条件式以外もサポート
-            write!(f, "          if ")?;
-            generate_expr(f, &condition.expr, &|f, _| {
-                write!(f, "*{}", Identf::V_VALUE_REF)?;
-                Ok(t)
-            })?;
-            writeln!(f, " {{")?;
-            for output in &rule.outputs {
-                write!(f, "            {}.push(", Identf::V_BUF)?;
-                generate_resource(f, &output.expr, &|f, _| {
-                    write!(f, "*{}", Identf::V_VALUE_REF)?;
-                    Ok(t)
-                })?;
-                writeln!(f, ");")?;
+            let first_capture = rule.meta.as_ref().unwrap().captures.iter().next();
+            if let Some((_, typehint)) = first_capture {
+                if !(typehint.possible_types.contains(&t)) { continue; }
             }
-            writeln!(f, "          }}")?;
+            // 規則を適用するコードを生成
+            generate_single_condition_rule(f, rule, t)?;
         }
         writeln!(f, "        }}")?;
     }
@@ -229,6 +214,66 @@ fn generate_rule_set(
 
     writeln!(f, "    }}")?;
     writeln!(f, "    self.{} = {};", Identf::ME_RESOURCE, Identf::V_BUF)?;
+    Ok(())
+}
+
+/// ME_RESOURCE の for 文内で, 単一条件式の規則を適用するコードを生成
+/// NOTE: rule が単一条件式であることを確認してください
+fn generate_single_condition_rule(
+    f: &mut impl Write,
+    rule: &ast::RuleAST,
+    capture_type: Type,
+) -> io::Result<()> {
+    let cond = &rule.conditions[0];
+    let cond_meta = cond.meta.as_ref().unwrap();
+    match cond_meta.kind {
+        ConditionKind::Equal(_) => {
+            // 条件式と一致したら出力式を push
+            write!(f, "          if *{} == ", Identf::V_VALUE_REF)?;
+            generate_expr(f, &cond.expr, &|_, _| {
+                unreachable!()
+            })?;
+            writeln!(f, " {{")?;
+            for output in &rule.outputs {
+                write!(f, "            {}.push(", Identf::V_BUF)?;
+                generate_resource(f, &output.expr, &|f, _| {
+                    write!(f, "*{}", Identf::V_VALUE_REF)?;
+                    Ok(capture_type)
+                })?;
+                writeln!(f, ");")?;
+            }
+            writeln!(f, "          }}")?;
+        },
+        ConditionKind::Capture(_) => {
+            // 無条件で出力式を push
+            for output in &rule.outputs {
+                write!(f, "          {}.push(", Identf::V_BUF)?;
+                generate_resource(f, &output.expr, &|f, _| {
+                    write!(f, "*{}", Identf::V_VALUE_REF)?;
+                    Ok(capture_type)
+                })?;
+                writeln!(f, ");")?;
+            }
+        }
+        ConditionKind::CaptureCondition(_) => {
+            // 条件式を満たすならば出力式を push
+            write!(f, "          if ")?;
+            generate_expr(f, &cond.expr, &|f, _| {
+                write!(f, "*{}", Identf::V_VALUE_REF)?;
+                Ok(capture_type)
+            })?;
+            writeln!(f, " {{")?;
+            for output in &rule.outputs {
+                write!(f, "            {}.push(", Identf::V_BUF)?;
+                generate_resource(f, &output.expr, &|f, _| {
+                    write!(f, "*{}", Identf::V_VALUE_REF)?;
+                    Ok(capture_type)
+                })?;
+                writeln!(f, ");")?;
+            }
+            writeln!(f, "          }}")?;
+        }
+    }
     Ok(())
 }
 
