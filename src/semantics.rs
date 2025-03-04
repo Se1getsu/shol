@@ -99,7 +99,11 @@ impl OpcodeSignature {
     }
 }
 
-impl Opcode {
+pub trait OpcodeSignatureExt {
+    fn result_type(self, lhs: Type, rhs: Type) -> Option<Type>;
+}
+
+impl OpcodeSignatureExt for Opcode {
     /// 演算結果の型を返す
     fn result_type(self, lhs: Type, rhs: Type) -> Option<Type> {
         OpcodeSignature::get_signatures(self).iter().find_map(|sig| {
