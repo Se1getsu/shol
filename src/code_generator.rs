@@ -55,6 +55,8 @@ impl Identf {
     const V_CAPT_IDX: &'static str = "capt_idx";
     /// &mut Vec<EN_TYPE>: V_INSERTIONS のエントリへの可変参照
     const V_IENTR_MUT: &'static str = "entry";
+    /// &Vec<EN_TYPE>: V_INSERTIONS の要素への参照
+    const V_IELM_REF: &'static str = "insertion";
     /// usize: for ループで使用
     const V_I: &'static str = "i";
 
@@ -220,6 +222,13 @@ fn generate_rule_set(
     writeln!(f, "    let mut {} = Vec::new();", Identf::V_BUF)?;
     writeln!(f, "    for {} in self.{}.iter() {{", Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
     writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
+
+    // メイン: 複数条件規則の結果を適用
+    writeln!(f, "      {} &= !{}[{}];", Identf::V_NO_MATCH, Identf::V_SOME_USED, Identf::V_I)?;
+    writeln!(f, "      if let Some({}) = {}.get(&{}) {{",
+        Identf::V_IELM_REF, Identf::V_INSERTIONS, Identf::V_I)?;
+    writeln!(f, "        {}.extend({}.clone());", Identf::V_BUF, Identf::V_INSERTIONS)?;
+    writeln!(f, "      }}",)?;
 
     // メイン: 単一条件規則の規則を適用
     writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
