@@ -1,7 +1,8 @@
 use core::panic;
+use std::collections::HashMap;
 use std::io::{ self, Write };
 use crate::ast::{ self, Opcode };
-use crate::semantics::{ Type, OpcodeSignatureExt, ConditionKind };
+use crate::semantics::{ ConditionKind, OpcodeSignatureExt, Type, TypeHint };
 
 // MARK: ヘルパー関数など
 
@@ -277,11 +278,13 @@ fn generate_multi_condition_rule(
         let is_last = i == rule.conditions.len() - 1;
         let next_idx = if is_last { 0 } else { i + 1 };
         writeln!(f, "        {} => {{", i)?;
-        // TODO: if condition {
-        writeln!(f, "          {} = {};", Identf::V_CAPT_IDX, next_idx)?;
-        writeln!(f, "          {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
-        writeln!(f, "          {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
-        // TODO: }
+
+        generate_multi_condition_judge(f, condition, i, captures)?;
+        // ↑ generates:        if condition {
+        writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, next_idx)?;
+        writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
+        writeln!(f, "            {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
+        writeln!(f, "          }}")?;
         if is_last {
             // TODO: insertions に outputs を push
         }
@@ -299,6 +302,53 @@ fn generate_multi_condition_rule(
     writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
     writeln!(f, "    }}")?;
 
+    Ok(())
+}
+
+/// 複数条件式の前処理の `if condition {` 部分を生成
+fn generate_multi_condition_judge(
+    f: &mut impl Write,
+    condition: &ast::ConditionAST,
+    cond_idx: usize,
+    captures: &HashMap<String, TypeHint>
+) -> io::Result<()> {
+    writeln!(f, "          if match &self.{}[{}[{}]] {{",
+            Identf::ME_RESOURCE, Identf::V_CAPT_PROG, cond_idx)?;
+
+    match &condition.meta.as_ref().unwrap().kind {
+        ConditionKind::Equal(_) => {
+            let (result_type, expr_str) = {
+                let mut buffer = Vec::new();
+                let result_type = generate_expr(&mut buffer, &condition.expr, &|_, _| {
+                    unreachable!()
+                })?;
+                (result_type, String::from_utf8(buffer).unwrap())
+            };
+            writeln!(f, "            {}({}) => *{} == {},", Identf::en_type(result_type),
+                Identf::V_VALUE_REF, Identf::V_VALUE_REF, expr_str)?;
+        },
+        ConditionKind::Capture(name) => {
+            let types_str = captures[name].possible_types
+                .iter().map(|t| {
+                    format!("{}(_)", Identf::en_type(*t))
+                }).collect::<Vec<String>>()
+                .join("|");
+            writeln!(f, "            {} => true,", types_str)?;
+        },
+        ConditionKind::CaptureCondition(name) => {
+            for t in &captures[name].possible_types {
+                write!(f, "            {}({}) => ", Identf::en_type(*t), Identf::V_VALUE_REF)?;
+                generate_expr(f, &condition.expr, &|f, _| {
+                    write!(f, "*{}", Identf::V_VALUE_REF)?;
+                    Ok(*t)
+                })?;
+                writeln!(f, ",")?;
+            }
+        }
+    }
+
+    writeln!(f, "            _ => false")?;
+    writeln!(f, "          }} {{")?;
     Ok(())
 }
 
