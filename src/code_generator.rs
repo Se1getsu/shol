@@ -206,16 +206,25 @@ fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
 ) -> io::Result<()> {
-    // 前処理: 複数条件規則の結果を格納する変数
-    writeln!(f, "    let mut {}: HashMap<usize, Vec<ResourceType>> = HashMap::new();",
-        Identf::V_INSERTIONS)?;
-    writeln!(f, "    let mut {}: Vec<bool> = vec![false; self.{}.len()];",
-        Identf::V_SOME_USED, Identf::ME_RESOURCE)?;
+    // 単一条件規則が 1 つ以上存在するか
+    let has_single_cond_rule = rule_set.rules
+        .iter().any(|rule| rule.conditions.len() == 1);
+    // 複数条件規則が 1 つ以上存在するか
+    let has_multi_cond_rule = rule_set.rules
+        .iter().any(|rule| rule.conditions.len() >= 2);
 
-    // 前処理: 複数条件規則を適用して, 上記の変数に結果を格納
-    for rule in &rule_set.rules {
-        if !(rule.conditions.len() >= 2) { continue; }
-        generate_multi_condition_rule(f, rule)?;
+    if has_multi_cond_rule {
+        // 前処理: 複数条件規則の結果を格納する変数
+        writeln!(f, "    let mut {}: HashMap<usize, Vec<ResourceType>> = HashMap::new();",
+            Identf::V_INSERTIONS)?;
+        writeln!(f, "    let mut {}: Vec<bool> = vec![false; self.{}.len()];",
+            Identf::V_SOME_USED, Identf::ME_RESOURCE)?;
+
+        // 前処理: 複数条件規則を適用して, 上記の変数に結果を格納
+        for rule in &rule_set.rules {
+            if !(rule.conditions.len() >= 2) { continue; }
+            generate_multi_condition_rule(f, rule)?;
+        }
     }
 
     // メイン: 各リソースを for 文で処理
@@ -224,30 +233,35 @@ fn generate_rule_set(
     writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
 
     // メイン: 複数条件規則の結果を適用
-    writeln!(f, "      {} &= !{}[{}];", Identf::V_NO_MATCH, Identf::V_SOME_USED, Identf::V_I)?;
-    writeln!(f, "      if let Some({}) = {}.get(&{}) {{",
-        Identf::V_IELM_REF, Identf::V_INSERTIONS, Identf::V_I)?;
-    writeln!(f, "        {}.extend({}.clone());", Identf::V_BUF, Identf::V_INSERTIONS)?;
-    writeln!(f, "      }}",)?;
+    if has_multi_cond_rule {
+        writeln!(f, "      {} &= !{}[{}];", Identf::V_NO_MATCH, Identf::V_SOME_USED, Identf::V_I)?;
+        writeln!(f, "      if let Some({}) = {}.get(&{}) {{",
+            Identf::V_IELM_REF, Identf::V_INSERTIONS, Identf::V_I)?;
+        writeln!(f, "        {}.extend({}.clone());", Identf::V_BUF, Identf::V_INSERTIONS)?;
+        writeln!(f, "      }}",)?;
+    }
 
     // メイン: 単一条件規則の規則を適用
-    writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
-    for t in Type::all_types() {
-        writeln!(f, "        {}({}) => {{", Identf::en_type(t), Identf::V_VALUE_REF)?;
-        for rule in &rule_set.rules {
-            // 単一条件か確認
-            if !(rule.conditions.len() == 1) { continue; }
-            // t が条件式のキャプチャ型と一致するか確認
-            let first_capture = rule.meta.as_ref().unwrap().captures.iter().next();
-            if let Some((_, typehint)) = first_capture {
-                if !(typehint.possible_types.contains(&t)) { continue; }
+    if has_single_cond_rule {
+        writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
+        for t in Type::all_types() {
+            writeln!(f, "        {}({}) => {{", Identf::en_type(t), Identf::V_VALUE_REF)?;
+            for rule in &rule_set.rules {
+                // 単一条件か確認
+                if !(rule.conditions.len() == 1) { continue; }
+                // t が条件式のキャプチャ型と一致するか確認
+                let first_capture = rule.meta.as_ref()
+                    .unwrap().captures.iter().next();
+                if let Some((_, typehint)) = first_capture {
+                    if !(typehint.possible_types.contains(&t)) { continue; }
+                }
+                // 規則を適用するコードを生成
+                generate_single_condition_rule(f, rule, t)?;
             }
-            // 規則を適用するコードを生成
-            generate_single_condition_rule(f, rule, t)?;
+            writeln!(f, "        }}")?;
         }
-        writeln!(f, "        }}")?;
+        writeln!(f, "      }}")?;
     }
-    writeln!(f, "      }}")?;
 
     // メイン: どの規則にもマッチしなかったリソースはそのままバッファに追加
     writeln!(f, "      if {} {{", Identf::V_NO_MATCH)?;
