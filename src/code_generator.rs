@@ -512,54 +512,39 @@ fn generate_single_condition_rule(
 ) -> io::Result<()> {
     let cond = &rule.conditions[0];
     let cond_meta = cond.meta.as_ref().unwrap();
+    write!(f, "          ")?;
     match cond_meta.kind {
+        // 条件式と一致したら出力式を push
         ConditionKind::Equal(_) => {
-            // 条件式と一致したら出力式を push
-            write!(f, "          if *{} == ", Identf::V_VALUE_REF)?;
+            write!(f, "if *{} == ", Identf::V_VALUE_REF)?;
             generate_expr(f, &cond.expr, &|_, _| {
                 unreachable!()
             })?;
-            writeln!(f, " {{")?;
-            for output in &rule.outputs {
-                write!(f, "            {}.push(", Identf::V_BUF)?;
-                generate_resource(f, &output.expr, &|f, _| {
-                    write!(f, "*{}", Identf::V_VALUE_REF)?;
-                    Ok(capture_type)
-                })?;
-                writeln!(f, ");")?;
-            }
-            writeln!(f, "          }}")?;
+            write!(f, " ")?;
         },
-        ConditionKind::Capture(_) => {
-            // 無条件で出力式を push
-            for output in &rule.outputs {
-                write!(f, "          {}.push(", Identf::V_BUF)?;
-                generate_resource(f, &output.expr, &|f, _| {
-                    write!(f, "*{}", Identf::V_VALUE_REF)?;
-                    Ok(capture_type)
-                })?;
-                writeln!(f, ");")?;
-            }
-        }
+        // 無条件で出力式を push
+        ConditionKind::Capture(_) => (),
+        // 条件式を満たすならば出力式を push
         ConditionKind::CaptureCondition(_) => {
-            // 条件式を満たすならば出力式を push
-            write!(f, "          if ")?;
+            write!(f, "if ")?;
             generate_expr(f, &cond.expr, &|f, _| {
                 write!(f, "*{}", Identf::V_VALUE_REF)?;
                 Ok(capture_type)
             })?;
-            writeln!(f, " {{")?;
-            for output in &rule.outputs {
-                write!(f, "            {}.push(", Identf::V_BUF)?;
-                generate_resource(f, &output.expr, &|f, _| {
-                    write!(f, "*{}", Identf::V_VALUE_REF)?;
-                    Ok(capture_type)
-                })?;
-                writeln!(f, ");")?;
-            }
-            writeln!(f, "          }}")?;
-        }
+            write!(f, " ")?;
+        },
     }
+    writeln!(f, "{{")?;
+    for output in &rule.outputs {
+        write!(f, "            {}.push(", Identf::V_BUF)?;
+        generate_resource(f, &output.expr, &|f, _| {
+            write!(f, "*{}", Identf::V_VALUE_REF)?;
+            Ok(capture_type)
+        })?;
+        writeln!(f, ");")?;
+    }
+    writeln!(f, "            {} = false;", Identf::V_NO_MATCH)?;
+    writeln!(f, "          }}")?;
     Ok(())
 }
 
