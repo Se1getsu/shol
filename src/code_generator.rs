@@ -42,7 +42,7 @@ impl Identf {
     /// bool: どの規則の条件にもマッチしなかったか
     const V_NO_MATCH: &'static str = "no_match";
     /// &Type::actual: リソースの実際の値の参照
-    const V_VALUE_REF: &'static str = "value";
+    const V_VALUE_REF: &'static str = "v";
     /// HashMap<usize, Vec<ResourceType>>: 新しいリソースと挿入位置をまとめたハッシュマップ
     const V_INSERTIONS: &'static str = "insertions";
     /// Vec<bool>: 1 つ以上の複数条件規則に使われたリソースのフラグ
@@ -53,6 +53,8 @@ impl Identf {
     const V_CAPT_PROG: &'static str = "capt_prog";
     /// usize: 探索中のキャプチャのインデックス
     const V_CAPT_IDX: &'static str = "capt_idx";
+    /// &mut Vec<EN_TYPE>: V_INSERTIONS のエントリへの可変参照
+    const V_IENTR_MUT: &'static str = "entry";
     /// usize: for ループで使用
     const V_I: &'static str = "i";
 
@@ -69,8 +71,8 @@ impl Identf {
         format!("{}::{:?}", Identf::EN_TYPE, t)
     }
     /// &Type::actual: リソースの実際の値の参照
-    fn v_value_ref(i: usize) -> String {
-        format!("value{}", i)
+    fn v_value_ref(capture_name: &String) -> String {
+        format!("v_{}", capture_name)
     }
 }
 
@@ -202,24 +204,24 @@ fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
 ) -> io::Result<()> {
-    // 複数条件式の結果を格納する変数
+    // 前処理: 複数条件式の結果を格納する変数
     writeln!(f, "    let mut {}: HashMap<usize, Vec<ResourceType>> = HashMap::new();",
         Identf::V_INSERTIONS)?;
     writeln!(f, "    let mut {}: Vec<bool> = vec![false; self.{}.len()];",
         Identf::V_SOME_USED, Identf::ME_RESOURCE)?;
 
-    // 複数条件式の規則を適用して, 上記の変数に結果を格納
+    // 前処理: 複数条件式の規則を適用して, 上記の変数に結果を格納
     for rule in &rule_set.rules {
         if !(rule.conditions.len() >= 2) { continue; }
         generate_multi_condition_rule(f, rule)?;
     }
 
-    // 各リソースを for 文で処理
+    // メイン: 各リソースを for 文で処理
     writeln!(f, "    let mut {} = Vec::new();", Identf::V_BUF)?;
     writeln!(f, "    for {} in self.{}.iter() {{", Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
     writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
 
-    // 単一条件式の規則を適用
+    // メイン: 単一条件式の規則を適用
     writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
     for t in Type::all_types() {
         writeln!(f, "        {}({}) => {{", Identf::en_type(t), Identf::V_VALUE_REF)?;
@@ -238,7 +240,7 @@ fn generate_rule_set(
     }
     writeln!(f, "      }}")?;
 
-    // どの規則にもマッチしなかったリソースはそのままバッファに追加
+    // メイン: どの規則にもマッチしなかったリソースはそのままバッファに追加
     writeln!(f, "      if {} {{", Identf::V_NO_MATCH)?;
     writeln!(f, "        {}.push({}.clone());", Identf::V_BUF, Identf::V_RSRS_REF)?;
     writeln!(f, "      }}")?;
@@ -247,6 +249,8 @@ fn generate_rule_set(
     writeln!(f, "    self.{} = {};", Identf::ME_RESOURCE, Identf::V_BUF)?;
     Ok(())
 }
+
+// MARK: コード生成 - 規則 - 前処理
 
 /// ME_RESOURCE の for 文の前に, 複数条件式の規則を適用するコードを生成
 /// NOTE: rule が複数条件式であることを確認してください
@@ -279,15 +283,24 @@ fn generate_multi_condition_rule(
         let next_idx = if is_last { 0 } else { i + 1 };
         writeln!(f, "        {} => {{", i)?;
 
+        // ↓ generates:        if condition {
         generate_multi_condition_judge(f, condition, i, captures)?;
-        // ↑ generates:        if condition {
         writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, next_idx)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
-        writeln!(f, "          }}")?;
         if is_last {
-            // TODO: insertions に outputs を push
+            // 第 1 条件式にマッチしたリソースのインデックスのエントリを取り出す
+            writeln!(f, "            let {} = {}.entry({}[0]-1).or_default();",
+                Identf::V_IENTR_MUT, Identf::V_INSERTIONS, Identf::V_CAPT_PROG)?;
+            // 出力リソースを V_INSERTIONS に push
+            let capts_ref_code =
+                multi_condition_capts_ref_code(&rule.conditions);
+            for output in &rule.outputs {
+                generate_multi_condition_output(f, output, captures, &capts_ref_code)?;
+            }
         }
+        writeln!(f, "          }}")?; // if condition
+
         writeln!(f, "          {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         writeln!(f, "        }},")?;
     }
@@ -310,7 +323,7 @@ fn generate_multi_condition_judge(
     f: &mut impl Write,
     condition: &ast::ConditionAST,
     cond_idx: usize,
-    captures: &HashMap<String, TypeHint>
+    captures: &HashMap<String, TypeHint>,
 ) -> io::Result<()> {
     writeln!(f, "          if match &self.{}[{}[{}]] {{",
             Identf::ME_RESOURCE, Identf::V_CAPT_PROG, cond_idx)?;
@@ -351,6 +364,121 @@ fn generate_multi_condition_judge(
     writeln!(f, "          }} {{")?;
     Ok(())
 }
+
+/// キャプチャの名前と, そのキャプチャを参照するコードの対応表を作る
+fn multi_condition_capts_ref_code(
+    conditions: &Vec<ast::ConditionAST>,
+) -> HashMap<String, String> {
+    let mut capts_ref_code = HashMap::new();
+    for (cond_idx, condition) in conditions.iter().enumerate() {
+        let cond_meta = condition.meta.as_ref().unwrap();
+        match &cond_meta.kind {
+            ConditionKind::Equal(_) => (),
+            ConditionKind::Capture(name) |
+            ConditionKind::CaptureCondition(name) => {
+                capts_ref_code.insert(
+                    name.clone(),
+                    format!("&self.{}[{}[{}]-1]", Identf::ME_RESOURCE,
+                        Identf::V_CAPT_PROG, cond_idx)
+                );
+            },
+        }
+    }
+    capts_ref_code
+}
+
+/// 複数条件式の前処理の, 出力リソースを V_INSERTIONS に push する部分を生成
+fn generate_multi_condition_output(
+    f: &mut impl Write,
+    output: &ast::OutputAST,
+    captures: &HashMap<String, TypeHint>,
+    capts_ref_code: &HashMap<String, String>,
+) -> io::Result<()> {
+    /// 出力リソース push 部分のコードを生成
+    fn _generate_push_resource(
+        f: &mut impl Write,
+        output_expr: &ast::ExprAST,
+        generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>
+    ) -> io::Result<()> {
+        let (result_type, expr_str) = {
+            let mut buffer = Vec::new();
+            let result_type = generate_expr(&mut buffer, output_expr, generate_capture)?;
+            (result_type, String::from_utf8(buffer).unwrap())
+        };
+        write!(f, "{}.push({}({}))", Identf::V_IENTR_MUT, Identf::en_type(result_type), expr_str)?;
+        Ok(())
+    }
+
+    /// 再帰関数で assoc_capts の型を網羅的に決定
+    fn backtrack_types(
+        f: &mut impl Write,
+        assoc_captures: &HashMap<String, TypeHint>,
+        types: &HashMap<String, Type>,
+        output_expr: &ast::ExprAST,
+        assoc_capts: &Vec<String>,
+    ) -> io::Result<()> {
+        if assoc_captures.is_empty() {
+            write!(f, "              (")?;
+            for capt in assoc_capts {
+                write!(f, "{}({}),", Identf::en_type(types[capt]), Identf::v_value_ref(capt))?;
+            }
+            writeln!(f, ") =>")?;
+            write!(f, "                ")?;
+            _generate_push_resource(f, output_expr, &|f, name| {
+                write!(f, "{}", Identf::v_value_ref(name))?;
+                Ok(types[name])
+            })?;
+            writeln!(f, ",")?;
+
+        } else {
+            // assoc_captures から 1 つ取り出す
+            let (name, type_hint) = assoc_captures.iter().next().unwrap();
+
+            // 取り出したキャプチャを assoc_captures から削除して types に追加
+            let mut assoc_captures = assoc_captures.clone();
+            assoc_captures.remove(name);
+            for t in type_hint.possible_types.iter() {
+                let mut types = types.clone();
+                types.insert(name.clone(), *t);
+                backtrack_types(f, &assoc_captures, &types, output_expr, assoc_capts)?; // 再帰
+            }
+        }
+        Ok(())
+    }
+
+    // 関連キャプチャ: 出力式に含まれるキャプチャ
+    let assoc_capts = &output.meta.as_ref().unwrap().associated_captures;
+
+    // 関連キャプチャがなければそのまま push
+    if assoc_capts.is_empty() {
+        write!(f, "            ")?;
+        _generate_push_resource(f, &output.expr, &|_, _| {
+            unreachable!()
+        })?;
+        writeln!(f, ";")?;
+        return Ok(());
+    }
+
+    // 関連キャプチャの型の組み合わせごとに push のコードを生成する
+    write!(f, "            match (")?;
+    for capt in assoc_capts {
+        write!(f, "{},", capts_ref_code[capt])?;
+    }
+    writeln!(f, ") {{")?;
+
+    let mut assoc_captures = HashMap::new();
+    for capt in assoc_capts {
+        assoc_captures.insert(capt.clone(), captures[capt].clone());
+    }
+    let types = HashMap::new();
+    backtrack_types(f, &assoc_captures, &types, &output.expr, assoc_capts)?;
+
+    writeln!(f, "              _ => ()")?;
+    writeln!(f, "            }}")?;
+    Ok(())
+}
+
+// MARK: コード生成 - 規則 - メインの for 文内の処理
 
 /// ME_RESOURCE の for 文内で, 単一条件式の規則を適用するコードを生成
 /// NOTE: rule が単一条件式であることを確認してください
