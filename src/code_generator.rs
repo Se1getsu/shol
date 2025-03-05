@@ -204,13 +204,13 @@ fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
 ) -> io::Result<()> {
-    // 前処理: 複数条件式の結果を格納する変数
+    // 前処理: 複数条件規則の結果を格納する変数
     writeln!(f, "    let mut {}: HashMap<usize, Vec<ResourceType>> = HashMap::new();",
         Identf::V_INSERTIONS)?;
     writeln!(f, "    let mut {}: Vec<bool> = vec![false; self.{}.len()];",
         Identf::V_SOME_USED, Identf::ME_RESOURCE)?;
 
-    // 前処理: 複数条件式の規則を適用して, 上記の変数に結果を格納
+    // 前処理: 複数条件規則を適用して, 上記の変数に結果を格納
     for rule in &rule_set.rules {
         if !(rule.conditions.len() >= 2) { continue; }
         generate_multi_condition_rule(f, rule)?;
@@ -221,12 +221,12 @@ fn generate_rule_set(
     writeln!(f, "    for {} in self.{}.iter() {{", Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
     writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
 
-    // メイン: 単一条件式の規則を適用
+    // メイン: 単一条件規則の規則を適用
     writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
     for t in Type::all_types() {
         writeln!(f, "        {}({}) => {{", Identf::en_type(t), Identf::V_VALUE_REF)?;
         for rule in &rule_set.rules {
-            // 単一条件式か確認
+            // 単一条件か確認
             if !(rule.conditions.len() == 1) { continue; }
             // t が条件式のキャプチャ型と一致するか確認
             let first_capture = rule.meta.as_ref().unwrap().captures.iter().next();
@@ -252,7 +252,7 @@ fn generate_rule_set(
 
 // MARK: コード生成 - 規則 - 前処理
 
-/// ME_RESOURCE の for 文の前に, 複数条件式の規則を適用するコードを生成
+/// ME_RESOURCE の for 文の前に, 複数条件規則を適用するコードを生成
 /// NOTE: rule が複数条件式であることを確認してください
 fn generate_multi_condition_rule(
     f: &mut impl Write,
@@ -318,7 +318,7 @@ fn generate_multi_condition_rule(
     Ok(())
 }
 
-/// 複数条件式の前処理の `if condition {` 部分を生成
+/// 複数条件規則の前処理の `if condition {` 部分を生成
 fn generate_multi_condition_judge(
     f: &mut impl Write,
     condition: &ast::ConditionAST,
@@ -387,7 +387,7 @@ fn multi_condition_capts_ref_code(
     capts_ref_code
 }
 
-/// 複数条件式の前処理の, 出力リソースを V_INSERTIONS に push する部分を生成
+/// 複数条件規則の前処理の, 出力リソースを V_INSERTIONS に push する部分を生成
 fn generate_multi_condition_output(
     f: &mut impl Write,
     output: &ast::OutputAST,
@@ -480,8 +480,8 @@ fn generate_multi_condition_output(
 
 // MARK: コード生成 - 規則 - メインの for 文内の処理
 
-/// ME_RESOURCE の for 文内で, 単一条件式の規則を適用するコードを生成
-/// NOTE: rule が単一条件式であることを確認してください
+/// ME_RESOURCE の for 文内で, 単一条件規則を適用するコードを生成
+/// NOTE: rule が単一条件規則であることを確認してください
 fn generate_single_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
