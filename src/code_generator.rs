@@ -264,9 +264,9 @@ fn generate_colony_extension(
         "print" => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
-        ResourceType::String(v) => println!("{{v}}\n"),
-        ResourceType::Bool(v) => println!("{{v}}\n"),
-        ResourceType::Int(v) => println!("{{v}}\n"),
+        ResourceType::String(v) => println!("{{v}}"),
+        ResourceType::Bool(v) => println!("{{v}}"),
+        ResourceType::Int(v) => println!("{{v}}"),
       }}
     }}
     self.resources = vec![];"#)?;
@@ -274,9 +274,9 @@ fn generate_colony_extension(
         "cout" => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
-        ResourceType::String(v) => println!("{{v}}"),
-        ResourceType::Bool(v) => println!("{{v}}"),
-        ResourceType::Int(v) => println!("{{v}}"),
+        ResourceType::String(v) => print!("{{v}}"),
+        ResourceType::Bool(v) => print!("{{v}}"),
+        ResourceType::Int(v) => print!("{{v}}"),
       }}
     }}
     self.resources = vec![];"#)?;
