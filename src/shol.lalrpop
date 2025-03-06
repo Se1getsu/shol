@@ -49,30 +49,44 @@ ParallelRule: ast::RuleAST = {
 }
 
 Rule: ast::RuleAST = {
-    <conds:CommaListing<Condition>> <dest:"#xx"> <outs:CommaListing<Output>> => {
+    <conds:CommaListing<Condition>> <outs:Outputs> => {
         ast::RuleAST {
             conditions: conds,
-            destination: dest,
             outputs: outs,
             meta: None,
         }
     },
-    <conds:CommaListing<Condition>> <dest:"#xx"> => {
-        ast::RuleAST {
-            conditions: conds,
-            destination: dest,
-            outputs: vec![],
-            meta: None,
-        }
-    }
 }
 
 Condition: ast::ConditionAST = {
     <Expr> => ast::ConditionAST { expr: *<>, meta: None },
 }
 
-Output: ast::OutputAST = {
-    <Expr> => ast::OutputAST { expr: *<>, meta: None },
+Outputs: Vec<ast::OutputAST> = {
+    <OutputsEndsWithDest> => <>.0,
+    <OutputsEndsWithExpr> => <>.0,
+}
+OutputsEndsWithDest: (Vec<ast::OutputAST>, Option<String>) = {
+    <dest:"#xx"> => (vec![], dest),
+    <outs:Outputs> <dest:"#xx"> => (outs, dest),
+}
+OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
+    <mut vd:OutputsEndsWithDest> <expr:Expr> => {
+        vd.0.push(ast::OutputAST {
+            expr: *expr,
+            destination: vd.1.clone(),
+            meta: None,
+        });
+        vd
+    },
+    <mut vd:OutputsEndsWithExpr> "," <expr:Expr> => {
+        vd.0.push(ast::OutputAST {
+            expr: *expr,
+            destination: vd.1.clone(),
+            meta: None,
+        });
+        vd
+    },
 }
 
 // MARK: 式

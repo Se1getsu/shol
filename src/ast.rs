@@ -38,7 +38,6 @@ pub struct RuleSetAST {
 
 pub struct RuleAST {
     pub conditions: Vec<ConditionAST>,
-    pub destination: Option<String>,
     pub outputs: Vec<OutputAST>,
     pub meta: Option<semantics::RuleASTMeta>,
 }
@@ -51,9 +50,8 @@ impl fmt::Debug for RuleSetAST {
 
 impl fmt::Debug for RuleAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\"Rule\":{{\".conditions\":{:?}{},\".outputs\":{:?}}}}}",
+        write!(f, "{{\"Rule\":{{\".conditions\":{:?},\".outputs\":{:?}}}}}",
             self.conditions,
-            self.destination.as_ref().map_or(String::new(), |d| format!(",\".destination\":{:?}", d)),
             self.outputs,
         )
     }
@@ -68,6 +66,7 @@ pub struct ConditionAST {
 
 pub struct OutputAST {
     pub expr: ExprAST,
+    pub destination: Option<String>,
     pub meta: Option<semantics::OutputASTMeta>,
 }
 
@@ -86,8 +85,9 @@ impl fmt::Debug for OutputAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{\"Output({})\":{{\".expr\":{:?}}}}}",
+            "{{\"Output({}){}\":{{\".expr\":{:?}}}}}",
             self.meta.as_ref().map(|m| format!("{}", m.associated_captures.join(","))).unwrap_or_default(),
+            self.destination.as_ref().map_or("#".to_string(), |d| format!("#{}", d)),
             self.expr
         )
     }
