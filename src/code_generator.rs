@@ -454,7 +454,7 @@ fn generate_multi_condition_judge(
                 })?;
                 (result_type, String::from_utf8(buffer).unwrap())
             };
-            writeln!(f, "            {}({}) => *{} == {},", Identf::en_type(result_type),
+            writeln!(f, "            {}({}) => {}.clone() == {},", Identf::en_type(result_type),
                 Identf::V_VALUE_REF, Identf::V_VALUE_REF, expr_str)?;
         },
         ConditionKind::Capture(name) => {
@@ -469,7 +469,7 @@ fn generate_multi_condition_judge(
             for t in &captures[name].possible_types {
                 write!(f, "            {}({}) => ", Identf::en_type(*t), Identf::V_VALUE_REF)?;
                 generate_expr(f, &condition.expr, &|f, _| {
-                    write!(f, "*{}", Identf::V_VALUE_REF)?;
+                    write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
                     Ok(*t)
                 })?;
                 writeln!(f, ",")?;
@@ -647,7 +647,7 @@ fn generate_single_condition_rule(
     match cond_meta.kind {
         // 条件式と一致したら出力式を push
         ConditionKind::Equal(_) => {
-            write!(f, "if *{} == ", Identf::V_VALUE_REF)?;
+            write!(f, "if {}.clone() == ", Identf::V_VALUE_REF)?;
             generate_expr(f, &cond.expr, &|_, _| {
                 unreachable!()
             })?;
@@ -659,7 +659,7 @@ fn generate_single_condition_rule(
         ConditionKind::CaptureCondition(_) => {
             write!(f, "if ")?;
             generate_expr(f, &cond.expr, &|f, _| {
-                write!(f, "*{}", Identf::V_VALUE_REF)?;
+                write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
                 Ok(capture_type)
             })?;
             write!(f, " ")?;
@@ -688,7 +688,7 @@ fn generate_single_condition_rule(
         }
         // リソース出力
         generate_resource(f, &output.expr, &|f, _| {
-            write!(f, "*{}", Identf::V_VALUE_REF)?;
+            write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
             Ok(capture_type)
         })?;
         writeln!(f, ");")?;
