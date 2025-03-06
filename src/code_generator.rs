@@ -41,6 +41,9 @@ impl Identf {
     /// fn (&mut self) -> HashMap<usize, Vec<EN_TYPE>>
     /// : コロニーの規則を実行するメソッド. 戻り値は送信先コロニーのインデックスと送信リソース
     const FN_RULE: &'static str = "rule";
+    /// fn (&mut self)
+    /// : コロニーのリソースをデバッグ出力するメソッド
+    const FN_PRINT: &'static str = "debug_print";
     /// Vec<EN_TYPE>: リソースのメンバ変数
     const ME_RESOURCE: &'static str = "resources";
     /// Vec<EN_TYPE>: 送られてきたリソース
@@ -135,6 +138,7 @@ pub fn generate(
 
     // コロニートレイト定義
     writeln!(f, "trait {} {{", Identf::TR_COLONY)?;
+    writeln!(f, "  fn {}(&mut self);", Identf::FN_PRINT)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>);", Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE)?;
     writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>>;", Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
@@ -196,6 +200,11 @@ pub fn generate(
     writeln!(f, "  for _ in 0..8 {{")?;
     writeln!(f, "    for {} in 0..{}.len() {{", Identf::V_I, Identf::V_COLONIES)?;
 
+    // デバッグ用
+    writeln!(f, "    // for debugging")?;
+    writeln!(f, "    // println!(\"\"); for {0} in 0..{1}.len() {{ {1}[{0}].{2}(); }}",
+        Identf::V_I, Identf::V_COLONIES, Identf::FN_PRINT)?;
+
     // i 番目の規則を実行, 転送リソースの転送処理
     writeln!(f, "      for ({}, {}) in {}[{}].{}() {{", Identf::V_GIFTS_DEST, Identf::V_GIFTS_VEC,
         Identf::V_COLONIES, Identf::V_I, Identf::FN_RULE)?;
@@ -223,6 +232,8 @@ fn generate_colony_decl(
     writeln!(f, "  {}: Vec<{}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
+    writeln!(f, "  fn {}(&mut self) {{ println!(\"{{:?}}\", self.{}); }}",
+        Identf::FN_PRINT, Identf::ME_RESOURCE)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
     writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>> {{", Identf::FN_RULE, Identf::EN_TYPE)?;
@@ -250,6 +261,8 @@ fn generate_colony_extension(
     writeln!(f, "  {}: Vec<{}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
+    writeln!(f, "  fn {}(&mut self) {{ println!(\"{{:?}}\", self.{}); }}",
+        Identf::FN_PRINT, Identf::ME_RESOURCE)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
     writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>> {{", Identf::FN_RULE, Identf::EN_TYPE)?;
