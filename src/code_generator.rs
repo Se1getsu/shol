@@ -48,6 +48,10 @@ impl Identf {
     /// HashMap<usize, Vec<ResourceType>>: 関数 FN_RULE が戻り値として返す,
     /// 送信先コロニーのインデックスと送信リソースを保持するバッファ
     const V_GIFTS: &'static str = "gifts";
+    /// usize: V_GIFTS のキー (送信先コロニーのインデックス)
+    const V_GIFTS_DEST: &'static str = "d";
+    /// Vec<EN_TYPE>: V_GIFTS の要素 (送信リソース)
+    const V_GIFTS_VEC: &'static str = "gv";
     /// Vec<EN_TYPE>: 規則適用後のリソースを溜めるバッファ
     const V_BUF: &'static str = "buf";
     /// &EN_TYPE: ME_RESOURCE のリソース参照
@@ -186,7 +190,19 @@ pub fn generate(
         }
     }
 
-    // TODO: 規則の呼び出し
+    // TODO: とりあえず 8 回規則を適用してる
+    writeln!(f, "  for _ in 0..8 {{")?;
+    writeln!(f, "    for {} in 0..{}.len() {{", Identf::V_I, Identf::V_COLONIES)?;
+
+    // i 番目の規則を実行, 転送リソースの転送処理
+    writeln!(f, "      for ({}, {}) in {}[{}].{}() {{", Identf::V_GIFTS_DEST, Identf::V_GIFTS_VEC,
+        Identf::V_COLONIES, Identf::V_I, Identf::FN_RULE)?;
+    writeln!(f, "        {}[{}].{}({});", Identf::V_COLONIES, Identf::V_GIFTS_DEST,
+        Identf::FN_RECEIVE, Identf::V_GIFTS_VEC)?;
+    writeln!(f, "      }}")?;
+
+    writeln!(f, "    }}")?;
+    writeln!(f, "  }}")?;
 
     writeln!(f, "}}")?; // fn main
 
