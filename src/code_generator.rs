@@ -223,8 +223,8 @@ fn generate_colony_decl(
 fn generate_colony_extension(
     f: &mut impl Write,
     name: &str,
-    _rules: &Vec<ast::RuleSetAST>,
-    _colony_indices: &HashMap<&String, usize>,
+    rules: &Vec<ast::RuleSetAST>,
+    colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -235,11 +235,40 @@ fn generate_colony_extension(
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
     writeln!(f, "  fn {}(&mut self) {{", Identf::FN_RULE)?;
-    writeln!(f, "    let mut {} = HashMap::new();", Identf::V_GIFTS)?;
-    writeln!(f, "    todo!();")?;
+    writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
+        Identf::V_GIFTS, Identf::EN_TYPE)?;
+    for rule_set in rules {
+        generate_rule_set(f, rule_set, colony_indices)?;
+    }
+
+    // 組み込みコロニーのデフォルト規則
+    match name {
+        "print" => {
+            writeln!(f, r#"    for resource in &self.resources {{
+      match resource {{
+        ResourceType::String(v) => println!("{{v}}\n"),
+        ResourceType::Bool(v) => println!("{{v}}\n"),
+        ResourceType::Int(v) => println!("{{v}}\n"),
+      }}
+    }}
+    self.resources = vec![];"#)?;
+        },
+        "cout" => {
+            writeln!(f, r#"    for resource in &self.resources {{
+      match resource {{
+        ResourceType::String(v) => println!("{{v}}"),
+        ResourceType::Bool(v) => println!("{{v}}"),
+        ResourceType::Int(v) => println!("{{v}}"),
+      }}
+    }}
+    self.resources = vec![];"#)?;
+        },
+        _ => panic!("組み込みコロニー {name} は存在しません。")
+    }
+
     writeln!(f, "    {}", Identf::V_GIFTS)?;
-    writeln!(f, "  }}")?;
-    writeln!(f, "}}")?;
+    writeln!(f, "  }}")?; // fn FN_RULE
+    writeln!(f, "}}")?; // impl TR_COLONY for st_colony
 
     Ok(())
 }
