@@ -509,7 +509,7 @@ fn multi_condition_capts_ref_code(
             ConditionKind::CaptureCondition(name) => {
                 capts_ref_code.insert(
                     name.clone(),
-                    format!("&self.{}[{}[{}]]", Identf::ME_RESOURCE,
+                    format!("&self.{}[{}[{}]-1]", Identf::ME_RESOURCE,
                         Identf::V_CAPT_PROG, cond_idx)
                 );
             },
