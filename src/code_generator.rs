@@ -38,7 +38,7 @@ impl Identf {
     /// fn (&mut self, P_GIFTS) -> ()
     /// : 送られてきたリソースを受信するメソッド
     const FN_RECEIVE: &'static str = "receive";
-    /// fn (&mut self) -> HashMap<usize, Vec<ResourceType>>
+    /// fn (&mut self) -> HashMap<usize, Vec<EN_TYPE>>
     /// : コロニーの規則を実行するメソッド. 戻り値は送信先コロニーのインデックスと送信リソース
     const FN_RULE: &'static str = "rule";
     /// Vec<EN_TYPE>: リソースのメンバ変数
@@ -223,7 +223,7 @@ fn generate_colony_decl(
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
-    writeln!(f, "  fn {}(&mut self) {{", Identf::FN_RULE)?;
+    writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>> {{", Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
         Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
@@ -250,7 +250,7 @@ fn generate_colony_extension(
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
-    writeln!(f, "  fn {}(&mut self) {{", Identf::FN_RULE)?;
+    writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>> {{", Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
         Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
