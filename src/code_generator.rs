@@ -301,7 +301,7 @@ fn generate_rule_set(
                     if !(typehint.possible_types.contains(&t)) { continue; }
                 }
                 // 規則を適用するコードを生成
-                generate_single_condition_rule(f, rule, t)?;
+                generate_single_condition_rule(f, rule, t, colony_indices)?;
             }
             writeln!(f, "        }}")?;
         }
@@ -590,9 +590,12 @@ fn generate_single_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
     capture_type: Type,
+    colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     let cond = &rule.conditions[0];
     let cond_meta = cond.meta.as_ref().unwrap();
+
+    // if condition { 部分を生成
     write!(f, "          ")?;
     match cond_meta.kind {
         // 条件式と一致したら出力式を push
@@ -616,16 +619,40 @@ fn generate_single_condition_rule(
         },
     }
     writeln!(f, "{{")?;
+
+    // 出力先にリソースを push する部分を生成
+    let mut prev_cindex: Option<usize> = None;
     for output in &rule.outputs {
-        write!(f, "            {}.push(", Identf::V_BUF)?;
+        // 出力先コロニーのインデックス
+        let cindex = output.destination.as_ref().map(|dest| {
+            let index = colony_indices.get(dest)
+                .expect(&format!("未定義のコロニーへの出力: {dest}"));
+            *index
+        });
+        // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
+        if let Some(index) = cindex {
+            if prev_cindex != cindex {
+                writeln!(f, "            let {} = {}.entry({}).or_default();",
+                    Identf::V_ENTRY_MUT, Identf::V_GIFTS, index)?;
+            }
+            write!(f, "            {}.push(", Identf::V_ENTRY_MUT)?;
+        } else {
+            write!(f, "            {}.push(", Identf::V_BUF)?;
+        }
+        // リソース出力
         generate_resource(f, &output.expr, &|f, _| {
             write!(f, "*{}", Identf::V_VALUE_REF)?;
             Ok(capture_type)
         })?;
         writeln!(f, ");")?;
+
+        if cindex.is_some() {
+            prev_cindex = cindex;
+        }
     }
     writeln!(f, "            {} = false;", Identf::V_NO_MATCH)?;
-    writeln!(f, "          }}")?;
+
+    writeln!(f, "          }}")?; // if condition
     Ok(())
 }
 
