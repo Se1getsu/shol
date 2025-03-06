@@ -132,8 +132,8 @@ pub fn generate(
     writeln!(f, "}}")?;
 
     // コロニートレイト定義
-    writeln!(f, "trait Colony {{")?;
-    writeln!(f, "  fn {}(&mut self, gifts: Vec<{}>);", Identf::FN_RECEIVE, Identf::P_GIFTS)?;
+    writeln!(f, "trait {} {{", Identf::TR_COLONY)?;
+    writeln!(f, "  fn {}(&mut self, {}: Vec<{}>);", Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE)?;
     writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>>;", Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
 
