@@ -729,7 +729,7 @@ fn generate_expr(
             result_type = Type::Int;
         },
         ast::ExprAST::Str(s) => {
-            write!(f, "{:?}", s)?;
+            write!(f, "{:?}.to_owned()", s)?;
             result_type = Type::String;
         },
         ast::ExprAST::Capture(name) => {
