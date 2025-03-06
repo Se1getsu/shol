@@ -117,6 +117,8 @@ pub fn generate(
     writeln!(f, "  unused_imports,")?;
     writeln!(f, "  unused_mut,")?;
     writeln!(f, "  unreachable_patterns,")?;
+    writeln!(f, "  unused_parens,")?;
+    writeln!(f, "  unused_assignments,")?;
     writeln!(f, ")]")?;
 
     // use 宣言
