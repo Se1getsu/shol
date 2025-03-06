@@ -753,21 +753,36 @@ fn generate_expr(
         },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             write!(f, "(",)?;
-            let lhs_type = generate_expr(f, lhs, generate_capture)?;
+            let (lhs_type, lhs_code) = {
+                let mut buffer = Vec::new();
+                let lhs_type = generate_expr(&mut buffer, lhs, generate_capture)?;
+                (lhs_type, String::from_utf8(buffer).unwrap())
+            };
+            let (rhs_type, rhs_code) = {
+                let mut buffer = Vec::new();
+                let rhs_type = generate_expr(&mut buffer, rhs, generate_capture)?;
+                (rhs_type, String::from_utf8(buffer).unwrap())
+            };
             match opcode {
-                Opcode::Mul => write!(f, "*",)?,
-                Opcode::Div => write!(f, "/",)?,
-                Opcode::Mod => write!(f, "%",)?,
-                Opcode::Add => write!(f, "+",)?,
-                Opcode::Sub => write!(f, "-",)?,
-                Opcode::Eq => write!(f, "==",)?,
-                Opcode::Ne => write!(f, "!=",)?,
-                Opcode::Lt => write!(f, "<",)?,
-                Opcode::Gt => write!(f, ">",)?,
-                Opcode::Le => write!(f, "<=",)?,
-                Opcode::Ge => write!(f, ">=",)?,
+                Opcode::Mul => write!(f, "{}*{}", lhs_code, rhs_code)?,
+                Opcode::Div => write!(f, "{}/{}", lhs_code, rhs_code)?,
+                Opcode::Mod => write!(f, "{}%{}", lhs_code, rhs_code)?,
+                Opcode::Add => {
+                    match (lhs_type, rhs_type) {
+                        (Type::Int, Type::Int) =>
+                            write!(f, "{}+{}", lhs_code, rhs_code)?,
+                        _ =>
+                            write!(f, "format!(\"{{}}{{}}\",{},{})", lhs_code, rhs_code)?,
+                    }
+                }
+                Opcode::Sub => write!(f, "{}-{}", lhs_code, rhs_code)?,
+                Opcode::Eq => write!(f, "{}=={}", lhs_code, rhs_code)?,
+                Opcode::Ne => write!(f, "{}!={}", lhs_code, rhs_code)?,
+                Opcode::Lt => write!(f, "{}<{}", lhs_code, rhs_code)?,
+                Opcode::Gt => write!(f, "{}>{}", lhs_code, rhs_code)?,
+                Opcode::Le => write!(f, "{}<={}", lhs_code, rhs_code)?,
+                Opcode::Ge => write!(f, "{}>={}", lhs_code, rhs_code)?,
             }
-            let rhs_type = generate_expr(f, rhs, generate_capture)?;
             write!(f, ")",)?;
 
             match opcode.result_type(lhs_type, rhs_type) {
