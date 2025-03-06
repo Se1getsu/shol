@@ -419,6 +419,9 @@ fn generate_multi_condition_rule(
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
         if is_last {
+            // 出力に使用するリソースのインデックスを V_CAPT_PROG[cond_idx] に揃えるにめに先に +
+            writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
+
             // 出力リソースを出力先に push
             let capts_ref_code =
                 multi_condition_capts_ref_code(&rule.conditions);
@@ -429,10 +432,14 @@ fn generate_multi_condition_rule(
                 &capts_ref_code,
                 colony_indices,
             )?;
+            writeln!(f, "          }} else {{")?; // if condition
+            writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
+            writeln!(f, "          }}")?;
+        } else {
+            writeln!(f, "          }}")?; // if condition
+            writeln!(f, "          {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         }
-        writeln!(f, "          }}")?; // if condition
 
-        writeln!(f, "          {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         writeln!(f, "        }},")?;
     }
     writeln!(f, "        _ => unreachable!()")?;
