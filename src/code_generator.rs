@@ -329,7 +329,7 @@ fn generate_rule_set(
         writeln!(f, "      {} &= !{}[{}];", Identf::V_NO_MATCH, Identf::V_SOME_USED, Identf::V_I)?;
         writeln!(f, "      if let Some({}) = {}.get(&{}) {{",
             Identf::V_IELM_REF, Identf::V_INSERTIONS, Identf::V_I)?;
-        writeln!(f, "        {}.extend({}.clone());", Identf::V_BUF, Identf::V_INSERTIONS)?;
+        writeln!(f, "        {}.extend({}.clone());", Identf::V_BUF, Identf::V_IELM_REF)?;
         writeln!(f, "      }}",)?;
     }
 
