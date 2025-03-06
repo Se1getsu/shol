@@ -321,7 +321,8 @@ fn generate_rule_set(
 
     // メイン: 各リソースを for 文で処理
     writeln!(f, "    let mut {} = Vec::new();", Identf::V_BUF)?;
-    writeln!(f, "    for {} in self.{}.iter() {{", Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
+    writeln!(f, "    for ({}, {}) in self.{}.iter().enumerate() {{",
+        Identf::V_I, Identf::V_RSRS_REF, Identf::ME_RESOURCE)?;
     writeln!(f, "      let mut {} = true;", Identf::V_NO_MATCH)?;
 
     // メイン: 複数条件規則の結果を適用
