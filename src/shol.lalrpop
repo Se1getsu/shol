@@ -49,22 +49,30 @@ ParallelRule: ast::RuleAST = {
 }
 
 Rule: ast::RuleAST = {
-    <condition:CommaListing<Expr>> <dest:"#xx"> <output:CommaListing<Expr>> => {
+    <conds:CommaListing<Condition>> <dest:"#xx"> <outs:CommaListing<Output>> => {
         ast::RuleAST {
-            conditions: condition.into_iter().map(|o| *o).collect(),
+            conditions: conds,
             destination: dest,
-            outputs: output.into_iter().map(|o| *o).collect(),
+            outputs: outs,
             meta: None,
         }
     },
-    <condition:CommaListing<Expr>> <dest:"#xx"> => {
+    <conds:CommaListing<Condition>> <dest:"#xx"> => {
         ast::RuleAST {
-            conditions: condition.into_iter().map(|o| *o).collect(),
+            conditions: conds,
             destination: dest,
             outputs: vec![],
             meta: None,
         }
     }
+}
+
+Condition: ast::ConditionAST = {
+    <Expr> => ast::ConditionAST { expr: *<>, meta: None },
+}
+
+Output: ast::OutputAST = {
+    <Expr> => ast::OutputAST { expr: *<>, meta: None },
 }
 
 // MARK: 式

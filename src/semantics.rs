@@ -6,13 +6,15 @@ use crate::ast::{self, Opcode};
 
 pub struct RuleASTMeta {
     pub captures: HashMap<String, TypeHint>,
-    pub condition_kinds: Vec<ConditionKind>,
 }
 
-impl Debug for RuleASTMeta {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\".condition_kinds\":{:?}}}", self.condition_kinds)
-    }
+pub struct ConditionASTMeta {
+    pub kind: ConditionKind,
+}
+
+pub struct OutputASTMeta {
+    // 出力式に含まれるキャプチャのリスト
+    pub associated_captures: Vec<String>,
 }
 
 /// キャプチャの型ヒント
@@ -44,11 +46,11 @@ impl Debug for ConditionKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ConditionKind::Equal(t) =>
-                write!(f, "\"Equal({:?})\"", t),
-            ConditionKind::Capture(s) =>
-                write!(f, "\"Capture({})\"", s),
-            ConditionKind::CaptureCondition(s) =>
-                write!(f, "\"CaptureCondition({})\"", s),
+                write!(f, "値({:?})", t),
+            ConditionKind::Capture(caputure_name) =>
+                write!(f, "ｷｬﾌﾟﾁｬ({})", caputure_name),
+            ConditionKind::CaptureCondition(caputure_name) =>
+                write!(f, "ｷｬﾌﾟﾁｬ条件式({})", caputure_name),
         }
     }
 }
@@ -159,39 +161,76 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
     // メタデータ構造体を作成
     let mut meta = RuleASTMeta {
         captures: HashMap::new(),
-        condition_kinds: Vec::new(),
     };
 
     // 条件式を解析
-    for condition in rule.conditions.iter() {
-        let kind = condition_kind(condition);
-        match &kind {
-            ConditionKind::Equal(_) => {
-                meta.condition_kinds.push(kind);
-            }
-            ConditionKind::Capture(name) => {
-                if meta.captures.contains_key(name) {
-                    panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
-                }
-                meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
-                meta.condition_kinds.push(kind);
-            },
-            ConditionKind::CaptureCondition(name) => {
-                if meta.captures.contains_key(name) {
-                    panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
-                }
-                let types = analyze_condition(condition, name);
-                meta.captures.insert(name.clone(), TypeHint { possible_types: types });
-                meta.condition_kinds.push(kind);
-            },
-        }
+    for condition in rule.conditions.iter_mut() {
+        analyze_condition(condition, &mut meta);
     }
 
     // 出力式を解析
-    analyze_output(&rule.outputs, &mut meta.captures);
+    analyze_output(&mut rule.outputs, &mut meta.captures);
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
+}
+
+fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTMeta) {
+    // 条件式種別を判定
+    let kind = condition_kind(&condition.expr);
+
+    // キャプチャを rule_meta に登録
+    match &kind {
+        ConditionKind::Equal(_) => (),
+        ConditionKind::Capture(name) => {
+            if rule_meta.captures.contains_key(name) {
+                panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
+            }
+            rule_meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
+        },
+        ConditionKind::CaptureCondition(name) => {
+            if rule_meta.captures.contains_key(name) {
+                panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
+            }
+            let types = analyze_capture_condition(&condition.expr, name);
+            rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
+        },
+    }
+
+    // AST にメタデータを追加
+    condition.meta = Some(ConditionASTMeta { kind });
+}
+
+fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<String, TypeHint>) {
+    // 出力式に登場するキャプチャを調べる
+    fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
+        match expr {
+            ast::ExprAST::Number(_) => (),
+            ast::ExprAST::Str(_) => (),
+            ast::ExprAST::Capture(name) =>
+                if !captures.contains(name) { captures.push(name.clone()); },
+            ast::ExprAST::BinaryOp(lhs, _, rhs) => {
+                collect_captures(lhs, captures);
+                collect_captures(rhs, captures);
+            },
+        }
+    }
+    for output in outputs.iter_mut() {
+        let mut associated_captures = Vec::new();
+        collect_captures(&output.expr, &mut associated_captures);
+        output.meta = Some(OutputASTMeta { associated_captures });
+    }
+
+    // 型推論に必要な InferredType を保存するベクタ
+    let mut infers = build_infers(outputs, captures);
+    println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
+
+    // 型推論
+    infer_infers(&mut infers, captures);
+    println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
+
+    // 型検証
+    validate_inference(captures, outputs);
 }
 
 // MARK: 条件式の型推論
@@ -250,9 +289,9 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
     } // match expr
 }
 
-/// 条件式の型推論をする
+/// キャプチャ条件式の型推論をする
 /// 戻り値: キャプチャの possible_types
-fn analyze_condition(expr: &ast::ExprAST, capture_name: &String) -> HashSet<Type> {
+fn analyze_capture_condition(expr: &ast::ExprAST, capture_name: &String) -> HashSet<Type> {
 
     // キャプチャに型を 1 つずつ割り当てて検証
     let mut possible_types = HashSet::new();
@@ -341,18 +380,6 @@ impl InferredType {
     }
 }
 
-/// 出力式の型推論をする
-fn analyze_output(exprs: &Vec<ast::ExprAST>, captures: &mut HashMap<String, TypeHint>) {
-    // InferredType を保存するベクタ
-    let mut infers = build_infers(exprs, captures);
-    println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
-
-    infer_infers(&mut infers, captures);
-    println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
-
-    validate_inference(captures, exprs);
-}
-
 /// infers 配列のデバッグ用文字列
 fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) -> String {
     let mut s = String::from("[\n");
@@ -369,7 +396,7 @@ fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) 
 }
 
 /// infers 配列を作成する
-fn build_infers(exprs: &Vec<ast::ExprAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
+fn build_infers(outputs: &Vec<ast::OutputAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
     // InferredType を保存するベクタ
     let mut infers: Vec<InferredType> = captures.keys()
         .map(|name| {
@@ -383,8 +410,8 @@ fn build_infers(exprs: &Vec<ast::ExprAST>, captures: &HashMap<String, TypeHint>)
         .collect();
 
     // AST を探索して infers 配列を作成
-    exprs.iter().for_each(|e| {
-        analyze_output_ast(e, &mut infers, &capture_infers);
+    outputs.iter().for_each(|output| {
+        analyze_output_ast(&output.expr, &mut infers, &capture_infers);
     });
     infers
 }
@@ -586,23 +613,24 @@ fn request_update(
 }
 
 /// 出力式の型推論結果の検証
-fn validate_inference(captures: &HashMap<String, TypeHint>, exprs: &Vec<ast::ExprAST>) {
+fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::OutputAST>) {
     // 再帰関数でキャプチャの型の組み合わせを総当たりで検証
     fn _validate_inference(
         captures: &HashMap<String, TypeHint>,
         captures_type: &HashMap<String, Type>,
-        expr: &ast::ExprAST
+        output: &ast::OutputAST,
+        capture_print_order: &Vec<String>,
     ) -> Result<(), String> {
         if captures.is_empty() {
             // 型検証
-            if let Err(ast) = type_validate_expr(expr, captures_type) {
+            if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
                     ast::ExprAST::Number(_) | ast::ExprAST::Str(_) | ast::ExprAST::Capture(_) => (),
                     ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
                         // エラーメッセージの作成
                         let mut err_msg = String::new();
-                        let type_list = captures_type.iter().map(|(name, t)| {
-                            format!("${}:{:?}", name, t)
+                        let type_list = capture_print_order.iter().map(|name| {
+                            format!("${}: {:?}", name, captures_type[name])
                         }).collect::<Vec<String>>().join(", ");
                         err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
                         err_msg.push_str(&format!("\n    {:?}", lhs));
@@ -622,22 +650,36 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, exprs: &Vec<ast::Exp
             for t in type_hint.possible_types.iter() {
                 let mut captures_type = captures_type.clone();
                 captures_type.insert(name.clone(), *t);
-                _validate_inference(&captures, &captures_type, expr)?; // 再帰
+                _validate_inference(&captures, &captures_type, output, capture_print_order)?; // 再帰
             }
         }
         Ok(())
     }
 
-    exprs.iter().for_each(|expr| {
+    outputs.iter().for_each(|output| {
+        // captures から output に登場するキャプチャだけを取り出す
+        let associated_captures = &output.meta.as_ref().unwrap().associated_captures;
+        let captures: HashMap<String, TypeHint> = associated_captures.iter()
+            .map(|name| (name.clone(), captures[name].clone()))
+            .collect();
+
+        // 再帰関数の呼び出し
         let captures_type = HashMap::new();
-        if let Err(detail) = _validate_inference(captures, &captures_type, expr) {
+        let result = _validate_inference(
+            &captures,
+            &captures_type,
+            output,
+            associated_captures
+        );
+
+        if let Err(detail) = result {
             // エラーメッセージの作成
             let mut err_msg = String::new();
             err_msg.push_str(&format!("出力式にキャプチャ間の型制約関係が含まれます:"));
             err_msg.push_str(&format!("\n  推論されたキャプチャの型:"));
-            for (name, type_hint) in captures.iter() {
-                err_msg.push_str(&format!("\n    ${}: {:?}", name, type_hint.possible_types));
-            }
+            associated_captures.iter().for_each(|name| {
+                err_msg.push_str(&format!("\n    ${}: {:?}", name, captures[name].possible_types));
+            });
             err_msg.push_str(&detail);
             panic!("{}", err_msg);
         }
