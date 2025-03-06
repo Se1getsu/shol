@@ -218,7 +218,7 @@ fn generate_colony_decl(
     let colony_name = Identf::st_colony(name);
 
     writeln!(f, "struct {} {{", colony_name)?;
-    writeln!(f, "  {}: HashMap<String, {}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
+    writeln!(f, "  {}: Vec<{}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
@@ -245,7 +245,7 @@ fn generate_colony_extension(
     let colony_name = Identf::st_colony(name);
 
     writeln!(f, "struct {} {{", colony_name)?;
-    writeln!(f, "  {}: HashMap<String, {}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
+    writeln!(f, "  {}: Vec<{}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
