@@ -590,7 +590,7 @@ fn generate_multi_condition_output(
             writeln!(f, ") =>")?;
             write!(f, "                ")?;
             _generate_push_resource(f, output_expr, &|f, name| {
-                write!(f, "{}", Identf::v_value_ref(name))?;
+                write!(f, "{}.clone()", Identf::v_value_ref(name))?;
                 Ok(types[name])
             })?;
             writeln!(f, ",")?;
