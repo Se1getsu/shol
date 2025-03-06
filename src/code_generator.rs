@@ -66,8 +66,8 @@ impl Identf {
     const V_CAPT_PROG: &'static str = "capt_prog";
     /// usize: 探索中のキャプチャのインデックス
     const V_CAPT_IDX: &'static str = "capt_idx";
-    /// &mut Vec<EN_TYPE>: V_INSERTIONS のエントリへの可変参照
-    const V_IENTR_MUT: &'static str = "entry";
+    /// &mut Vec<EN_TYPE>: 出力先エントリへの可変参照
+    const V_ENTRY_MUT: &'static str = "entry";
     /// &Vec<EN_TYPE>: V_INSERTIONS の要素への参照
     const V_IELM_REF: &'static str = "insertion";
     /// Vec<Box<dyn TR_COLONY>>: コロニーの構造体のインスタンスを入れるベクタ
@@ -134,7 +134,7 @@ pub fn generate(
     writeln!(f, "}}")?;
 
     // コロニー名と V_COLONIES のインデックス対応表作成
-    let colony_indices = {
+    let colony_indices: HashMap<&String, usize> = {
         let mut colony_indices = HashMap::new();
         let mut count = 0;
         for stmt in program {
@@ -149,14 +149,14 @@ pub fn generate(
         colony_indices
     };
 
-    // ステートメント
+    // 各コロニーを定義
     for stmt in program {
         writeln!(f, "")?;
         match stmt {
             ast::StatementAST::ColonyDecl { name, rules, .. } =>
-                generate_colony_decl(f, name, rules)?,
+                generate_colony_decl(f, name, rules, &colony_indices)?,
             ast::StatementAST::ColonyExtension { name, rules, .. } =>
-                generate_colony_extension(f, name, rules)?,
+                generate_colony_extension(f, name, rules, &colony_indices)?,
         }
     }
 
@@ -197,6 +197,7 @@ fn generate_colony_decl(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::RuleSetAST>,
+    colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -207,9 +208,10 @@ fn generate_colony_decl(
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
     writeln!(f, "  fn {}(&mut self) {{", Identf::FN_RULE)?;
-    writeln!(f, "    let mut {} = HashMap::new();", Identf::V_GIFTS)?;
+    writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
+        Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
-        generate_rule_set(f, rule_set)?;
+        generate_rule_set(f, rule_set, colony_indices)?;
     }
     writeln!(f, "    {}", Identf::V_GIFTS)?;
     writeln!(f, "  }}")?;
@@ -222,6 +224,7 @@ fn generate_colony_extension(
     f: &mut impl Write,
     name: &str,
     _rules: &Vec<ast::RuleSetAST>,
+    _colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -246,6 +249,7 @@ fn generate_colony_extension(
 fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
+    colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     // 単一条件規則が 1 つ以上存在するか
     let has_single_cond_rule = rule_set.rules
@@ -264,7 +268,7 @@ fn generate_rule_set(
         // 前処理: 複数条件規則を適用して, 上記の変数に結果を格納
         for rule in &rule_set.rules {
             if !(rule.conditions.len() >= 2) { continue; }
-            generate_multi_condition_rule(f, rule)?;
+            generate_multi_condition_rule(f, rule, colony_indices)?;
         }
     }
 
@@ -321,6 +325,7 @@ fn generate_rule_set(
 fn generate_multi_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
+    colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     let captures = &rule.meta.as_ref().unwrap().captures;
 
@@ -353,15 +358,16 @@ fn generate_multi_condition_rule(
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
         if is_last {
-            // 第 1 条件式にマッチしたリソースのインデックスのエントリを取り出す
-            writeln!(f, "            let {} = {}.entry({}[0]-1).or_default();",
-                Identf::V_IENTR_MUT, Identf::V_INSERTIONS, Identf::V_CAPT_PROG)?;
-            // 出力リソースを V_INSERTIONS に push
+            // 出力リソースを出力先に push
             let capts_ref_code =
                 multi_condition_capts_ref_code(&rule.conditions);
-            for output in &rule.outputs {
-                generate_multi_condition_output(f, output, captures, &capts_ref_code)?;
-            }
+            generate_multi_condition_outputs(
+                f,
+                &rule.outputs,
+                captures,
+                &capts_ref_code,
+                colony_indices,
+            )?;
         }
         writeln!(f, "          }}")?; // if condition
 
@@ -451,7 +457,41 @@ fn multi_condition_capts_ref_code(
     capts_ref_code
 }
 
-/// 複数条件規則の前処理の, 出力リソースを V_INSERTIONS に push する部分を生成
+/// 複数条件規則の前処理の, 出力リソースを出力先に push する部分を生成
+fn generate_multi_condition_outputs(
+    f: &mut impl Write,
+    outputs: &Vec<ast::OutputAST>,
+    captures: &HashMap<String, TypeHint>,
+    capts_ref_code: &HashMap<String, String>,
+    colony_indices: &HashMap<&String, usize>,
+) -> io::Result<()> {
+    let mut prev_cindex: Option<Option<usize>> = None;
+    for output in outputs {
+        // 出力先コロニーのインデックス
+        let cindex: Option<usize> = output.destination.as_ref().map(|dest| {
+            let index = colony_indices.get(dest)
+                .expect(&format!("未定義のコロニーへの出力: {dest}"));
+            *index
+        });
+        // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
+        if prev_cindex != Some(cindex) {
+            if let Some(index) = cindex {
+                writeln!(f, "            let {} = {}.entry({}).or_default();",
+                    Identf::V_ENTRY_MUT, Identf::V_GIFTS, index)?;
+            } else {
+                writeln!(f, "            let {} = {}.entry({}[0]-1).or_default();",
+                    Identf::V_ENTRY_MUT, Identf::V_INSERTIONS, Identf::V_CAPT_PROG)?;
+            }
+        }
+        // 出力コード生成
+        generate_multi_condition_output(f, output, captures, &capts_ref_code)?;
+
+        prev_cindex = Some(cindex);
+    }
+    Ok(())
+}
+
+/// generate_multi_condition_outputs での個別 output の生成処理
 fn generate_multi_condition_output(
     f: &mut impl Write,
     output: &ast::OutputAST,
@@ -469,7 +509,7 @@ fn generate_multi_condition_output(
             let result_type = generate_expr(&mut buffer, output_expr, generate_capture)?;
             (result_type, String::from_utf8(buffer).unwrap())
         };
-        write!(f, "{}.push({}({}))", Identf::V_IENTR_MUT, Identf::en_type(result_type), expr_str)?;
+        write!(f, "{}.push({}({}))", Identf::V_ENTRY_MUT, Identf::en_type(result_type), expr_str)?;
         Ok(())
     }
 
