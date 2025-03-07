@@ -19,10 +19,14 @@ fn append_trailing_new_line(program: &str) -> String {
 /// ダブルクォートが省略された文字列リソース行をダブルクォートで囲む
 fn add_double_quote(program: &str) -> String {
     // 以下で始まる行はダブルクォートで囲まない
-    let excluding_token = vec![
+    let excluding1 = vec![
         r"\+", r"\-", r"\*", r"\/", r"\%",
         r"\.", r"\|", "\"",
         r"[0-9]",
+    ];
+    // 以下に一致する行はダブルクォートで囲まない
+    let excluding2 = vec![
+        "true", "false",
     ];
 
     // 行全体にマッチするパターン: lsp, content, rsp に分割
@@ -30,7 +34,8 @@ fn add_double_quote(program: &str) -> String {
     let line_re = Regex::new(line_pattern).unwrap();
 
     // content がこれにマッチした場合は除外するパターン
-    let exclude_pattern = format!(r"^(?:{})", excluding_token.join("|"));
+    let exclude_pattern = format!(r"^(?:{})|^(?:{})$",
+        excluding1.join("|"), excluding2.join("|"));
     let exclude_re = Regex::new(&exclude_pattern).unwrap();
 
     // 各行をチェック

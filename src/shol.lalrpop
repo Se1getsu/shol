@@ -27,9 +27,7 @@ Statement: ast::StatementAST = {
 }
 
 Resource: ast::ExprAST = {
-    <"int"> "nl"+ => ast::ExprAST::Number(<>),
-    <"identf"> "nl"+ => ast::ExprAST::Str(<>),
-    <"str"> "nl"+ => ast::ExprAST::Str(<>),
+    <Literal> "nl"+,
 }
 
 RuleSet: ast::RuleSetAST = {
@@ -136,19 +134,22 @@ Expr: Box<ast::ExprAST> = {
 }
 
 Factor: Box<ast::ExprAST> = {
-    "int" => {
-        Box::new(ast::ExprAST::Number(<>))
-    },
-    "identf" => {
-        Box::new(ast::ExprAST::Str(<>))
-    },
-    "str" => {
-        Box::new(ast::ExprAST::Str(<>))
-    },
-    "$xx" => {
-        Box::new(ast::ExprAST::Capture(<>))
-    },
-    "(" <inner:Expr> ")" => inner,
+    <Literal> => Box::new(<>),
+    "$xx" => Box::new(ast::ExprAST::Capture(<>)),
+    "(" <Expr> ")",
+}
+
+Literal: ast::ExprAST = {
+    "int" =>
+        ast::ExprAST::Number(<>),
+    "identf" =>
+        ast::ExprAST::Str(<>),
+    "str" =>
+        ast::ExprAST::Str(<>),
+    "true" =>
+        ast::ExprAST::Bool(true),
+    "false" =>
+        ast::ExprAST::Bool(false),
 }
 
 // MARK: ヘルパー非終端記号
@@ -172,6 +173,8 @@ extern {
         "identf" => Token::Identifier(<String>),
         "int" => Token::IntegerLiteral(<i32>),
         "str" => Token::StringLiteral(<String>),
+        "true" => Token::True,
+        "false" => Token::False,
         "(" => Token::LParen,
         ")" => Token::RParen,
         "=" => Token::Equal,

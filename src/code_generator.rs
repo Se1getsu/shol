@@ -755,6 +755,10 @@ fn generate_expr(
             write!(f, "{:?}.to_owned()", s)?;
             result_type = Type::String;
         },
+        ast::ExprAST::Bool(b) => {
+            write!(f, "{}", b)?;
+            result_type = Type::Bool;
+        },
         ast::ExprAST::Capture(name) => {
             return generate_capture(f, name);
         },
