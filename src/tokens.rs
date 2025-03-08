@@ -51,6 +51,8 @@ pub enum Token {
     Identifier(String),
     #[regex("0|[1-9][0-9]*", |lex| lex.slice().parse())]
     IntegerLiteral(i32),
+    #[token("-2147483648", |_| -2147483648)] // - と 2147483648 を別トークンにするとオーバフローするため特別扱い
+    IntegerMin(i32),
     #[regex(r#""([^"\\\x00-\x1F]|\\.)*""#, |lex| decode_string(lex.slice()))]
     StringLiteral(String),
     #[token("true")]

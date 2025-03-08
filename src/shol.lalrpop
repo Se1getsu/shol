@@ -157,8 +157,9 @@ Literal: ast::ExprAST = {
 }
 
 SignedInt: i32 = {
-    "-" <n:"int"> => -n,
     <n:"int"> => n,
+    "-" <n:"int"> => -n,
+    <"intmin">,
 }
 
 // MARK: ヘルパー非終端記号
@@ -181,6 +182,7 @@ extern {
     enum Token {
         "identf" => Token::Identifier(<String>),
         "int" => Token::IntegerLiteral(<i32>),
+        "intmin" => Token::IntegerMin(<i32>),
         "str" => Token::StringLiteral(<String>),
         "true" => Token::True,
         "false" => Token::False,
