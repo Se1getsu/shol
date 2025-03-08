@@ -24,11 +24,16 @@ fn decode_string(input: &str) -> String {
         if c == '\\' {
             if let Some(next) = chars.next() {
                 match next {
-                    'n' => result.push('\n'),
-                    'r' => result.push('\r'),
+                    'a' => result.push('\x07'),
+                    'b' => result.push('\x08'),
                     't' => result.push('\t'),
-                    '\\' => result.push('\\'),
+                    'n' => result.push('\n'),
+                    'v' => result.push('\x0b'),
+                    'f' => result.push('\x0c'),
+                    'r' => result.push('\r'),
+                    'e' => result.push('\x1b'),
                     '"' => result.push('"'),
+                    '\\' => result.push('\\'),
                     'x' => {
                         let hex = chars.by_ref().take(2).collect::<String>();
                         let code = match (hex.len() == 2, u8::from_str_radix(&hex, 16)) {
