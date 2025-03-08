@@ -24,6 +24,7 @@ fn decode_string(input: &str) -> String {
         if c == '\\' {
             if let Some(next) = chars.next() {
                 match next {
+                    '0' => result.push('\0'),
                     'a' => result.push('\x07'),
                     'b' => result.push('\x08'),
                     't' => result.push('\t'),
