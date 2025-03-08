@@ -3,6 +3,7 @@ use regex::Regex;
 pub fn preprocess(program: &str) -> String {
     let mut program = program.to_string();
     program = append_trailing_new_line(&program);
+    program = remove_backslash_newline(&program);
     program = add_double_quote(&program);
     program
 }
@@ -14,6 +15,12 @@ fn append_trailing_new_line(program: &str) -> String {
         program.push('\n');
     }
     program
+}
+
+/// バックスラッシュ+改行 を削除する
+fn remove_backslash_newline(program: &str) -> String {
+    let re = Regex::new(r"\\\n[ \t]*").unwrap();
+    re.replace_all(program, "").to_string()
 }
 
 /// ダブルクォートが省略された文字列リソース行をダブルクォートで囲む
