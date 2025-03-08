@@ -100,6 +100,7 @@ pub enum ExprAST {
     Str(String),
     Bool(bool),
     Capture(String),
+    UnaryOp(UnaryOpcode, Box<ExprAST>),
     BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>),
 }
 
@@ -114,6 +115,8 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"Bool({})\":{{\"_\":{{}}}}}}", b),
             ExprAST::Capture(s) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
+            ExprAST::UnaryOp(op, operand) =>
+                write!(f, "{{\"BinaryOp({:?})\":{:?}}}", op, operand),
             ExprAST::BinaryOp(lhs, op, rhs) =>
                 write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
@@ -121,6 +124,11 @@ impl fmt::Debug for ExprAST {
 }
 
 // MARK: Opcode
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOpcode {
+    Neg,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Opcode {

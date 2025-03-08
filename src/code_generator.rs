@@ -1,8 +1,8 @@
 use core::panic;
 use std::collections::HashMap;
 use std::io::{ self, Write };
-use crate::ast::{ self, Opcode };
-use crate::semantics::{ ConditionKind, OpcodeSignatureExt, Type, TypeHint };
+use crate::ast::{ self, UnaryOpcode, Opcode };
+use crate::semantics::{ ConditionKind, UnaryOpcodeSignatureExt, OpcodeSignatureExt, Type, TypeHint };
 
 // MARK: ヘルパー関数など
 
@@ -762,8 +762,25 @@ fn generate_expr(
         ast::ExprAST::Capture(name) => {
             return generate_capture(f, name);
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::UnaryOp(opcode, operand) => {
+            let (operand_type, operand_code) = {
+                let mut buffer = Vec::new();
+                let operand_type = generate_expr(&mut buffer, operand, generate_capture)?;
+                (operand_type, String::from_utf8(buffer).unwrap())
+            };
+
             write!(f, "(",)?;
+            match opcode {
+                UnaryOpcode::Neg => write!(f, "-{}", operand_code)?,
+            }
+            write!(f, ")",)?;
+
+            match opcode.result_type(operand_type) {
+                Some(t) => result_type = t,
+                None => panic!("不正な型の演算です: {:?} {:?}", opcode, operand_type),
+            }
+        },
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             let (lhs_type, lhs_code) = {
                 let mut buffer = Vec::new();
                 let lhs_type = generate_expr(&mut buffer, lhs, generate_capture)?;
@@ -774,6 +791,8 @@ fn generate_expr(
                 let rhs_type = generate_expr(&mut buffer, rhs, generate_capture)?;
                 (rhs_type, String::from_utf8(buffer).unwrap())
             };
+
+            write!(f, "(",)?;
             match opcode {
                 Opcode::Mul => write!(f, "{}*{}", lhs_code, rhs_code)?,
                 Opcode::Div => write!(f, "{}/{}", lhs_code, rhs_code)?,

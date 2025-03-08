@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
-use crate::ast::{self, Opcode};
+use crate::ast::{self, UnaryOpcode, Opcode};
 
 // MARK: メタデータ
 
@@ -68,12 +68,26 @@ impl Type {
 }
 
 /// オペレータの型シグネチャ
+struct UnaryOpcodeSignature {
+    operand: Type,
+    result: Type,
+}
 struct OpcodeSignature {
     lhs: Type,
     rhs: Type,
     result: Type,
 }
 
+impl UnaryOpcodeSignature {
+    /// 指定したオペレータの型シグネチャを返す
+    fn get_signatures(opcode: UnaryOpcode) -> Vec<Self> {
+        match opcode {
+            UnaryOpcode::Neg => vec![
+                Self { operand: Type::Int, result: Type::Int },
+            ],
+        }
+    }
+}
 impl OpcodeSignature {
     /// 指定したオペレータの型シグネチャを返す
     fn get_signatures(opcode: Opcode) -> Vec<Self> {
@@ -99,10 +113,25 @@ impl OpcodeSignature {
     }
 }
 
+pub trait UnaryOpcodeSignatureExt {
+    fn result_type(self, operand: Type) -> Option<Type>;
+}
 pub trait OpcodeSignatureExt {
     fn result_type(self, lhs: Type, rhs: Type) -> Option<Type>;
 }
 
+impl UnaryOpcodeSignatureExt for UnaryOpcode {
+    /// 演算結果の型を返す
+    fn result_type(self, operand: Type) -> Option<Type> {
+        UnaryOpcodeSignature::get_signatures(self).iter().find_map(|sig| {
+            if sig.operand == operand {
+                Some(sig.result)
+            } else {
+                None
+            }
+        })
+    }
+}
 impl OpcodeSignatureExt for Opcode {
     /// 演算結果の型を返す
     fn result_type(self, lhs: Type, rhs: Type) -> Option<Type> {
@@ -127,6 +156,14 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
         ast::ExprAST::Str(_) => Ok(Type::String),
         ast::ExprAST::Bool(_) => Ok(Type::Bool),
         ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
+        ast::ExprAST::UnaryOp(opcode, operand) => {
+            let operand_type = type_validate_expr(operand, captures)?;
+            if let Some(result) = opcode.result_type(operand_type) {
+                Ok(result)
+            } else {
+                Err(expr)
+            }
+        },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             let lhs_type = type_validate_expr(lhs, captures)?;
             let rhs_type = type_validate_expr(rhs, captures)?;
@@ -213,6 +250,9 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
             ast::ExprAST::Number(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
             ast::ExprAST::Capture(name) =>
                 if !captures.contains(name) { captures.push(name.clone()); },
+            ast::ExprAST::UnaryOp(_, operand) => {
+                collect_captures(operand, captures);
+            },
             ast::ExprAST::BinaryOp(lhs, _, rhs) => {
                 collect_captures(lhs, captures);
                 collect_captures(rhs, captures);
@@ -246,6 +286,27 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
         ast::ExprAST::Str(_) => ConditionKind::Equal(Type::String),
         ast::ExprAST::Bool(_) => ConditionKind::Equal(Type::Bool),
         ast::ExprAST::Capture(name) => ConditionKind::Capture(name.clone()),
+        ast::ExprAST::UnaryOp(opcode, operand) => {
+            // オペランドの条件式種別を取得
+            let operand_kind = condition_kind(operand);
+
+            // Equal or キャプチャ条件式 を返す
+            match &operand_kind {
+                ConditionKind::Equal(t) => {
+                    if let Some(result) = opcode.result_type(*t) {
+                        return ConditionKind::Equal(result);
+                    } else {
+                        panic!("不正な型の演算です: {:?} {:?}", opcode, t);
+                    }
+                },
+                ConditionKind::Capture(name) => {
+                    return ConditionKind::CaptureCondition((*name).clone())
+                },
+                ConditionKind::CaptureCondition(_) => {
+                    return operand_kind
+                },
+            }
+        },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             // 左辺と右辺の条件式種別を取得
             let lhs_kind = condition_kind(lhs);
@@ -337,6 +398,14 @@ enum InferredType {
     Constant(Type),
     /// キャプチャ (possible_types に対応する型)
     Capture(String),
+    /// キャプチャを含む単項演算式
+    UnaryExpr {
+        opcode: UnaryOpcode,
+        operand: InfersIndex,
+        parent: Option<InfersIndex>,
+        result: HashSet<Type>,
+        needs_update: bool,
+    },
     /// キャプチャを含む二項演算式
     BinaryExpr {
         opcode: Opcode,
@@ -352,8 +421,9 @@ impl InferredType {
     /// 親ノードを設定
     fn set_parent(&mut self, parent: &InfersIndex) {
         match self {
-            InferredType::Constant(_) => (),
-            InferredType::Capture(_) => (),
+            InferredType::Constant(_) | InferredType::Capture(_) => (),
+            InferredType::UnaryExpr { parent: p, .. } =>
+                *p = Some(*parent),
             InferredType::BinaryExpr { parent: p, .. } =>
                 *p = Some(*parent),
         }
@@ -362,8 +432,9 @@ impl InferredType {
     /// needs_update を設定
     fn set_needs_update(&mut self, needs_update: bool) {
         match self {
-            InferredType::Constant(_) => (),
-            InferredType::Capture(_) => (),
+            InferredType::Constant(_) | InferredType::Capture(_) => (),
+            InferredType::UnaryExpr { needs_update: n, .. } =>
+                *n = needs_update,
             InferredType::BinaryExpr { needs_update: n, .. } =>
                 *n = needs_update,
         }
@@ -379,6 +450,8 @@ impl InferredType {
             },
             InferredType::Capture(name) =>
                 captures.get(name).unwrap().possible_types.clone(),
+            InferredType::UnaryExpr { result, .. } =>
+                result.clone(),
             InferredType::BinaryExpr { result, .. } =>
                 result.clone(),
         }
@@ -449,6 +522,41 @@ fn analyze_output_ast(
         },
 
         // 自身を infers に追加し, そのインデックスを返す
+        ast::ExprAST::UnaryOp(opcode, operand) => {
+            let operand = analyze_output_ast(operand, infers, capture_infers);
+
+            // 定数式なら AOAResult::Constant を返す
+            if let AOAResult::Constant(t) = &operand {
+                if let Some(result) = opcode.result_type(*t) {
+                    return AOAResult::Constant(result);
+                } else {
+                    panic!("不正な型の演算です: {:?} {:?}", opcode, t);
+                }
+            }
+
+            // operand の InfersIndex を取得
+            let i_operand = match &operand {
+                AOAResult::Infer { index } => *index,
+                AOAResult::Constant(_) => unreachable!(),
+            };
+
+            // 自身を infer に追加する
+            infers.push(InferredType::UnaryExpr {
+                opcode: *opcode,
+                operand: i_operand,
+                parent: None,
+                result: Type::all_types(),
+                needs_update: true,
+            });
+            let i_self = InfersIndex(infers.len() - 1);
+
+            // 自身を lhs, rhs の親ノードを設定
+            infers[i_operand.0].set_parent(&i_self);
+
+            AOAResult::Infer { index: i_self }
+        }
+
+        // 自身を infers に追加し, そのインデックスを返す
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             let lhs = analyze_output_ast(lhs, infers, capture_infers);
             let rhs = analyze_output_ast(rhs, infers, capture_infers);
@@ -510,6 +618,45 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
             match &infers[myself.0] {
                 InferredType::Constant(_) => (),
                 InferredType::Capture(_) => (),
+                InferredType::UnaryExpr {
+                    opcode,
+                    operand,
+                    result,
+                    needs_update,
+                    ..
+                } => {
+                    if !*needs_update { continue; }
+
+                    // 推論前の型
+                    let t_operand = infers[operand.0].get_types(captures);
+                    let t_result = result;
+
+                    // 推論後の型
+                    let mut new_t_operand: HashSet<Type> = HashSet::new();
+                    let mut new_t_result: HashSet<Type> = HashSet::new();
+
+                    // 推論
+                    for signature in UnaryOpcodeSignature::get_signatures(*opcode) {
+                        if t_operand.contains(&signature.operand) {
+                            new_t_result.insert(signature.result);
+                            new_t_operand.insert(signature.operand);
+                        }
+                    }
+
+                    // 空集合があれば型エラー
+                    if new_t_operand.is_empty() || new_t_result.is_empty() {
+                        panic!("出力式の型推論に失敗しました: {:?} {:?} = {:?}",
+                            opcode, t_operand, new_t_result);
+                    }
+
+                    // 自身と隣接するノードの型を更新
+                    if t_operand != new_t_operand {
+                        updates.insert(*operand, new_t_operand);
+                    }
+                    if t_result != &new_t_result {
+                        updates.insert(myself, new_t_result);
+                    }
+                },
                 InferredType::BinaryExpr {
                     opcode,
                     lhs,
@@ -594,12 +741,29 @@ fn request_update(
                 match infer {
                     InferredType::Constant(_) => (),
                     InferredType::Capture(_) => (),
+                    InferredType::UnaryExpr { operand, needs_update, .. } => {
+                        if operand == target {
+                            *needs_update = true;
+                        }
+                    },
                     InferredType::BinaryExpr { lhs, rhs, needs_update, .. } => {
                         if lhs == target || rhs == target {
                             *needs_update = true;
                         }
                     },
                 }
+            }
+        },
+
+        InferredType::UnaryExpr { operand, parent, result, .. } => {
+            // 自身の型を更新
+            *result = types.clone();
+
+            // 隣接するノードの needs_update を true にする
+            let (operand, parent) = (operand.0, parent.map(|p| p.0));
+            infers[operand].set_needs_update(true);
+            if let Some(parent) = parent {
+                infers[parent].set_needs_update(true);
             }
         },
 
@@ -633,6 +797,17 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
                     ast::ExprAST::Capture(_) => (),
+                    ast::ExprAST::UnaryOp(opcode, operand) => {
+                        // エラーメッセージの作成
+                        let mut err_msg = String::new();
+                        let type_list = capture_print_order.iter().map(|name| {
+                            format!("${}: {:?}", name, captures_type[name])
+                        }).collect::<Vec<String>>().join(", ");
+                        err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
+                        err_msg.push_str(&format!("\n    {:?}", opcode));
+                        err_msg.push_str(&format!("\n    {:?}", operand));
+                        return Err(err_msg)
+                    },
                     ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
                         // エラーメッセージの作成
                         let mut err_msg = String::new();
