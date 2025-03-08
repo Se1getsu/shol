@@ -134,13 +134,17 @@ Expr: Box<ast::ExprAST> = {
 }
 
 Factor: Box<ast::ExprAST> = {
-    <Literal> => Box::new(<>),
+    #[precedence(level="1")]
     "$xx" => Box::new(ast::ExprAST::Capture(<>)),
     "(" <Expr> ")",
+    "-" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, <>)),
+
+    #[precedence(level="2")]
+    <Literal> => Box::new(<>),
 }
 
 Literal: ast::ExprAST = {
-    "int" =>
+    <SignedInt> =>
         ast::ExprAST::Number(<>),
     "identf" =>
         ast::ExprAST::Str(<>),
@@ -150,6 +154,11 @@ Literal: ast::ExprAST = {
         ast::ExprAST::Bool(true),
     "false" =>
         ast::ExprAST::Bool(false),
+}
+
+SignedInt: i32 = {
+    "-" <n:"int"> => -n,
+    <n:"int"> => n,
 }
 
 // MARK: ヘルパー非終端記号
