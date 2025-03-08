@@ -29,6 +29,38 @@ fn decode_string(input: &str) -> String {
                     't' => result.push('\t'),
                     '\\' => result.push('\\'),
                     '"' => result.push('"'),
+                    'x' => {
+                        let hex = chars.by_ref().take(2).collect::<String>();
+                        let code = match (hex.len() == 2, u8::from_str_radix(&hex, 16)) {
+                            (true, Ok(code)) => code,
+                            _ => panic!("Unicode エスケープ \\xXX をデコードできません: \\x{}", hex),
+                        };
+                        result.push(code as char);
+                    },
+                    'u' => {
+                        let hex = chars.by_ref().take(4).collect::<String>();
+                        let code = match (hex.len() == 4, u16::from_str_radix(&hex, 16)) {
+                            (true, Ok(code)) => code,
+                            _ => panic!("Unicode エスケープ \\uXXXX をデコードできません: \\u{}", hex),
+                        };
+                        let c = match char::from_u32(code as u32) {
+                            Some(c) => c,
+                            None => panic!("Unicode エスケープ \\u{} は不正な文字です。", hex),
+                        };
+                        result.push(c);
+                    },
+                    'U' => {
+                        let hex = chars.by_ref().take(8).collect::<String>();
+                        let code = match (hex.len() == 8, u32::from_str_radix(&hex, 16)) {
+                            (true, Ok(code)) => code,
+                            _ => panic!("Unicode エスケープ \\UXXXXXXXX をデコードできません: \\U{}", hex),
+                        };
+                        let c = match char::from_u32(code) {
+                            Some(c) => c,
+                            None => panic!("Unicode エスケープ \\U{} は不正な文字です。", hex),
+                        };
+                        result.push(c);
+                    },
                     _ => {
                         result.push('\\');
                         result.push(next);
