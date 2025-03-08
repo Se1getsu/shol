@@ -98,6 +98,7 @@ impl fmt::Debug for OutputAST {
 pub enum ExprAST {
     Number(i32),
     Str(String),
+    Bool(bool),
     Capture(String),
     BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>),
 }
@@ -109,6 +110,8 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"Number({})\":{{\"_\":{{}}}}}}", n),
             ExprAST::Str(s) =>
                 write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
+            ExprAST::Bool(b) =>
+                write!(f, "{{\"Bool({})\":{{\"_\":{{}}}}}}", b),
             ExprAST::Capture(s) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
             ExprAST::BinaryOp(lhs, op, rhs) =>

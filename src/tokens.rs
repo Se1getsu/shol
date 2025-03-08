@@ -84,13 +84,17 @@ fn decode_string(input: &str) -> String {
 #[logos(error = LexicalError)]
 #[logos(skip r"[ \t]+")]
 pub enum Token {
-    // 数値と識別子
+    // 識別子とリテラル
     #[regex(r"(\p{XID_Start}|_)\p{XID_Continue}*", |lex| lex.slice().to_string())]
     Identifier(String),
     #[regex("0|[1-9][0-9]*", |lex| lex.slice().parse())]
     IntegerLiteral(i32),
     #[regex(r#""([^"\\\x00-\x1F]|\\.)*""#, |lex| decode_string(lex.slice()))]
     StringLiteral(String),
+    #[token("true")]
+    True,
+    #[token("false")]
+    False,
 
     // 式に使われる記号
     #[token("(")]

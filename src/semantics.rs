@@ -125,6 +125,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
     match expr {
         ast::ExprAST::Number(_) => Ok(Type::Int),
         ast::ExprAST::Str(_) => Ok(Type::String),
+        ast::ExprAST::Bool(_) => Ok(Type::Bool),
         ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             let lhs_type = type_validate_expr(lhs, captures)?;
@@ -209,8 +210,7 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
     // 出力式に登場するキャプチャを調べる
     fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
         match expr {
-            ast::ExprAST::Number(_) => (),
-            ast::ExprAST::Str(_) => (),
+            ast::ExprAST::Number(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
             ast::ExprAST::Capture(name) =>
                 if !captures.contains(name) { captures.push(name.clone()); },
             ast::ExprAST::BinaryOp(lhs, _, rhs) => {
@@ -244,6 +244,7 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
     match expr {
         ast::ExprAST::Number(_) => ConditionKind::Equal(Type::Int),
         ast::ExprAST::Str(_) => ConditionKind::Equal(Type::String),
+        ast::ExprAST::Bool(_) => ConditionKind::Equal(Type::Bool),
         ast::ExprAST::Capture(name) => ConditionKind::Capture(name.clone()),
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             // 左辺と右辺の条件式種別を取得
@@ -436,6 +437,7 @@ fn analyze_output_ast(
         // 定数式の型を返す
         ast::ExprAST::Number(_) => AOAResult::Constant(Type::Int),
         ast::ExprAST::Str(_) => AOAResult::Constant(Type::String),
+        ast::ExprAST::Bool(_) => AOAResult::Constant(Type::Bool),
 
         // capture_infers に登録されているインデックスを返す
         ast::ExprAST::Capture(name) => {
@@ -629,7 +631,8 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             // 型検証
             if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
-                    ast::ExprAST::Number(_) | ast::ExprAST::Str(_) | ast::ExprAST::Capture(_) => (),
+                    ast::ExprAST::Number(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
+                    ast::ExprAST::Capture(_) => (),
                     ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
                         // エラーメッセージの作成
                         let mut err_msg = String::new();
