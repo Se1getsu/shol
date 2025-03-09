@@ -1,7 +1,7 @@
 use std::{env, io::Write, fs::File, process::ExitCode};
 use lalrpop_util::lalrpop_mod;
 use getopts::Options;
-use tempfile::Builder;
+use tempfile;
 
 pub mod ast;
 pub mod tokens;
@@ -17,9 +17,26 @@ struct Config {
     /// 中間生成ファイル名
     shi_file: Option<String>,
     /// 中間生成ファイル名
-    rs_file: String,
+    rs_file: OutputFile,
     /// 実行ファイル名
     exe_file: String,
+}
+
+enum OutputFile {
+    /// 一時ファイル
+    Tmp(tempfile::NamedTempFile),
+    /// 出力ファイル
+    Out(String),
+}
+
+impl OutputFile {
+    /// ファイルパスを取得
+    fn path(&self) -> String {
+        match self {
+            OutputFile::Tmp(temp) => temp.path().to_string_lossy().into_owned(),
+            OutputFile::Out(path) => path.clone(),
+        }
+    }
 }
 
 fn main() -> ExitCode {
@@ -60,7 +77,7 @@ fn main() -> ExitCode {
     println!("{{\"AST\":{:?}}}", ast);
 
     // 出力ファイルを開く
-    let mut out_file = File::create(&config.rs_file)
+    let mut out_file = File::create(&config.rs_file.path())
         .expect("Failed to create output file");
 
     // コード生成
@@ -70,7 +87,7 @@ fn main() -> ExitCode {
 
     // コンパイル
     println!("\n[*] Compiling...");
-    if let Err(e) = compile_rs_file(&config.rs_file, &config.exe_file) {
+    if let Err(e) = compile_rs_file(&config.rs_file.path(), &config.exe_file) {
         return e;
     }
 
@@ -136,15 +153,13 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
 
     // 出力ファイル名の設定
     let rs_file = if save_temps {
-        format!("{}.rs", src_file.trim_end_matches(".shol"))
+        OutputFile::Out(format!("{}.rs", src_file.trim_end_matches(".shol")))
     } else {
-        Builder::new()
+        let temp = tempfile::Builder::new()
             .suffix(".rs")
             .tempfile()
-            .expect("一時ファイルの作成に失敗しました")
-            .path()
-            .to_string_lossy()
-            .into_owned()
+            .expect("一時ファイルの作成に失敗しました");
+        OutputFile::Tmp(temp)
     };
 
     let shi_file = if save_temps {
