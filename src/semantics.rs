@@ -361,20 +361,28 @@ fn analyze_capture_condition(expr: &ast::ExprAST, capture_name: &String) -> Hash
 
     // キャプチャに型を 1 つずつ割り当てて検証
     let mut possible_types = HashSet::new();
-    Type::all_types().into_iter().for_each(|t| {
+    let mut cannot_evaluate = true;
+    for t in Type::all_types() {
         // type_validate_expr に渡す用の型ヒント
         let captures = {
             let mut captures = HashMap::new();
             captures.insert(capture_name.clone(), t);
             captures
         };
-        if let Ok(_) = type_validate_expr(expr, &captures) {
-            possible_types.insert(t);
+        if let Ok(expr_t) = type_validate_expr(expr, &captures) {
+            cannot_evaluate = false;
+            if let Type::Bool = expr_t {
+                possible_types.insert(t);
+            }
         }
-    });
+    }
 
     if possible_types.is_empty() {
-        panic!("この条件式を計算できるキャプチャ型は存在しません: {:?}", expr);
+        if cannot_evaluate {
+            panic!("この条件式を評価可能なキャプチャ型は存在しません: {:?}", expr);
+        } else {
+            panic!("結果が真偽値にならない条件式はサポートされていません: {:?}", expr);
+        }
     }
     possible_types
 }
