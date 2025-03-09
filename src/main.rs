@@ -19,7 +19,11 @@ fn main() {
 
     // 出力ファイル名の設定
     let out_rs_file = format!("{}.rs", src_file.trim_end_matches(".shol"));
-    let out_exe_file = format!("{}.out", src_file.trim_end_matches(".shol"));
+    let exe_file = if cfg!(target_os = "windows") {
+        format!("{}.exe", src_file.trim_end_matches(".shol"))
+    } else {
+        src_file.trim_end_matches(".shol").to_string()
+    };
 
     // 入力ファイルの読み込み
     let program = std::fs::read_to_string(src_file)
@@ -57,7 +61,7 @@ fn main() {
     let status = std::process::Command::new("rustc")
         .arg(&out_rs_file)
         .arg("-o")
-        .arg(out_exe_file)
+        .arg(exe_file)
         .status()
         .expect("Failed to execute rustc");
     if !status.success() {
