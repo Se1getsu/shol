@@ -85,6 +85,9 @@ impl UnaryOpcodeSignature {
             UnaryOpcode::Neg => vec![
                 Self { operand: Type::Int, result: Type::Int },
             ],
+            UnaryOpcode::As(t) => vec![
+                Self { operand: t, result: t },
+            ],
         }
     }
 }

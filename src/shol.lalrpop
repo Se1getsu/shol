@@ -1,6 +1,6 @@
 use crate::tokens::{Token, LexicalError};
 use crate::ast;
-
+use crate::semantics;
 grammar;
 
 // MARK: 構文
@@ -92,6 +92,15 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
     <Factor>,
+    <Factor> ":int" => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Int), <>))
+    },
+    <Factor> ":str" => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::String), <>))
+    },
+    <Factor> ":bool" => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Bool), <>))
+    },
 
     #[precedence(level="2")] #[assoc(side="left")]
     <lhs:Expr> "*" <rhs:Expr> => {
@@ -199,6 +208,9 @@ extern {
         "*" => Token::Mul,
         "/" => Token::Div,
         "%" => Token::Mod,
+        ":int" => Token::AsInt,
+        ":str" => Token::AsStr,
+        ":bool" => Token::AsBool,
         "." => Token::Dot,
         "|" => Token::Pipe,
         "," => Token::Comma,

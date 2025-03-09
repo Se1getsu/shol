@@ -769,11 +769,10 @@ fn generate_expr(
                 (operand_type, String::from_utf8(buffer).unwrap())
             };
 
-            write!(f, "(",)?;
             match opcode {
-                UnaryOpcode::Neg => write!(f, "-{}", operand_code)?,
+                UnaryOpcode::Neg => write!(f, "(-{})", operand_code)?,
+                UnaryOpcode::As(_) => write!(f, "{}", operand_code)?,
             }
-            write!(f, ")",)?;
 
             match opcode.result_type(operand_type) {
                 Some(t) => result_type = t,
