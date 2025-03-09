@@ -87,7 +87,7 @@ impl Identf {
         format!("Colony_{}", name)
     }
     /// EN_TYPE の列挙子
-    fn en_type(t: Type) -> String {
+    fn en_type(t: &Type) -> String {
         format!("{}::{:?}", Identf::EN_TYPE, t)
     }
     /// &Type::actual: リソースの実際の値の参照
@@ -351,7 +351,7 @@ fn generate_rule_set(
     if has_single_cond_rule {
         writeln!(f, "      match {} {{", Identf::V_RSRS_REF)?;
         for t in Type::all_types() {
-            writeln!(f, "        {}({}) => {{", Identf::en_type(t), Identf::V_VALUE_REF)?;
+            writeln!(f, "        {}({}) => {{", Identf::en_type(&t), Identf::V_VALUE_REF)?;
             for rule in &rule_set.rules {
                 // 単一条件か確認
                 if !(rule.conditions.len() == 1) { continue; }
@@ -362,7 +362,7 @@ fn generate_rule_set(
                     if !(typehint.possible_types.contains(&t)) { continue; }
                 }
                 // 規則を適用するコードを生成
-                generate_single_condition_rule(f, rule, t, colony_indices)?;
+                generate_single_condition_rule(f, rule, &t, colony_indices)?;
             }
             writeln!(f, "        }}")?;
         }
@@ -475,23 +475,25 @@ fn generate_multi_condition_judge(
                 })?;
                 (result_type, String::from_utf8(buffer).unwrap())
             };
-            writeln!(f, "            {}({}) => {}.clone() == {},", Identf::en_type(result_type),
+            writeln!(f, "            {}({}) => {}.clone() == {},", Identf::en_type(&result_type),
                 Identf::V_VALUE_REF, Identf::V_VALUE_REF, expr_str)?;
         },
         ConditionKind::Capture(name) => {
             let types_str = captures[name].possible_types
-                .iter().map(|t| {
-                    format!("{}(_)", Identf::en_type(*t))
-                }).collect::<Vec<String>>()
+                .iter()
+                .map(|t| {
+                    format!("{}(_)", Identf::en_type(t))
+                })
+                .collect::<Vec<String>>()
                 .join("|");
             writeln!(f, "            {} => true,", types_str)?;
         },
         ConditionKind::CaptureCondition(name) => {
             for t in &captures[name].possible_types {
-                write!(f, "            {}({}) => ", Identf::en_type(*t), Identf::V_VALUE_REF)?;
+                write!(f, "            {}({}) => ", Identf::en_type(t), Identf::V_VALUE_REF)?;
                 generate_expr(f, &condition.expr, &|f, _| {
                     write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
-                    Ok(*t)
+                    Ok(t.clone())
                 })?;
                 writeln!(f, ",")?;
             }
@@ -577,7 +579,7 @@ fn generate_multi_condition_output(
             let result_type = generate_expr(&mut buffer, output_expr, generate_capture)?;
             (result_type, String::from_utf8(buffer).unwrap())
         };
-        write!(f, "{}.push({}({}))", Identf::V_ENTRY_MUT, Identf::en_type(result_type), expr_str)?;
+        write!(f, "{}.push({}({}))", Identf::V_ENTRY_MUT, Identf::en_type(&result_type), expr_str)?;
         Ok(())
     }
 
@@ -592,13 +594,13 @@ fn generate_multi_condition_output(
         if assoc_captures.is_empty() {
             write!(f, "              (")?;
             for capt in assoc_capts {
-                write!(f, "{}({}),", Identf::en_type(types[capt]), Identf::v_value_ref(capt))?;
+                write!(f, "{}({}),", Identf::en_type(&types[capt]), Identf::v_value_ref(capt))?;
             }
             writeln!(f, ") =>")?;
             write!(f, "                ")?;
             _generate_push_resource(f, output_expr, &|f, name| {
                 write!(f, "{}.clone()", Identf::v_value_ref(name))?;
-                Ok(types[name])
+                Ok(types[name].clone())
             })?;
             writeln!(f, ",")?;
 
@@ -609,9 +611,9 @@ fn generate_multi_condition_output(
             // 取り出したキャプチャを assoc_captures から削除して types に追加
             let mut assoc_captures = assoc_captures.clone();
             assoc_captures.remove(name);
-            for t in type_hint.possible_types.iter() {
+            for t in type_hint.possible_types.to_owned() {
                 let mut types = types.clone();
-                types.insert(name.clone(), *t);
+                types.insert(name.clone(), t);
                 backtrack_types(f, &assoc_captures, &types, output_expr, assoc_capts)?; // 再帰
             }
         }
@@ -657,7 +659,7 @@ fn generate_multi_condition_output(
 fn generate_single_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
-    capture_type: Type,
+    capture_type: &Type,
     colony_indices: &HashMap<&String, usize>,
 ) -> io::Result<()> {
     let cond = &rule.conditions[0];
@@ -681,7 +683,7 @@ fn generate_single_condition_rule(
             write!(f, "if ")?;
             generate_expr(f, &cond.expr, &|f, _| {
                 write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
-                Ok(capture_type)
+                Ok(capture_type.clone())
             })?;
             write!(f, " ")?;
         },
@@ -710,7 +712,7 @@ fn generate_single_condition_rule(
         // リソース出力
         generate_resource(f, &output.expr, &|f, _| {
             write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
-            Ok(capture_type)
+            Ok(capture_type.clone())
         })?;
         writeln!(f, ");")?;
 
@@ -736,7 +738,7 @@ fn generate_resource(
         let result_type = generate_expr(&mut buffer, expr, generate_capture)?;
         (result_type, String::from_utf8(buffer).unwrap())
     };
-    write!(f, "{}({})", Identf::en_type(result_type), expr_str)?;
+    write!(f, "{}({})", Identf::en_type(&result_type), expr_str)?;
     Ok(())
 }
 
@@ -774,7 +776,7 @@ fn generate_expr(
                 UnaryOpcode::As(_) => write!(f, "{}", operand_code)?,
             }
 
-            match opcode.result_type(operand_type) {
+            match opcode.result_type(&operand_type) {
                 Some(t) => result_type = t,
                 None => panic!("不正な型の演算です: {:?} {:?}", opcode, operand_type),
             }
@@ -797,7 +799,7 @@ fn generate_expr(
                 Opcode::Div => write!(f, "{}/{}", lhs_code, rhs_code)?,
                 Opcode::Mod => write!(f, "{}%{}", lhs_code, rhs_code)?,
                 Opcode::Add => {
-                    match (lhs_type, rhs_type) {
+                    match (&lhs_type, &rhs_type) {
                         (Type::Int, Type::Int) =>
                             write!(f, "{}+{}", lhs_code, rhs_code)?,
                         _ =>
@@ -814,7 +816,7 @@ fn generate_expr(
             }
             write!(f, ")",)?;
 
-            match opcode.result_type(lhs_type, rhs_type) {
+            match opcode.result_type(&lhs_type, &rhs_type) {
                 Some(t) => result_type = t,
                 None => panic!("不正な型の演算です: {:?} {:?} {:?}", lhs_type, opcode, rhs_type),
             }
