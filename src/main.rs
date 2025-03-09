@@ -1,6 +1,6 @@
+use std::{env, io::Write};
 use lalrpop_util::lalrpop_mod;
 use getopts::Options;
-use std::env;
 use tempfile::Builder;
 
 pub mod ast;
@@ -16,6 +16,7 @@ struct Config {
     src_file: String,
     save_temps: bool,
     out_rs_file: String,
+    out_shi_file: String,
     exe_file: String,
 }
 
@@ -27,10 +28,15 @@ fn main() {
     let program = std::fs::read_to_string(&config.src_file)
         .expect("Failed to read program file");
 
-    // 前処理
+    // プリプロセス
     println!("[*] Preprocessing...");
     let program = preprocessor::preprocess(&program);
-    println!("{}", program);
+    if config.save_temps {
+        let mut out_file = std::fs::File::create(&config.out_shi_file)
+            .expect("Failed to create output file");
+        out_file.write_all(program.as_bytes())
+            .expect("Failed to write program to file");
+    }
 
     // AST 生成
     println!("[*] AST generating...");
@@ -136,6 +142,7 @@ fn parse_args(args: Vec<String>) -> Config {
             .into_owned()
     };
 
+    let out_shi_file = format!("{}.shi", src_file.trim_end_matches(".shol"));
     let exe_file = if cfg!(target_os = "windows") {
         format!("{}.exe", src_file.trim_end_matches(".shol"))
     } else {
@@ -146,6 +153,7 @@ fn parse_args(args: Vec<String>) -> Config {
         src_file,
         save_temps,
         out_rs_file,
+        out_shi_file,
         exe_file,
     }
 }
