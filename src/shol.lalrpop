@@ -66,7 +66,6 @@ Outputs: Vec<ast::OutputAST> = {
 }
 OutputsEndsWithDest: (Vec<ast::OutputAST>, Option<String>) = {
     <dest:"#xx"> => (vec![], dest),
-    <outs:Outputs> <dest:"#xx"> => (outs, dest),
 }
 OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
     <mut vd:OutputsEndsWithDest> <expr:Expr> => {
