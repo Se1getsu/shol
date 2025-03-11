@@ -57,7 +57,7 @@ Rule: ast::RuleAST = {
 }
 
 Condition: ast::ConditionAST = {
-    <Expr> => ast::ConditionAST { expr: *<>, meta: None },
+    <Expr> => ast::ConditionAST { expr: *<>, sq_info: None, meta: None },
 }
 
 Outputs: Vec<ast::OutputAST> = {
