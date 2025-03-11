@@ -415,10 +415,8 @@ fn generate_multi_condition_rule(
 
         // if condition {
         write!(f, "          if ")?;
-        if let Some(sq_info) = &condition.sq_info {
-            if sq_info.start_index != i {
-                write!(f, "{0}[{1}]=={0}[{2}] && ", Identf::V_CAPT_PROG, i, i-1)?;
-            }
+        if condition.sqc_start != i {
+            write!(f, "{0}[{1}]=={0}[{2}] && ", Identf::V_CAPT_PROG, i, i-1)?;
         }
         generate_multi_condition_judge(f, condition, i, captures)?;
 
@@ -438,22 +436,18 @@ fn generate_multi_condition_rule(
                 colony_indices,
             )?;
         }
-        if let Some(sq_info) = &condition.sq_info {
-            if sq_info.end_index != i {
-                writeln!(f, "            {0}[{1}] = {0}[{2}];", Identf::V_CAPT_PROG, i+1, i)?;
-            }
+        if condition.sqc_end != i {
+            writeln!(f, "            {0}[{1}] = {0}[{2}];", Identf::V_CAPT_PROG, i+1, i)?;
         }
         writeln!(f, "          }} else {{")?;
-        if let Some(sq_info) = &condition.sq_info {
-            if sq_info.start_index != i {
-                writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, sq_info.start_index)?;
-                writeln!(f, "            for {} in {}..{} {{", Identf::V_I, sq_info.start_index, i)?;
-                writeln!(f, "              {}[{}[{}]-1] = false;",
-                    Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
-                writeln!(f, "              {}[{}[{}]-1] = false;",
-                    Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
-                writeln!(f, "            }}")?;
-            }
+        if condition.sqc_start != i {
+            writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, condition.sqc_start)?;
+            writeln!(f, "            for {} in {}..{} {{", Identf::V_I, condition.sqc_start, i)?;
+            writeln!(f, "              {}[{}[{}]-1] = false;",
+                Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+            writeln!(f, "              {}[{}[{}]-1] = false;",
+                Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+            writeln!(f, "            }}")?;
         }
         writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         writeln!(f, "          }}")?; // if condition

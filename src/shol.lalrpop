@@ -46,8 +46,10 @@ ParallelRule: ast::RuleAST = {
     "|" <Rule> "nl"+
 }
 
+// MARK: 規則
+
 Rule: ast::RuleAST = {
-    <conds:CommaListing<Condition>> <outs:Outputs> => {
+    <conds:Conditions> <outs:Outputs> => {
         ast::RuleAST {
             conditions: conds,
             outputs: outs,
@@ -56,8 +58,33 @@ Rule: ast::RuleAST = {
     },
 }
 
+Conditions: Vec<ast::ConditionAST> = {
+    <mut v:SequentialCondition> => {
+        let total_len = v.len();
+        for c in v.iter_mut() {
+            c.sqc_start = 0;
+            c.sqc_end = total_len - 1;
+        }
+        v
+    },
+    <mut v:SequentialCondition> "," <mut new_v:SequentialCondition> => {
+        let total_len = v.len() + new_v.len();
+        for c in new_v.iter_mut() {
+            c.sqc_start = v.len();
+            c.sqc_end = total_len - 1;
+        }
+        v.extend(new_v);
+        v
+    },
+}
+
+SequentialCondition: Vec<ast::ConditionAST> = {
+    <Condition> => vec![<>],
+    "[" <CommaListing<Condition>> "]",
+}
+
 Condition: ast::ConditionAST = {
-    <Expr> => ast::ConditionAST { expr: *<>, sq_info: None, meta: None },
+    <Expr> => ast::ConditionAST { expr: *<>, sqc_start: 0, sqc_end: 0, meta: None },
 }
 
 Outputs: Vec<ast::OutputAST> = {
