@@ -93,20 +93,15 @@ impl fmt::Debug for OutputAST {
     }
 }
 
-// MARK: ExprAST, TupleElmAST
+// MARK: ExprAST
 
 pub enum ExprAST {
     Number(i32),
     Str(String),
     Bool(bool),
     Capture(String),
-    Tuple(Vec<TupleElmAST>),
     UnaryOp(UnaryOpcode, Box<ExprAST>),
     BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>),
-}
-
-pub struct TupleElmAST {
-    pub expr: ExprAST,
 }
 
 impl fmt::Debug for ExprAST {
@@ -120,19 +115,11 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"Bool({})\":{{\"_\":{{}}}}}}", b),
             ExprAST::Capture(s) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
-            ExprAST::Tuple(elements) =>
-                write!(f, "{{\"Tuple\":{{\".elements\":{:?}}}}}", elements),
             ExprAST::UnaryOp(op, operand) =>
                 write!(f, "{{\"BinaryOp({:?})\":{:?}}}", op, operand),
             ExprAST::BinaryOp(lhs, op, rhs) =>
                 write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
-    }
-}
-
-impl fmt::Debug for TupleElmAST {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\"TupleElmAST\":{{\".expr\":{:?}}}}}", self.expr)
     }
 }
 
