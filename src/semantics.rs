@@ -23,7 +23,7 @@ pub struct TypeHint {
     pub possible_types: HashSet<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Type {
     // NOTE: 変更時には Type::all_types() にも変更を反映すること
     Int,
@@ -80,13 +80,13 @@ struct OpcodeSignature {
 
 impl UnaryOpcodeSignature {
     /// 指定したオペレータの型シグネチャを返す
-    fn get_signatures(opcode: &UnaryOpcode) -> Vec<Self> {
+    fn get_signatures(opcode: UnaryOpcode) -> Vec<Self> {
         match opcode {
             UnaryOpcode::Neg => vec![
                 Self { operand: Type::Int, result: Type::Int },
             ],
             UnaryOpcode::As(t) => vec![
-                Self { operand: t.clone(), result: t.clone() },
+                Self { operand: t, result: t },
             ],
         }
     }
@@ -117,18 +117,18 @@ impl OpcodeSignature {
 }
 
 pub trait UnaryOpcodeSignatureExt {
-    fn result_type(&self, operand: &Type) -> Option<Type>;
+    fn result_type(self, operand: Type) -> Option<Type>;
 }
 pub trait OpcodeSignatureExt {
-    fn result_type(self, lhs: &Type, rhs: &Type) -> Option<Type>;
+    fn result_type(self, lhs: Type, rhs: Type) -> Option<Type>;
 }
 
 impl UnaryOpcodeSignatureExt for UnaryOpcode {
     /// 演算結果の型を返す
-    fn result_type(&self, operand: &Type) -> Option<Type> {
+    fn result_type(self, operand: Type) -> Option<Type> {
         UnaryOpcodeSignature::get_signatures(self).iter().find_map(|sig| {
-            if &sig.operand == operand {
-                Some(sig.result.clone())
+            if sig.operand == operand {
+                Some(sig.result)
             } else {
                 None
             }
@@ -137,10 +137,10 @@ impl UnaryOpcodeSignatureExt for UnaryOpcode {
 }
 impl OpcodeSignatureExt for Opcode {
     /// 演算結果の型を返す
-    fn result_type(self, lhs: &Type, rhs: &Type) -> Option<Type> {
+    fn result_type(self, lhs: Type, rhs: Type) -> Option<Type> {
         OpcodeSignature::get_signatures(self).iter().find_map(|sig| {
-            if &sig.lhs == lhs && &sig.rhs == rhs {
-                Some(sig.result.clone())
+            if sig.lhs == lhs && sig.rhs == rhs {
+                Some(sig.result)
             } else {
                 None
             }
@@ -161,7 +161,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
         ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
         ast::ExprAST::UnaryOp(opcode, operand) => {
             let operand_type = type_validate_expr(operand, captures)?;
-            if let Some(result) = opcode.result_type(&operand_type) {
+            if let Some(result) = opcode.result_type(operand_type) {
                 Ok(result)
             } else {
                 Err(expr)
@@ -170,7 +170,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             let lhs_type = type_validate_expr(lhs, captures)?;
             let rhs_type = type_validate_expr(rhs, captures)?;
-            if let Some(result) = opcode.result_type(&lhs_type, &rhs_type) {
+            if let Some(result) = opcode.result_type(lhs_type, rhs_type) {
                 Ok(result)
             } else {
                 Err(expr)
@@ -309,7 +309,7 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
             // Equal or キャプチャ条件式 を返す
             match &operand_kind {
                 ConditionKind::Equal(t) => {
-                    if let Some(result) = opcode.clone().result_type(&t) {
+                    if let Some(result) = opcode.result_type(*t) {
                         return ConditionKind::Equal(result);
                     } else {
                         panic!("不正な型の演算です: {:?} {:?}", opcode, t);
@@ -331,7 +331,7 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
             // 左辺と右辺のどちらかがキャプチャ条件式の場合, キャプチャ条件式を返す
             match (&lhs_kind, &rhs_kind) {
                 (ConditionKind::Equal(t_l), ConditionKind::Equal(t_r)) => {
-                    if let Some(result) = opcode.result_type(&t_l, &t_r) {
+                    if let Some(result) = opcode.result_type(*t_l, *t_r) {
                         return ConditionKind::Equal(result);
                     } else {
                         panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
@@ -376,12 +376,12 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
 fn analyze_capture_condition(expr: &ast::ExprAST, capture_name: &String) -> HashSet<Type> {
 
     // キャプチャに型を 1 つずつ割り当てて検証
-    let mut possible_types: HashSet<Type> = HashSet::new();
+    let mut possible_types = HashSet::new();
     Type::all_types().into_iter().for_each(|t| {
         // type_validate_expr に渡す用の型ヒント
         let captures = {
             let mut captures = HashMap::new();
-            captures.insert(capture_name.clone(), t.clone());
+            captures.insert(capture_name.clone(), t);
             captures
         };
         if let Ok(_) = type_validate_expr(expr, &captures) {
@@ -461,7 +461,7 @@ impl InferredType {
         match self {
             InferredType::Constant(t) => {
                 let mut types = HashSet::new();
-                types.insert(t.clone());
+                types.insert(*t);
                 types
             },
             InferredType::Capture(name) =>
@@ -543,7 +543,7 @@ fn analyze_output_ast(
 
             // 定数式なら AOAResult::Constant を返す
             if let AOAResult::Constant(t) = &operand {
-                if let Some(result) = opcode.result_type(t) {
+                if let Some(result) = opcode.result_type(*t) {
                     return AOAResult::Constant(result);
                 } else {
                     panic!("不正な型の演算です: {:?} {:?}", opcode, t);
@@ -558,7 +558,7 @@ fn analyze_output_ast(
 
             // 自身を infer に追加する
             infers.push(InferredType::UnaryExpr {
-                opcode: opcode.clone(),
+                opcode: *opcode,
                 operand: i_operand,
                 parent: None,
                 result: Type::all_types(),
@@ -579,7 +579,7 @@ fn analyze_output_ast(
 
             // 定数式なら AOAResult::Constant を返す
             if let (AOAResult::Constant(t_l), AOAResult::Constant(t_r)) = (&lhs, &rhs) {
-                if let Some(result) = opcode.result_type(t_l, t_r) {
+                if let Some(result) = opcode.result_type(*t_l, *t_r) {
                     return AOAResult::Constant(result);
                 } else {
                     panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
@@ -590,14 +590,14 @@ fn analyze_output_ast(
             let i_l = match &lhs {
                 AOAResult::Infer { index } => *index,
                 AOAResult::Constant(t) => {
-                    infers.push(InferredType::Constant(t.clone()));
+                    infers.push(InferredType::Constant(*t));
                     InfersIndex(infers.len() - 1)
                 }
             };
             let i_r = match &rhs {
                 AOAResult::Infer { index } => *index,
                 AOAResult::Constant(t) => {
-                    infers.push(InferredType::Constant(t.clone()));
+                    infers.push(InferredType::Constant(*t));
                     InfersIndex(infers.len() - 1)
                 }
             };
@@ -652,7 +652,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
                     let mut new_t_result: HashSet<Type> = HashSet::new();
 
                     // 推論
-                    for signature in UnaryOpcodeSignature::get_signatures(opcode) {
+                    for signature in UnaryOpcodeSignature::get_signatures(*opcode) {
                         if t_operand.contains(&signature.operand) {
                             new_t_result.insert(signature.result);
                             new_t_operand.insert(signature.operand);
@@ -845,9 +845,9 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             // 取り出したキャプチャを captures から削除して captures_type に追加
             let mut captures = captures.clone();
             captures.remove(name);
-            for t in type_hint.possible_types.to_owned() {
+            for t in type_hint.possible_types.iter() {
                 let mut captures_type = captures_type.clone();
-                captures_type.insert(name.clone(), t);
+                captures_type.insert(name.clone(), *t);
                 _validate_inference(&captures, &captures_type, output, capture_print_order)?; // 再帰
             }
         }

@@ -125,7 +125,7 @@ impl fmt::Debug for ExprAST {
 
 // MARK: Opcode
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOpcode {
     Neg,
     As(semantics::Type),
