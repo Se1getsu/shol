@@ -26,8 +26,8 @@ Statement: ast::StatementAST = {
     }
 }
 
-Resource: ast::TupleAST = {
-    <Literal> "nl"+ => ast::TupleAST { elements: vec![<>] },
+Resource: ast::ExprAST = {
+    <Literal> "nl"+,
 }
 
 RuleSet: ast::RuleSetAST = {
@@ -57,7 +57,7 @@ Rule: ast::RuleAST = {
 }
 
 Condition: ast::ConditionAST = {
-    <Tuple> => ast::ConditionAST { tuple: <>, meta: None },
+    <Expr> => ast::ConditionAST { expr: *<>, meta: None },
 }
 
 Outputs: Vec<ast::OutputAST> = {
@@ -69,17 +69,17 @@ OutputsEndsWithDest: (Vec<ast::OutputAST>, Option<String>) = {
     <outs:Outputs> <dest:"#xx"> => (outs, dest),
 }
 OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
-    <mut vd:OutputsEndsWithDest> <tuple:Tuple> => {
+    <mut vd:OutputsEndsWithDest> <expr:Expr> => {
         vd.0.push(ast::OutputAST {
-            tuple,
+            expr: *expr,
             destination: vd.1.clone(),
             meta: None,
         });
         vd
     },
-    <mut vd:OutputsEndsWithExpr> "," <tuple:Tuple> => {
+    <mut vd:OutputsEndsWithExpr> "," <expr:Expr> => {
         vd.0.push(ast::OutputAST {
-            tuple,
+            expr: *expr,
             destination: vd.1.clone(),
             meta: None,
         });
@@ -88,10 +88,6 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
 }
 
 // MARK: 式
-
-Tuple: ast::TupleAST = {
-    <Expr> => ast::TupleAST { elements: vec![*<>] },
-}
 
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]

@@ -15,8 +15,8 @@ fn urlencode(s: &str) -> String {
 // MARK: StatementAST
 
 pub enum StatementAST {
-    ColonyDecl { name: String, resources: Vec<TupleAST>, rules: Vec<RuleSetAST> },
-    ColonyExtension { name: String, resources: Vec<TupleAST>, rules: Vec<RuleSetAST> },
+    ColonyDecl { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
+    ColonyExtension { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
 }
 
 impl fmt::Debug for StatementAST {
@@ -60,12 +60,12 @@ impl fmt::Debug for RuleAST {
 // MARK: ConditionAST, OutputAST
 
 pub struct ConditionAST {
-    pub tuple: TupleAST,
+    pub expr: ExprAST,
     pub meta: Option<semantics::ConditionASTMeta>,
 }
 
 pub struct OutputAST {
-    pub tuple: TupleAST,
+    pub expr: ExprAST,
     pub destination: Option<String>,
     pub meta: Option<semantics::OutputASTMeta>,
 }
@@ -74,9 +74,9 @@ impl fmt::Debug for ConditionAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{\"Condition{}\":{{\".tuple\":{:?}}}}}",
+            "{{\"Condition{}\":{{\".expr\":{:?}}}}}",
             self.meta.as_ref().map(|m| format!(":{:?}", m.kind)).unwrap_or_default(),
-            self.tuple
+            self.expr
         )
     }
 }
@@ -85,25 +85,15 @@ impl fmt::Debug for OutputAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{{\"Output({}){}\":{{\".tuple\":{:?}}}}}",
+            "{{\"Output({}){}\":{{\".expr\":{:?}}}}}",
             self.meta.as_ref().map(|m| format!("{}", m.associated_captures.join(","))).unwrap_or_default(),
             self.destination.as_ref().map_or("#".to_string(), |d| format!("#{}", d)),
-            self.tuple
+            self.expr
         )
     }
 }
 
-// MARK: TupleAST, ExprAST
-
-pub struct TupleAST {
-    pub elements: Vec<ExprAST>,
-}
-
-impl fmt::Debug for TupleAST {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{\"Tuple\":{{\".elements\":{:?}}}}}", self.elements)
-    }
-}
+// MARK: ExprAST
 
 pub enum ExprAST {
     Number(i32),
