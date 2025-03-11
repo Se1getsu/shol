@@ -422,7 +422,6 @@ fn generate_multi_condition_rule(
 
         writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, next_idx)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
-        writeln!(f, "            {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
         writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         if is_last {
             // 出力リソースを出力先に push
@@ -445,8 +444,6 @@ fn generate_multi_condition_rule(
             writeln!(f, "            for {} in {}..{} {{", Identf::V_I, condition.sqc_start, i)?;
             writeln!(f, "              {}[{}[{}]-1] = false;",
                 Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
-            writeln!(f, "              {}[{}[{}]-1] = false;",
-                Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
             writeln!(f, "            }}")?;
         }
         writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
@@ -461,7 +458,11 @@ fn generate_multi_condition_rule(
     // 使用済みフラグを立てたが, 最後の条件式までリソースが揃わなかったものを解除
     writeln!(f, "    for {} in 0..{} {{", Identf::V_I, Identf::V_CAPT_IDX)?;
     writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
-    writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+    writeln!(f, "    }}")?;
+
+    // V_SOME_USED に使用済みフラグを反映
+    writeln!(f, "    for {} in 0..self.{}.len() {{", Identf::V_I, Identf::ME_RESOURCE)?;
+    writeln!(f, "      {0}[{2}] |= {1}[{2}];", Identf::V_SOME_USED, Identf::V_USED, Identf::V_I)?;
     writeln!(f, "    }}")?;
 
     Ok(())
