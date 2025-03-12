@@ -128,6 +128,7 @@ impl fmt::Debug for ExprAST {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOpcode {
     Neg,
+    As(semantics::Type),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

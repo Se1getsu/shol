@@ -85,6 +85,9 @@ impl UnaryOpcodeSignature {
             UnaryOpcode::Neg => vec![
                 Self { operand: Type::Int, result: Type::Int },
             ],
+            UnaryOpcode::As(t) => vec![
+                Self { operand: t, result: t },
+            ],
         }
     }
 }
@@ -239,6 +242,18 @@ fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTM
         },
     }
 
+    // $:int のような場合は キャプチャ単体 に変換する
+    let kind = match &condition.expr {
+        ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand) => {
+            if let ast::ExprAST::Capture(name) = &**operand {
+                ConditionKind::Capture(name.clone())
+            } else {
+                kind
+            }
+        }
+        _ => kind
+    };
+
     // AST にメタデータを追加
     condition.meta = Some(ConditionASTMeta { kind });
 }
@@ -280,6 +295,7 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
 // MARK: 条件式の型推論
 
 /// 条件式の種別を取得
+/// NOTE: $:int のような場合は キャプチャ条件式 と判定する
 fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
     match expr {
         ast::ExprAST::Number(_) => ConditionKind::Equal(Type::Int),

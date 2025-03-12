@@ -125,6 +125,12 @@ pub enum Token {
     Div,
     #[token("%")]
     Mod,
+    #[token(":int")]
+    AsInt,
+    #[token(":str")]
+    AsStr,
+    #[token(":bool")]
+    AsBool,
 
     // 構文に使われる記号
     #[token(".")]
