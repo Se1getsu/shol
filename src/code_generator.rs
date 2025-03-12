@@ -664,21 +664,24 @@ fn generate_single_condition_rule(
     let cond_meta = cond.meta.as_ref().unwrap();
 
     // if condition { 部分を生成
-    write!(f, "          ")?;
     match cond_meta.kind {
         // 条件式と一致したら出力式を push
         ConditionKind::Equal(_) => {
-            write!(f, "if {}.clone() == ", Identf::V_VALUE_REF)?;
-            generate_expr(f, &cond.expr, &|_, _| {
-                unreachable!()
-            })?;
-            write!(f, " ")?;
+            let (result_type, expr_str) = {
+                let mut buffer = Vec::new();
+                let result_type = generate_expr(&mut buffer, &cond.expr, &|_, _| {
+                    unreachable!()
+                })?;
+                (result_type, String::from_utf8(buffer).unwrap())
+            };
+            if result_type != capture_type { return Ok(()); }
+            write!(f, "          if {}.clone() == {} ", Identf::V_VALUE_REF, expr_str)?;
         },
         // 無条件で出力式を push
         ConditionKind::Capture(_) => (),
         // 条件式を満たすならば出力式を push
         ConditionKind::CaptureCondition(_) => {
-            write!(f, "if ")?;
+            write!(f, "          if ")?;
             generate_expr(f, &cond.expr, &|f, _| {
                 write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
                 Ok(capture_type)
