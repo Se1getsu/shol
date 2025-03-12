@@ -413,15 +413,17 @@ fn generate_multi_condition_rule(
         let next_idx = if is_last { 0 } else { i + 1 };
         writeln!(f, "        {} => {{", i)?;
 
-        // ↓ generates:        if condition {
+        // if condition {
+        write!(f, "          if ")?;
+        if condition.sqc_start != i {
+            write!(f, "{0}[{1}]=={0}[{2}] && ", Identf::V_CAPT_PROG, i, i-1)?;
+        }
         generate_multi_condition_judge(f, condition, i, captures)?;
+
         writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, next_idx)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
-        writeln!(f, "            {}[{}[{}]] = true;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, i)?;
+        writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         if is_last {
-            // 出力に使用するリソースのインデックスを V_CAPT_PROG[cond_idx] に揃えるにめに先に +
-            writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
-
             // 出力リソースを出力先に push
             let capts_ref_code =
                 multi_condition_capts_ref_code(&rule.conditions);
@@ -432,14 +434,20 @@ fn generate_multi_condition_rule(
                 &capts_ref_code,
                 colony_indices,
             )?;
-            writeln!(f, "          }} else {{")?; // if condition
-            writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
-            writeln!(f, "          }}")?;
-        } else {
-            writeln!(f, "          }}")?; // if condition
-            writeln!(f, "          {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
         }
-
+        if condition.sqc_end != i {
+            writeln!(f, "            {0}[{1}] = {0}[{2}];", Identf::V_CAPT_PROG, i+1, i)?;
+        }
+        writeln!(f, "          }} else {{")?;
+        if condition.sqc_start != i {
+            writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, condition.sqc_start)?;
+            writeln!(f, "            for {} in {}..{} {{", Identf::V_I, condition.sqc_start, i)?;
+            writeln!(f, "              {}[{}[{}]-1] = false;",
+                Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+            writeln!(f, "            }}")?;
+        }
+        writeln!(f, "            {}[{}] += 1;", Identf::V_CAPT_PROG, i)?;
+        writeln!(f, "          }}")?; // if condition
         writeln!(f, "        }},")?;
     }
     writeln!(f, "        _ => unreachable!()")?;
@@ -450,20 +458,24 @@ fn generate_multi_condition_rule(
     // 使用済みフラグを立てたが, 最後の条件式までリソースが揃わなかったものを解除
     writeln!(f, "    for {} in 0..{} {{", Identf::V_I, Identf::V_CAPT_IDX)?;
     writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
-    writeln!(f, "      {}[{}[{}]-1] = false;", Identf::V_SOME_USED, Identf::V_CAPT_PROG, Identf::V_I)?;
+    writeln!(f, "    }}")?;
+
+    // V_SOME_USED に使用済みフラグを反映
+    writeln!(f, "    for {} in 0..self.{}.len() {{", Identf::V_I, Identf::ME_RESOURCE)?;
+    writeln!(f, "      {0}[{2}] |= {1}[{2}];", Identf::V_SOME_USED, Identf::V_USED, Identf::V_I)?;
     writeln!(f, "    }}")?;
 
     Ok(())
 }
 
-/// 複数条件規則の前処理の `if condition {` 部分を生成
+/// 複数条件規則の前処理の `if condition {` の `condition {` の 部分を生成
 fn generate_multi_condition_judge(
     f: &mut impl Write,
     condition: &ast::ConditionAST,
     cond_idx: usize,
     captures: &HashMap<String, TypeHint>,
 ) -> io::Result<()> {
-    writeln!(f, "          if match &self.{}[{}[{}]] {{",
+    writeln!(f, "match &self.{}[{}[{}]] {{",
             Identf::ME_RESOURCE, Identf::V_CAPT_PROG, cond_idx)?;
 
     match &condition.meta.as_ref().unwrap().kind {

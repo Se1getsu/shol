@@ -61,6 +61,10 @@ impl fmt::Debug for RuleAST {
 
 pub struct ConditionAST {
     pub expr: ExprAST,
+    /// 連続規則の RuleAST::conditions での開始インデックス
+    pub sqc_start: usize,
+    /// 連続規則の RuleAST::conditions での終了インデックス
+    pub sqc_end: usize,
     pub meta: Option<semantics::ConditionASTMeta>,
 }
 
