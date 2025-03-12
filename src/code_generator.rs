@@ -232,8 +232,8 @@ pub fn generate(
     // 標準入力を cin コロニーに送信
     if contains_cin {
         writeln!(f, "      if let Ok({}) = {}.try_recv() {{", Identf::V_LINE, Identf::V_RX)?;
-        writeln!(f, "        {}[0].{}(vec![{}({})]);", Identf::V_COLONIES, Identf::FN_RECEIVE,
-            Identf::en_type(Type::String), Identf::V_LINE)?;
+        writeln!(f, "        {}[{}].{}(vec![{}({})]);", Identf::V_COLONIES, colony_indices[&"cin".to_string()],
+            Identf::FN_RECEIVE, Identf::en_type(Type::String), Identf::V_LINE)?;
         writeln!(f, "      }}")?;
     }
 
