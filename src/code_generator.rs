@@ -38,7 +38,10 @@ impl Identf {
     /// fn (&mut self, P_GIFTS) -> ()
     /// : 送られてきたリソースを受信するメソッド
     const FN_RECEIVE: &'static str = "receive";
-    /// fn (&mut self) -> HashMap<usize, Vec<EN_TYPE>>
+    /// fn (&mut self) -> Result<
+    ///     HashMap<usize, Vec<EN_TYPE>>,
+    ///     ExitCode
+    /// >
     /// : コロニーの規則を実行するメソッド. 戻り値は送信先コロニーのインデックスと送信リソース
     const FN_RULE: &'static str = "rule";
     /// fn (&mut self)
@@ -79,6 +82,8 @@ impl Identf {
     const V_IELM_REF: &'static str = "insertion";
     /// Vec<Box<dyn TR_COLONY>>: コロニーの構造体のインスタンスを入れるベクタ
     const V_COLONIES: &'static str = "colonies";
+    /// ExitCode: プログラムの終了コード
+    const V_CODE: &'static str = "c";
     /// usize: for ループで使用
     const V_I: &'static str = "i";
 
@@ -125,7 +130,7 @@ pub fn generate(
     writeln!(f, ")]")?;
 
     // use 宣言
-    writeln!(f, "use std::collections::HashMap;")?;
+    writeln!(f, "use std::{{collections::HashMap, process::ExitCode}};")?;
     writeln!(f, "")?;
 
     // 型定義
@@ -140,7 +145,8 @@ pub fn generate(
     writeln!(f, "trait {} {{", Identf::TR_COLONY)?;
     writeln!(f, "  fn {}(&mut self);", Identf::FN_PRINT)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>);", Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE)?;
-    writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>>;", Identf::FN_RULE, Identf::EN_TYPE)?;
+    writeln!(f, "  fn {}(&mut self) -> Result<HashMap<usize, Vec<{}>>, ExitCode>;",
+        Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
 
     // コロニー名と V_COLONIES のインデックス対応表作成
@@ -172,7 +178,7 @@ pub fn generate(
 
     // メイン関数
     writeln!(f, "")?;
-    writeln!(f, "fn main() {{")?;
+    writeln!(f, "fn main() -> ExitCode{{")?;
 
     // V_COLONIES の作成
     writeln!(f, "  let mut {}: Vec<Box<dyn {}>> = Vec::new();", Identf::V_COLONIES, Identf::TR_COLONY)?;
@@ -196,24 +202,27 @@ pub fn generate(
         }
     }
 
-    // TODO: とりあえず 8 回規則を適用してる
-    writeln!(f, "  for _ in 0..8 {{")?;
+    writeln!(f, "  loop {{")?;
     writeln!(f, "    for {} in 0..{}.len() {{", Identf::V_I, Identf::V_COLONIES)?;
 
     // デバッグ用
-    writeln!(f, "    // for debugging")?;
-    writeln!(f, "    // println!(\"\"); for {0} in 0..{1}.len() {{ {1}[{0}].{2}(); }}",
+    writeln!(f, "      // for debugging")?;
+    writeln!(f, "      // println!(\"\"); for {0} in 0..{1}.len() {{ {1}[{0}].{2}(); }}",
         Identf::V_I, Identf::V_COLONIES, Identf::FN_PRINT)?;
 
     // i 番目の規則を実行, 転送リソースの転送処理
-    writeln!(f, "      for ({}, {}) in {}[{}].{}() {{", Identf::V_GIFTS_DEST, Identf::V_GIFTS_VEC,
-        Identf::V_COLONIES, Identf::V_I, Identf::FN_RULE)?;
-    writeln!(f, "        {}[{}].{}({});", Identf::V_COLONIES, Identf::V_GIFTS_DEST,
+    writeln!(f, "      match {}[{}].{}() {{", Identf::V_COLONIES, Identf::V_I, Identf::FN_RULE)?;
+    writeln!(f, "        Ok({}) =>", Identf::V_GIFTS)?;
+    writeln!(f, "          for ({}, {}) in {} {{",Identf::V_GIFTS_DEST, Identf::V_GIFTS_VEC,
+        Identf::V_GIFTS)?;
+    writeln!(f, "            {}[{}].{}({});", Identf::V_COLONIES, Identf::V_GIFTS_DEST,
         Identf::FN_RECEIVE, Identf::V_GIFTS_VEC)?;
+    writeln!(f, "          }}")?;
+    writeln!(f, "        Err({0}) => return {0}", Identf::V_CODE)?;
     writeln!(f, "      }}")?;
 
-    writeln!(f, "    }}")?;
-    writeln!(f, "  }}")?;
+    writeln!(f, "    }}")?; // for V_I in V_COLONIES index
+    writeln!(f, "  }}")?; // loop
 
     writeln!(f, "}}")?; // fn main
 
@@ -236,13 +245,14 @@ fn generate_colony_decl(
         Identf::FN_PRINT, Identf::ME_RESOURCE)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
-    writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>> {{", Identf::FN_RULE, Identf::EN_TYPE)?;
+    writeln!(f, "  fn {}(&mut self) -> Result<HashMap<usize, Vec<{}>>, ExitCode> {{",
+        Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
         Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
         generate_rule_set(f, rule_set, colony_indices)?;
     }
-    writeln!(f, "    {}", Identf::V_GIFTS)?;
+    writeln!(f, "    Ok({})", Identf::V_GIFTS)?;
     writeln!(f, "  }}")?;
     writeln!(f, "}}")?;
 
@@ -265,7 +275,8 @@ fn generate_colony_extension(
         Identf::FN_PRINT, Identf::ME_RESOURCE)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
-    writeln!(f, "  fn {}(&mut self) -> HashMap<usize, Vec<{}>> {{", Identf::FN_RULE, Identf::EN_TYPE)?;
+    writeln!(f, "  fn {}(&mut self) -> Result<HashMap<usize, Vec<{}>>, ExitCode> {{",
+        Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
         Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
@@ -294,10 +305,25 @@ fn generate_colony_extension(
     }}
     self.resources = vec![];"#)?;
         },
+        "exit" => {
+            writeln!(f, r#"    let mut buf = Vec::new();
+    for resource in &self.resources {{
+      let mut no_match = true;
+      match resource {{
+        ResourceType::String(v) => (),
+        ResourceType::Bool(v) => (),
+        ResourceType::Int(v) => return Err(ExitCode::from(*v as u8)),
+      }}
+      if no_match {{
+        buf.push(resource.clone());
+      }}
+    }}
+    self.resources = buf;"#)?;
+        },
         _ => panic!("組み込みコロニー {name} は存在しません。")
     }
 
-    writeln!(f, "    {}", Identf::V_GIFTS)?;
+    writeln!(f, "    Ok({})", Identf::V_GIFTS)?;
     writeln!(f, "  }}")?; // fn FN_RULE
     writeln!(f, "}}")?; // impl TR_COLONY for st_colony
 
