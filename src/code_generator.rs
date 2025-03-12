@@ -84,6 +84,12 @@ impl Identf {
     const V_COLONIES: &'static str = "colonies";
     /// ExitCode: プログラムの終了コード
     const V_CODE: &'static str = "c";
+    /// mpsc::Sender<String>: 標準入力を受け取るチャンネルの送信者
+    const V_TX: &'static str = "tx";
+    /// mpsc::Receiver<String>: 標準入力を受け取るチャンネルの受信者
+    const V_RX: &'static str = "rx";
+    /// Result<String, Error>, String: 受信した標準入力
+    const V_LINE: &'static str = "l";
     /// usize: for ループで使用
     const V_I: &'static str = "i";
 
@@ -130,7 +136,7 @@ pub fn generate(
     writeln!(f, ")]")?;
 
     // use 宣言
-    writeln!(f, "use std::{{collections::HashMap, process::ExitCode}};")?;
+    writeln!(f, "use std::{{collections::HashMap, io::{{self, BufRead}}, process::ExitCode, sync::mpsc, thread}};")?;
     writeln!(f, "")?;
 
     // 型定義
@@ -202,6 +208,19 @@ pub fn generate(
         }
     }
 
+    // 標準入力を受け付けるスレッドを作成
+    let contains_cin = colony_indices.contains_key(&"cin".to_string());
+    if contains_cin {
+        writeln!(f, "  let ({}, {}) = mpsc::channel();", Identf::V_TX, Identf::V_RX)?;
+        writeln!(f, "  thread::spawn(move || {{")?;
+        writeln!(f, "    for {} in io::stdin().lock().lines() {{", Identf::V_LINE)?;
+        writeln!(f, "      if let Ok({0}) = {0} {{", Identf::V_LINE)?;
+        writeln!(f, "        if tx.send({}).is_err() {{ break; }}", Identf::V_LINE)?;
+        writeln!(f, "      }}")?;
+        writeln!(f, "    }}")?;
+        writeln!(f, "  }});")?;
+    }
+
     writeln!(f, "  loop {{")?;
     writeln!(f, "    for {} in 0..{}.len() {{", Identf::V_I, Identf::V_COLONIES)?;
 
@@ -209,6 +228,14 @@ pub fn generate(
     writeln!(f, "      // for debugging")?;
     writeln!(f, "      // println!(\"\"); for {0} in 0..{1}.len() {{ {1}[{0}].{2}(); }}",
         Identf::V_I, Identf::V_COLONIES, Identf::FN_PRINT)?;
+
+    // 標準入力を cin コロニーに送信
+    if contains_cin {
+        writeln!(f, "      if let Ok({}) = {}.try_recv() {{", Identf::V_LINE, Identf::V_RX)?;
+        writeln!(f, "        {}[0].{}(vec![{}({})]);", Identf::V_COLONIES, Identf::FN_RECEIVE,
+            Identf::en_type(Type::String), Identf::V_LINE)?;
+        writeln!(f, "      }}")?;
+    }
 
     // i 番目の規則を実行, 転送リソースの転送処理
     writeln!(f, "      match {}[{}].{}() {{", Identf::V_COLONIES, Identf::V_I, Identf::FN_RULE)?;
@@ -295,6 +322,7 @@ fn generate_colony_extension(
     }}
     self.resources = vec![];"#)?;
         },
+        "cin" => (),
         "cout" => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
