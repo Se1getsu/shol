@@ -12,6 +12,7 @@ impl Type {
         match self {
             Type::String => "String".to_string(),
             Type::Int => "i32".to_string(),
+            Type::Double => "f64".to_string(),
             Type::Bool => "bool".to_string(),
         }
     }
@@ -140,7 +141,7 @@ pub fn generate(
     writeln!(f, "")?;
 
     // 型定義
-    writeln!(f, "#[derive(Eq,Debug,PartialEq,Clone)]")?;
+    writeln!(f, "#[derive(Debug,PartialEq,Clone)]")?;
     writeln!(f, "enum {} {{", Identf::EN_TYPE)?;
     for t in Type::all_types() {
         writeln!(f, "  {:?}({}),", t, t.actual())?;
@@ -318,6 +319,7 @@ fn generate_colony_extension(
         ResourceType::String(v) => println!("{{v}}"),
         ResourceType::Bool(v) => println!("{{v}}"),
         ResourceType::Int(v) => println!("{{v}}"),
+        ResourceType::Double(v) => println!("{{v}}"),
       }}
     }}
     self.resources = vec![];"#)?;
@@ -329,6 +331,7 @@ fn generate_colony_extension(
         ResourceType::String(v) => print!("{{v}}"),
         ResourceType::Bool(v) => print!("{{v}}"),
         ResourceType::Int(v) => print!("{{v}}"),
+        ResourceType::Double(v) => print!("{{v}}"),
       }}
     }}
     self.resources = vec![];"#)?;
@@ -341,6 +344,7 @@ fn generate_colony_extension(
         ResourceType::String(v) => (),
         ResourceType::Bool(v) => (),
         ResourceType::Int(v) => return Err(ExitCode::from(*v as u8)),
+        ResourceType::Double(v) => (),
       }}
       if no_match {{
         buf.push(resource.clone());
@@ -817,8 +821,12 @@ fn generate_expr(
     let result_type: Type;
     match expr {
         ast::ExprAST::Number(i) => {
-            write!(f, "{}", i)?;
+            write!(f, "({})", i)?; // 括弧を外すと負数で無効トークン `<-` が生成される危険あり
             result_type = Type::Int;
+        },
+        ast::ExprAST::Double(d) => {
+            write!(f, "({:?})", d)?; // 括弧を外すと負数で無効トークン `<-` が生成される危険あり
+            result_type = Type::Double;
         },
         ast::ExprAST::Str(s) => {
             write!(f, "{:?}.to_owned()", s)?;
@@ -849,37 +857,37 @@ fn generate_expr(
             }
         },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
-            let (lhs_type, lhs_code) = {
+            let (lhs_type, mut lhs_code) = {
                 let mut buffer = Vec::new();
                 let lhs_type = generate_expr(&mut buffer, lhs, generate_capture)?;
                 (lhs_type, String::from_utf8(buffer).unwrap())
             };
-            let (rhs_type, rhs_code) = {
+            let (rhs_type, mut rhs_code) = {
                 let mut buffer = Vec::new();
                 let rhs_type = generate_expr(&mut buffer, rhs, generate_capture)?;
                 (rhs_type, String::from_utf8(buffer).unwrap())
             };
 
             write!(f, "(",)?;
-            match opcode {
-                Opcode::Mul => write!(f, "{}*{}", lhs_code, rhs_code)?,
-                Opcode::Div => write!(f, "{}/{}", lhs_code, rhs_code)?,
-                Opcode::Mod => write!(f, "{}%{}", lhs_code, rhs_code)?,
-                Opcode::Add => {
-                    match (lhs_type, rhs_type) {
-                        (Type::Int, Type::Int) =>
-                            write!(f, "{}+{}", lhs_code, rhs_code)?,
-                        _ =>
-                            write!(f, "format!(\"{{}}{{}}\",{},{})", lhs_code, rhs_code)?,
-                    }
-                }
-                Opcode::Sub => write!(f, "{}-{}", lhs_code, rhs_code)?,
-                Opcode::Eq => write!(f, "{}=={}", lhs_code, rhs_code)?,
-                Opcode::Ne => write!(f, "{}!={}", lhs_code, rhs_code)?,
-                Opcode::Lt => write!(f, "{}<{}", lhs_code, rhs_code)?,
-                Opcode::Gt => write!(f, "{}>{}", lhs_code, rhs_code)?,
-                Opcode::Le => write!(f, "{}<={}", lhs_code, rhs_code)?,
-                Opcode::Ge => write!(f, "{}>={}", lhs_code, rhs_code)?,
+            match (lhs_type, rhs_type) {
+                (Type::Int, Type::Double) => lhs_code = format!("({} as f64)", lhs_code),
+                (Type::Double, Type::Int) => rhs_code = format!("({} as f64)", rhs_code),
+                (_, _) => (),
+            }
+            match (opcode, lhs_type, rhs_type) {
+                (Opcode::Mul, _, _) => write!(f, "{}*{}", lhs_code, rhs_code)?,
+                (Opcode::Div, _, _) => write!(f, "{}/{}", lhs_code, rhs_code)?,
+                (Opcode::Mod, _, _) => write!(f, "{}%{}", lhs_code, rhs_code)?,
+                (Opcode::Add, Type::String, _) | (Opcode::Add, _, Type::String) =>
+                    write!(f, "format!(\"{{}}{{}}\",{},{})", lhs_code, rhs_code)?,
+                (Opcode::Add, _, _) => write!(f, "{}+{}", lhs_code, rhs_code)?,
+                (Opcode::Sub, _, _) => write!(f, "{}-{}", lhs_code, rhs_code)?,
+                (Opcode::Eq, _, _) => write!(f, "{}=={}", lhs_code, rhs_code)?,
+                (Opcode::Ne, _, _) => write!(f, "{}!={}", lhs_code, rhs_code)?,
+                (Opcode::Lt, _, _) => write!(f, "{}<{}", lhs_code, rhs_code)?,
+                (Opcode::Gt, _, _) => write!(f, "{}>{}", lhs_code, rhs_code)?,
+                (Opcode::Le, _, _) => write!(f, "{}<={}", lhs_code, rhs_code)?,
+                (Opcode::Ge, _, _) => write!(f, "{}>={}", lhs_code, rhs_code)?,
             }
             write!(f, ")",)?;
 

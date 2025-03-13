@@ -1,4 +1,4 @@
-use std::num::ParseIntError;
+use std::num::{ ParseIntError, ParseFloatError };
 use logos::Logos;
 use std::fmt;
 
@@ -10,6 +10,12 @@ pub enum LexicalError {
 
 impl From<ParseIntError> for LexicalError {
     fn from(_: ParseIntError) -> Self {
+        LexicalError::InvalidToken
+    }
+}
+
+impl From<ParseFloatError> for LexicalError {
+    fn from(_: ParseFloatError) -> Self {
         LexicalError::InvalidToken
     }
 }
@@ -83,10 +89,15 @@ fn decode_string(input: &str) -> String {
 #[derive(Logos, Clone, Debug, PartialEq)]
 #[logos(error = LexicalError)]
 #[logos(skip r"[ \t]+")]
+#[logos(subpattern fractional = r"[0-9]+\.|[0-9]*\.[0-9]+")]
+#[logos(subpattern exponent = r"[eE][+-]?[0-9]+")]
+#[logos(subpattern double_literal = r"(?&fractional)(?&exponent)?|[0-9]+(?&exponent)")]
 pub enum Token {
     // 識別子とリテラル
     #[regex(r"(\p{XID_Start}|_)\p{XID_Continue}*", |lex| lex.slice().to_string())]
     Identifier(String),
+    #[regex(r"(?&double_literal)", |lex| lex.slice().parse())]
+    DoubleLiteral(f64),
     #[regex("0|[1-9][0-9]*", |lex| lex.slice().parse())]
     IntegerLiteral(i32),
     #[token("-2147483648", |_| -2147483648)] // - と 2147483648 を別トークンにするとオーバフローするため特別扱い
@@ -131,6 +142,8 @@ pub enum Token {
     Mod,
     #[token(":int")]
     AsInt,
+    #[token(":double")]
+    AsDouble,
     #[token(":str")]
     AsStr,
     #[token(":bool")]
@@ -158,5 +171,38 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
+    }
+}
+
+// MARK: - Tests
+
+#[test]
+fn test_tokenize_double_literal() {
+    let tokens = Token::lexer("123.456")
+        .collect::<Vec<Result<Token, LexicalError>>>();
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens[0].as_ref().unwrap(), &Token::DoubleLiteral(123.456));
+}
+
+#[test]
+fn test_tokenize_double_literal_variants() {
+    let test_cases = vec![
+        ("0.123", 0.123),
+        (".456", 0.456),
+        ("123.", 123.0),
+        ("00.", 0.0),
+        ("1e5", 1e5),
+        ("0e0", 0.0),
+        ("001.00e+04", 1.00e+04),
+        ("1.23e-12", 1.23e-12),
+        (".00e-23", 0.00e-23),
+        ("12.e-23", 12.0e-23),
+        ("0.e+18", 0.0),
+    ];
+    for (input, expected) in test_cases {
+        let tokens = Token::lexer(input)
+            .collect::<Vec<Result<Token, LexicalError>>>();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].as_ref().unwrap(), &Token::DoubleLiteral(expected));
     }
 }

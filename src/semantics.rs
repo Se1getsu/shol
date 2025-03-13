@@ -27,6 +27,7 @@ pub struct TypeHint {
 pub enum Type {
     // NOTE: 変更時には Type::all_types() にも変更を反映すること
     Int,
+    Double,
     String,
     Bool,
 }
@@ -61,6 +62,7 @@ impl Type {
     pub fn all_types() -> HashSet<Type> {
         let mut types = HashSet::new();
         types.insert(Type::Int);
+        types.insert(Type::Double);
         types.insert(Type::String);
         types.insert(Type::Bool);
         types
@@ -84,6 +86,7 @@ impl UnaryOpcodeSignature {
         match opcode {
             UnaryOpcode::Neg => vec![
                 Self { operand: Type::Int, result: Type::Int },
+                Self { operand: Type::Double, result: Type::Double },
             ],
             UnaryOpcode::As(t) => vec![
                 Self { operand: t, result: t },
@@ -97,20 +100,33 @@ impl OpcodeSignature {
         match opcode {
             Opcode::Add => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Double },
                 Self { lhs: Type::String, rhs: Type::String, result: Type::String },
                 Self { lhs: Type::String, rhs: Type::Int, result: Type::String },
+                Self { lhs: Type::String, rhs: Type::Double, result: Type::String },
                 Self { lhs: Type::String, rhs: Type::Bool, result: Type::String },
             ],
             Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Double },
             ],
             Opcode::Eq | Opcode::Ne => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
                 Self { lhs: Type::String, rhs: Type::String, result: Type::Bool },
                 Self { lhs: Type::Bool, rhs: Type::Bool, result: Type::Bool },
             ],
             Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
             ],
         }
     }
@@ -156,6 +172,7 @@ impl OpcodeSignatureExt for Opcode {
 fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Type>) -> Result<Type, &'a ast::ExprAST> {
     match expr {
         ast::ExprAST::Number(_) => Ok(Type::Int),
+        ast::ExprAST::Double(_) => Ok(Type::Double),
         ast::ExprAST::Str(_) => Ok(Type::String),
         ast::ExprAST::Bool(_) => Ok(Type::Bool),
         ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
@@ -263,7 +280,7 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
     // 出力式に登場するキャプチャを調べる
     fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
         match expr {
-            ast::ExprAST::Number(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
+            ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
             ast::ExprAST::Capture(name) =>
                 if !captures.contains(name) { captures.push(name.clone()); },
             ast::ExprAST::UnaryOp(_, operand) => {
@@ -315,6 +332,7 @@ fn condition_kind(expr: &ast::ExprAST) -> (ConditionKind, bool) {
 fn _condition_kind(expr: &ast::ExprAST) -> ConditionKind {
     match expr {
         ast::ExprAST::Number(_) => ConditionKind::Equal(Type::Int),
+        ast::ExprAST::Double(_) => ConditionKind::Equal(Type::Double),
         ast::ExprAST::Str(_) => ConditionKind::Equal(Type::String),
         ast::ExprAST::Bool(_) => ConditionKind::Equal(Type::Bool),
         ast::ExprAST::Capture(name) => ConditionKind::Capture(name.clone()),
@@ -554,6 +572,7 @@ fn analyze_output_ast(
     match expr {
         // 定数式の型を返す
         ast::ExprAST::Number(_) => AOAResult::Constant(Type::Int),
+        ast::ExprAST::Double(_) => AOAResult::Constant(Type::Double),
         ast::ExprAST::Str(_) => AOAResult::Constant(Type::String),
         ast::ExprAST::Bool(_) => AOAResult::Constant(Type::Bool),
 
@@ -840,7 +859,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             // 型検証
             if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
-                    ast::ExprAST::Number(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
+                    ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
                     ast::ExprAST::Capture(_) => (),
                     ast::ExprAST::UnaryOp(opcode, operand) => {
                         // エラーメッセージの作成
