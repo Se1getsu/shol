@@ -135,6 +135,7 @@ impl fmt::Debug for ExprAST {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOpcode {
     Neg,
+    LogicalNot,
     As(semantics::Type),
 }
 
@@ -150,6 +151,8 @@ pub enum Opcode {
     BitXor,
     BitShiftLeft,
     BitShiftRight,
+    LogicalAnd,
+    LogicalOr,
     Eq,
     Ne,
     Lt,

@@ -849,6 +849,7 @@ fn generate_expr(
             match opcode {
                 UnaryOpcode::Neg => write!(f, "(-{})", operand_code)?,
                 UnaryOpcode::As(_) => write!(f, "{}", operand_code)?,
+                UnaryOpcode::LogicalNot => write!(f, "(!{})", operand_code)?,
             }
 
             match opcode.result_type(operand_type) {
@@ -887,6 +888,8 @@ fn generate_expr(
                 (Opcode::BitXor, _, _) => write!(f, "{}^{}", lhs_code, rhs_code)?,
                 (Opcode::BitShiftLeft, _, _) => write!(f, "{}<<{}", lhs_code, rhs_code)?,
                 (Opcode::BitShiftRight, _, _) => write!(f, "{}>>{}", lhs_code, rhs_code)?,
+                (Opcode::LogicalAnd, _, _) => write!(f, "{}&&{}", lhs_code, rhs_code)?,
+                (Opcode::LogicalOr, _, _) => write!(f, "{}||{}", lhs_code, rhs_code)?,
                 (Opcode::Eq, _, _) => write!(f, "{}=={}", lhs_code, rhs_code)?,
                 (Opcode::Ne, _, _) => write!(f, "{}!={}", lhs_code, rhs_code)?,
                 (Opcode::Lt, _, _) => write!(f, "{}<{}", lhs_code, rhs_code)?,
