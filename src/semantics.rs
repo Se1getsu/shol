@@ -115,11 +115,17 @@ impl OpcodeSignature {
             ],
             Opcode::Eq | Opcode::Ne => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
                 Self { lhs: Type::String, rhs: Type::String, result: Type::Bool },
                 Self { lhs: Type::Bool, rhs: Type::Bool, result: Type::Bool },
             ],
             Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Bool },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
             ],
         }
     }
