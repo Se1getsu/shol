@@ -140,6 +140,18 @@ pub enum Token {
     Div,
     #[token("%")]
     Mod,
+    #[token("&")]
+    Ampersand,
+    #[token("|")]
+    Pipe,
+    #[token("^")]
+    Caret,
+    #[token("~")]
+    Tilde,
+    #[token(">>")]
+    BitShiftRight,
+    #[token("<<")]
+    BitShiftLeft,
     #[token(":int")]
     AsInt,
     #[token(":double")]
@@ -152,8 +164,6 @@ pub enum Token {
     // 構文に使われる記号
     #[token(".")]
     Dot,
-    #[token("|")]
-    Pipe,
     #[token(",")]
     Comma,
     #[regex(r"#((\p{XID_Start}|_)\p{XID_Continue}*)?", // #a -> Some("a"), # -> None

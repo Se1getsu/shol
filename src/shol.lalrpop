@@ -151,6 +151,14 @@ Expr: Box<ast::ExprAST> = {
     },
 
     #[precedence(level="4")] #[assoc(side="left")]
+    <lhs:Expr> "<<" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftLeft, rhs))
+    },
+    <lhs:Expr> ">>" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftRight, rhs))
+    },
+
+    #[precedence(level="5")] #[assoc(side="left")]
     <lhs:Expr> "=" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Eq, rhs))
     },
@@ -168,6 +176,21 @@ Expr: Box<ast::ExprAST> = {
     },
     <lhs:Expr> ">=" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs))
+    },
+
+    #[precedence(level="5")] #[assoc(side="left")]
+    <lhs:Expr> "&" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitAnd, rhs))
+    },
+
+    #[precedence(level="6")] #[assoc(side="left")]
+    <lhs:Expr> "^" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitXor, rhs))
+    },
+
+    #[precedence(level="7")] #[assoc(side="left")]
+    <lhs:Expr> "|" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitOr, rhs))
     },
 }
 
@@ -247,12 +270,17 @@ extern {
         "*" => Token::Mul,
         "/" => Token::Div,
         "%" => Token::Mod,
+        "&" => Token::Ampersand,
+        "|" => Token::Pipe,
+        "^" => Token::Caret,
+        "~" => Token::Tilde,
+        "<<" => Token::BitShiftLeft,
+        ">>" => Token::BitShiftRight,
         ":int" => Token::AsInt,
         ":double" => Token::AsDouble,
         ":str" => Token::AsStr,
         ":bool" => Token::AsBool,
         "." => Token::Dot,
-        "|" => Token::Pipe,
         "," => Token::Comma,
         "#xx" => Token::Destination(<Option<String>>),
         "$xx" => Token::Capture(<String>),
