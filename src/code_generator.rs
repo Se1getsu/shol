@@ -748,7 +748,9 @@ fn generate_single_condition_rule(
             write!(f, "          if {}.clone() == {} ", Identf::V_VALUE_REF, expr_str)?;
         },
         // 無条件で出力式を push
-        ConditionKind::Capture(_) => (),
+        ConditionKind::Capture(_) => {
+            write!(f, "          ")?;
+        },
         // 条件式を満たすならば出力式を push
         ConditionKind::CaptureCondition(_) => {
             write!(f, "          if ")?;
