@@ -114,6 +114,13 @@ impl OpcodeSignature {
                 Self { lhs: Type::Double, rhs: Type::Int, result: Type::Double },
                 Self { lhs: Type::Double, rhs: Type::Double, result: Type::Double },
             ],
+            Opcode::BitAnd | Opcode::BitOr => vec![
+                Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+                Self { lhs: Type::Bool, rhs: Type::Bool, result: Type::Bool },
+            ],
+            Opcode::BitXor | Opcode::BitShiftLeft | Opcode::BitShiftRight => vec![
+                Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+            ],
             Opcode::Eq | Opcode::Ne => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
                 Self { lhs: Type::Int, rhs: Type::Double, result: Type::Bool },
