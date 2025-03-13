@@ -142,6 +142,8 @@ pub enum Token {
     Mod,
     #[token(":int")]
     AsInt,
+    #[token(":double")]
+    AsDouble,
     #[token(":str")]
     AsStr,
     #[token(":bool")]

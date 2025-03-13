@@ -121,6 +121,9 @@ Expr: Box<ast::ExprAST> = {
     <Factor> ":int" => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Int), <>))
     },
+    <Factor> ":double" => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Double), <>))
+    },
     <Factor> ":str" => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::String), <>))
     },
@@ -245,6 +248,7 @@ extern {
         "/" => Token::Div,
         "%" => Token::Mod,
         ":int" => Token::AsInt,
+        ":double" => Token::AsDouble,
         ":str" => Token::AsStr,
         ":bool" => Token::AsBool,
         "." => Token::Dot,
