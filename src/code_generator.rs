@@ -825,7 +825,7 @@ fn generate_expr(
             result_type = Type::Int;
         },
         ast::ExprAST::Double(d) => {
-            write!(f, "{}", d)?;
+            write!(f, "{:?}", d)?;
             result_type = Type::Double;
         },
         ast::ExprAST::Str(s) => {
