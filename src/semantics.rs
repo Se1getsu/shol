@@ -222,7 +222,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
 
 fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTMeta) {
     // 条件式種別を判定
-    let kind = condition_kind(&condition.expr);
+    let (kind, is_typed_capture) = condition_kind(&condition.expr);
 
     // キャプチャを rule_meta に登録
     match &kind {
@@ -231,28 +231,29 @@ fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTM
             if rule_meta.captures.contains_key(name) {
                 panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
             }
-            rule_meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
+            if is_typed_capture {
+                let types = analyze_capture_condition(
+                    &condition.expr,
+                    name,
+                    is_typed_capture,
+                );
+                rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
+            } else {
+                rule_meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
+            }
         },
         ConditionKind::CaptureCondition(name) => {
             if rule_meta.captures.contains_key(name) {
                 panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
             }
-            let types = analyze_capture_condition(&condition.expr, name);
+            let types = analyze_capture_condition(
+                &condition.expr,
+                name,
+                is_typed_capture,
+            );
             rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
         },
     }
-
-    // $:int のような場合は キャプチャ単体 に変換する
-    let kind = match &condition.expr {
-        ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand) => {
-            if let ast::ExprAST::Capture(name) = &**operand {
-                ConditionKind::Capture(name.clone())
-            } else {
-                kind
-            }
-        }
-        _ => kind
-    };
 
     // AST にメタデータを追加
     condition.meta = Some(ConditionASTMeta { kind });
@@ -294,9 +295,24 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
 
 // MARK: 条件式の型推論
 
+fn condition_kind(expr: &ast::ExprAST) -> (ConditionKind, bool) {
+    let mut kind = _condition_kind(expr);
+    let mut is_typed_capture = false;
+
+    // $:int のような場合は キャプチャ単体 に変換する
+    if let ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand) = expr {
+        if let ast::ExprAST::Capture(name) = &**operand {
+            kind = ConditionKind::Capture(name.clone());
+            is_typed_capture = true;
+        }
+    }
+
+    (kind, is_typed_capture)
+}
+
 /// 条件式の種別を取得
 /// NOTE: $:int のような場合は キャプチャ条件式 と判定する
-fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
+fn _condition_kind(expr: &ast::ExprAST) -> ConditionKind {
     match expr {
         ast::ExprAST::Number(_) => ConditionKind::Equal(Type::Int),
         ast::ExprAST::Str(_) => ConditionKind::Equal(Type::String),
@@ -304,7 +320,7 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
         ast::ExprAST::Capture(name) => ConditionKind::Capture(name.clone()),
         ast::ExprAST::UnaryOp(opcode, operand) => {
             // オペランドの条件式種別を取得
-            let operand_kind = condition_kind(operand);
+            let operand_kind = _condition_kind(operand);
 
             // Equal or キャプチャ条件式 を返す
             match &operand_kind {
@@ -325,8 +341,8 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
         },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
             // 左辺と右辺の条件式種別を取得
-            let lhs_kind = condition_kind(lhs);
-            let rhs_kind = condition_kind(rhs);
+            let lhs_kind = _condition_kind(lhs);
+            let rhs_kind = _condition_kind(rhs);
 
             // 左辺と右辺のどちらかがキャプチャ条件式の場合, キャプチャ条件式を返す
             match (&lhs_kind, &rhs_kind) {
@@ -373,8 +389,11 @@ fn condition_kind(expr: &ast::ExprAST) -> ConditionKind {
 
 /// キャプチャ条件式の型推論をする
 /// 戻り値: キャプチャの possible_types
-fn analyze_capture_condition(expr: &ast::ExprAST, capture_name: &String) -> HashSet<Type> {
-
+fn analyze_capture_condition(
+    expr: &ast::ExprAST,
+    capture_name: &String,
+    is_typed_capture: bool, // true の場合は条件式の結果が bool 型かのチェックを行わない
+) -> HashSet<Type> {
     // キャプチャに型を 1 つずつ割り当てて検証
     let mut possible_types = HashSet::new();
     let mut cannot_evaluate = true;
@@ -388,6 +407,8 @@ fn analyze_capture_condition(expr: &ast::ExprAST, capture_name: &String) -> Hash
         if let Ok(expr_t) = type_validate_expr(expr, &captures) {
             cannot_evaluate = false;
             if let Type::Bool = expr_t {
+                possible_types.insert(t);
+            } else if is_typed_capture {
                 possible_types.insert(t);
             }
         }
