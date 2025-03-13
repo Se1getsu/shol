@@ -91,6 +91,9 @@ impl UnaryOpcodeSignature {
             UnaryOpcode::LogicalNot => vec![
                 Self { operand: Type::Bool, result: Type::Bool },
             ],
+            UnaryOpcode::BitNot => vec![
+                Self { operand: Type::Int, result: Type::Int },
+            ],
             UnaryOpcode::As(t) => vec![
                 Self { operand: t, result: t },
             ],
