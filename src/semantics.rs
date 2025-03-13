@@ -86,6 +86,7 @@ impl UnaryOpcodeSignature {
         match opcode {
             UnaryOpcode::Neg => vec![
                 Self { operand: Type::Int, result: Type::Int },
+                Self { operand: Type::Double, result: Type::Double },
             ],
             UnaryOpcode::As(t) => vec![
                 Self { operand: t, result: t },
