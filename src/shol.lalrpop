@@ -210,6 +210,7 @@ Factor: Box<ast::ExprAST> = {
     "(" <Expr> ")",
     "-" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, <>)),
     "!" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, <>)),
+    "~" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, <>)),
     #[precedence(level="2")]
     <Literal> => Box::new(<>),
 }

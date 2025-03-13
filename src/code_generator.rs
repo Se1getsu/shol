@@ -848,8 +848,9 @@ fn generate_expr(
 
             match opcode {
                 UnaryOpcode::Neg => write!(f, "(-{})", operand_code)?,
-                UnaryOpcode::As(_) => write!(f, "{}", operand_code)?,
                 UnaryOpcode::LogicalNot => write!(f, "(!{})", operand_code)?,
+                UnaryOpcode::BitNot => write!(f, "(!{})", operand_code)?,
+                UnaryOpcode::As(_) => write!(f, "{}", operand_code)?,
             }
 
             match opcode.result_type(operand_type) {

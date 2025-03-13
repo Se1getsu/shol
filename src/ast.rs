@@ -136,6 +136,7 @@ impl fmt::Debug for ExprAST {
 pub enum UnaryOpcode {
     Neg,
     LogicalNot,
+    BitNot,
     As(semantics::Type),
 }
 
