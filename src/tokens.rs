@@ -152,6 +152,12 @@ pub enum Token {
     BitShiftRight,
     #[token("<<")]
     BitShiftLeft,
+    #[token("&&")]
+    LogicalAnd,
+    #[token("||")]
+    LogicalOr,
+    #[token("!")]
+    LogicalNot,
     #[token(":int")]
     AsInt,
     #[token(":double")]

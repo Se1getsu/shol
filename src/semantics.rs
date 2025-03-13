@@ -88,6 +88,9 @@ impl UnaryOpcodeSignature {
                 Self { operand: Type::Int, result: Type::Int },
                 Self { operand: Type::Double, result: Type::Double },
             ],
+            UnaryOpcode::LogicalNot => vec![
+                Self { operand: Type::Bool, result: Type::Bool },
+            ],
             UnaryOpcode::As(t) => vec![
                 Self { operand: t, result: t },
             ],
@@ -120,6 +123,9 @@ impl OpcodeSignature {
             ],
             Opcode::BitXor | Opcode::BitShiftLeft | Opcode::BitShiftRight => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+            ],
+            Opcode::LogicalAnd | Opcode::LogicalOr => vec![
+                Self { lhs: Type::Bool, rhs: Type::Bool, result: Type::Bool },
             ],
             Opcode::Eq | Opcode::Ne => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },

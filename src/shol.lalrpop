@@ -178,19 +178,29 @@ Expr: Box<ast::ExprAST> = {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs))
     },
 
-    #[precedence(level="5")] #[assoc(side="left")]
+    #[precedence(level="6")] #[assoc(side="left")]
     <lhs:Expr> "&" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitAnd, rhs))
     },
 
-    #[precedence(level="6")] #[assoc(side="left")]
+    #[precedence(level="7")] #[assoc(side="left")]
     <lhs:Expr> "^" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitXor, rhs))
     },
 
-    #[precedence(level="7")] #[assoc(side="left")]
+    #[precedence(level="8")] #[assoc(side="left")]
     <lhs:Expr> "|" <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitOr, rhs))
+    },
+
+    #[precedence(level="9")] #[assoc(side="left")]
+    <lhs:Expr> "&&" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalAnd, rhs))
+    },
+
+    #[precedence(level="10")] #[assoc(side="left")]
+    <lhs:Expr> "||" <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalOr, rhs))
     },
 }
 
@@ -199,7 +209,7 @@ Factor: Box<ast::ExprAST> = {
     "$xx" => Box::new(ast::ExprAST::Capture(<>)),
     "(" <Expr> ")",
     "-" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, <>)),
-
+    "!" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, <>)),
     #[precedence(level="2")]
     <Literal> => Box::new(<>),
 }
@@ -276,6 +286,9 @@ extern {
         "~" => Token::Tilde,
         "<<" => Token::BitShiftLeft,
         ">>" => Token::BitShiftRight,
+        "&&" => Token::LogicalAnd,
+        "||" => Token::LogicalOr,
+        "!" => Token::LogicalNot,
         ":int" => Token::AsInt,
         ":double" => Token::AsDouble,
         ":str" => Token::AsStr,
