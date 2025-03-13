@@ -101,6 +101,7 @@ impl fmt::Debug for OutputAST {
 
 pub enum ExprAST {
     Number(i32),
+    Double(f64),
     Str(String),
     Bool(bool),
     Capture(String),
@@ -113,6 +114,8 @@ impl fmt::Debug for ExprAST {
         match self {
             ExprAST::Number(n) =>
                 write!(f, "{{\"Number({})\":{{\"_\":{{}}}}}}", n),
+            ExprAST::Double(n) =>
+                write!(f, "{{\"Double({})\":{{\"_\":{{}}}}}}", n),
             ExprAST::Str(s) =>
                 write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
             ExprAST::Bool(b) =>

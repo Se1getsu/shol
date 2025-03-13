@@ -12,6 +12,7 @@ impl Type {
         match self {
             Type::String => "String".to_string(),
             Type::Int => "i32".to_string(),
+            Type::Double => "f64".to_string(),
             Type::Bool => "bool".to_string(),
         }
     }
@@ -140,7 +141,7 @@ pub fn generate(
     writeln!(f, "")?;
 
     // 型定義
-    writeln!(f, "#[derive(Eq,Debug,PartialEq,Clone)]")?;
+    writeln!(f, "#[derive(Debug,PartialEq,Clone)]")?;
     writeln!(f, "enum {} {{", Identf::EN_TYPE)?;
     for t in Type::all_types() {
         writeln!(f, "  {:?}({}),", t, t.actual())?;
@@ -318,6 +319,7 @@ fn generate_colony_extension(
         ResourceType::String(v) => println!("{{v}}"),
         ResourceType::Bool(v) => println!("{{v}}"),
         ResourceType::Int(v) => println!("{{v}}"),
+        ResourceType::Double(v) => println!("{{v}}"),
       }}
     }}
     self.resources = vec![];"#)?;
@@ -329,6 +331,7 @@ fn generate_colony_extension(
         ResourceType::String(v) => print!("{{v}}"),
         ResourceType::Bool(v) => print!("{{v}}"),
         ResourceType::Int(v) => print!("{{v}}"),
+        ResourceType::Double(v) => print!("{{v}}"),
       }}
     }}
     self.resources = vec![];"#)?;
@@ -341,6 +344,7 @@ fn generate_colony_extension(
         ResourceType::String(v) => (),
         ResourceType::Bool(v) => (),
         ResourceType::Int(v) => return Err(ExitCode::from(*v as u8)),
+        ResourceType::Double(v) => (),
       }}
       if no_match {{
         buf.push(resource.clone());
@@ -819,6 +823,10 @@ fn generate_expr(
         ast::ExprAST::Number(i) => {
             write!(f, "{}", i)?;
             result_type = Type::Int;
+        },
+        ast::ExprAST::Double(d) => {
+            write!(f, "{}", d)?;
+            result_type = Type::Double;
         },
         ast::ExprAST::Str(s) => {
             write!(f, "{:?}.to_owned()", s)?;

@@ -181,6 +181,8 @@ Factor: Box<ast::ExprAST> = {
 Literal: ast::ExprAST = {
     <SignedInt> =>
         ast::ExprAST::Number(<>),
+    <SignedDouble> =>
+        ast::ExprAST::Double(<>),
     "identf" =>
         ast::ExprAST::Str(<>),
     "str" =>
@@ -195,6 +197,11 @@ SignedInt: i32 = {
     <n:"int"> => n,
     "-" <n:"int"> => -n,
     <"intmin">,
+}
+
+SignedDouble: f64 = {
+    <n:"double"> => n,
+    "-" <n:"double"> => -n,
 }
 
 // MARK: ヘルパー非終端記号
@@ -216,6 +223,7 @@ extern {
 
     enum Token {
         "identf" => Token::Identifier(<String>),
+        "double" => Token::DoubleLiteral(<f64>),
         "int" => Token::IntegerLiteral(<i32>),
         "intmin" => Token::IntegerMin(<i32>),
         "str" => Token::StringLiteral(<String>),
