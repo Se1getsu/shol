@@ -875,10 +875,14 @@ fn generate_expr(
                 Opcode::Mod => write!(f, "{}%{}", lhs_code, rhs_code)?,
                 Opcode::Add => {
                     match (lhs_type, rhs_type) {
-                        (Type::Int, Type::Int) =>
-                            write!(f, "{}+{}", lhs_code, rhs_code)?,
-                        _ =>
+                        (Type::Int, Type::Double) =>
+                            write!(f, "{} as f64+{}", lhs_code, rhs_code)?,
+                        (Type::Double, Type::Int) =>
+                            write!(f, "{}+{} as f64", lhs_code, rhs_code)?,
+                        (Type::String, _) | (_, Type::String) =>
                             write!(f, "format!(\"{{}}{{}}\",{},{})", lhs_code, rhs_code)?,
+                        _ =>
+                            write!(f, "{}+{}", lhs_code, rhs_code)?,
                     }
                 }
                 Opcode::Sub => write!(f, "{}-{}", lhs_code, rhs_code)?,

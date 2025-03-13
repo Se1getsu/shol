@@ -99,6 +99,9 @@ impl OpcodeSignature {
         match opcode {
             Opcode::Add => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Double },
                 Self { lhs: Type::String, rhs: Type::String, result: Type::String },
                 Self { lhs: Type::String, rhs: Type::Int, result: Type::String },
                 Self { lhs: Type::String, rhs: Type::Double, result: Type::String },
