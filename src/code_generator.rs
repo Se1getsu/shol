@@ -869,29 +869,50 @@ fn generate_expr(
             };
 
             write!(f, "(",)?;
-            match opcode {
-                Opcode::Mul => write!(f, "{}*{}", lhs_code, rhs_code)?,
-                Opcode::Div => write!(f, "{}/{}", lhs_code, rhs_code)?,
-                Opcode::Mod => write!(f, "{}%{}", lhs_code, rhs_code)?,
-                Opcode::Add => {
-                    match (lhs_type, rhs_type) {
-                        (Type::Int, Type::Double) =>
-                            write!(f, "{} as f64+{}", lhs_code, rhs_code)?,
-                        (Type::Double, Type::Int) =>
-                            write!(f, "{}+{} as f64", lhs_code, rhs_code)?,
-                        (Type::String, _) | (_, Type::String) =>
-                            write!(f, "format!(\"{{}}{{}}\",{},{})", lhs_code, rhs_code)?,
-                        _ =>
-                            write!(f, "{}+{}", lhs_code, rhs_code)?,
-                    }
-                }
-                Opcode::Sub => write!(f, "{}-{}", lhs_code, rhs_code)?,
-                Opcode::Eq => write!(f, "{}=={}", lhs_code, rhs_code)?,
-                Opcode::Ne => write!(f, "{}!={}", lhs_code, rhs_code)?,
-                Opcode::Lt => write!(f, "{}<{}", lhs_code, rhs_code)?,
-                Opcode::Gt => write!(f, "{}>{}", lhs_code, rhs_code)?,
-                Opcode::Le => write!(f, "{}<={}", lhs_code, rhs_code)?,
-                Opcode::Ge => write!(f, "{}>={}", lhs_code, rhs_code)?,
+            match (opcode, lhs_type, rhs_type) {
+                (Opcode::Mul, Type::Int, Type::Double) =>
+                    write!(f, "{} as f64*{}", lhs_code, rhs_code)?,
+                (Opcode::Mul, Type::Double, Type::Int) =>
+                    write!(f, "{}*{} as f64", lhs_code, rhs_code)?,
+                (Opcode::Mul, _, _) =>
+                    write!(f, "{}*{}", lhs_code, rhs_code)?,
+
+                (Opcode::Div, Type::Int, Type::Double) =>
+                    write!(f, "{} as f64/{}", lhs_code, rhs_code)?,
+                (Opcode::Div, Type::Double, Type::Int) =>
+                    write!(f, "{}/{} as f64", lhs_code, rhs_code)?,
+                (Opcode::Div, _, _) =>
+                    write!(f, "{}/{}", lhs_code, rhs_code)?,
+
+                (Opcode::Mod, Type::Int, Type::Double) =>
+                    write!(f, "{} as f64%{}", lhs_code, rhs_code)?,
+                (Opcode::Mod, Type::Double, Type::Int) =>
+                    write!(f, "{}%{} as f64", lhs_code, rhs_code)?,
+                (Opcode::Mod, _, _) =>
+                    write!(f, "{}%{}", lhs_code, rhs_code)?,
+
+                (Opcode::Add, Type::Int, Type::Double) =>
+                    write!(f, "{} as f64+{}", lhs_code, rhs_code)?,
+                (Opcode::Add, Type::Double, Type::Int) =>
+                    write!(f, "{}+{} as f64", lhs_code, rhs_code)?,
+                (Opcode::Add, Type::String, _) | (Opcode::Add, _, Type::String) =>
+                    write!(f, "format!(\"{{}}{{}}\",{},{})", lhs_code, rhs_code)?,
+                (Opcode::Add, _, _) =>
+                    write!(f, "{}+{}", lhs_code, rhs_code)?,
+
+                (Opcode::Sub, Type::Int, Type::Double) =>
+                    write!(f, "{} as f64-{}", lhs_code, rhs_code)?,
+                (Opcode::Sub, Type::Double, Type::Int) =>
+                    write!(f, "{}-{} as f64", lhs_code, rhs_code)?,
+                (Opcode::Sub, _, _) =>
+                    write!(f, "{}-{}", lhs_code, rhs_code)?,
+
+                (Opcode::Eq, _, _) => write!(f, "{}=={}", lhs_code, rhs_code)?,
+                (Opcode::Ne, _, _) => write!(f, "{}!={}", lhs_code, rhs_code)?,
+                (Opcode::Lt, _, _) => write!(f, "{}<{}", lhs_code, rhs_code)?,
+                (Opcode::Gt, _, _) => write!(f, "{}>{}", lhs_code, rhs_code)?,
+                (Opcode::Le, _, _) => write!(f, "{}<={}", lhs_code, rhs_code)?,
+                (Opcode::Ge, _, _) => write!(f, "{}>={}", lhs_code, rhs_code)?,
             }
             write!(f, ")",)?;
 

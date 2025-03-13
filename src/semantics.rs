@@ -109,6 +109,9 @@ impl OpcodeSignature {
             ],
             Opcode::Sub | Opcode::Mul | Opcode::Div | Opcode::Mod => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Int },
+                Self { lhs: Type::Int, rhs: Type::Double, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Int, result: Type::Double },
+                Self { lhs: Type::Double, rhs: Type::Double, result: Type::Double },
             ],
             Opcode::Eq | Opcode::Ne => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
