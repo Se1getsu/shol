@@ -49,18 +49,30 @@ fn main() -> ExitCode {
     let config = config.unwrap();
 
     // 入力ファイルの読み込み
-    let program = std::fs::read_to_string(&config.src_file)
-        .expect("Failed to read program file");
+    let program = match std::fs::read_to_string(&config.src_file) {
+        Ok(content) => content,
+        Err(e) => {
+            eprintln!("ファイル読み込みエラー: {}", e);
+            return ExitCode::FAILURE;
+        }
+    };
 
     // プリプロセス
     println!("[*] Preprocessing...");
     let program = preprocessor::preprocess(&program);
 
     if let Some(path) = config.shi_file {
-        let mut out_file = File::create(&path)
-            .expect("Failed to create output file");
-        out_file.write_all(program.as_bytes())
-            .expect("Failed to write program to file");
+        let mut out_file = match File::create(&path) {
+            Ok(file) => file,
+            Err(e) => {
+                eprintln!("ファイル作成エラー: {}", e);
+                return ExitCode::FAILURE;
+            }
+        };
+        if let Err(e) = out_file.write_all(program.as_bytes()) {
+            eprintln!("ファイル書き込みエラー: {}", e);
+            return ExitCode::FAILURE;
+        }
     }
 
     // AST 生成
@@ -77,13 +89,20 @@ fn main() -> ExitCode {
     println!("{{\"AST\":{:?}}}", ast);
 
     // 出力ファイルを開く
-    let mut out_file = File::create(&config.rs_file.path())
-        .expect("Failed to create output file");
+    let mut out_file = match File::create(&config.rs_file.path()) {
+        Ok(file) => file,
+        Err(e) => {
+            eprintln!("出力ファイル作成エラー: {}", e);
+            return ExitCode::FAILURE;
+        }
+    };
 
     // コード生成
     println!("\n[*] Generating code...");
-    code_generator::generate(&mut out_file, &ast, &config.src_file)
-        .expect("Failed to write code");
+    if let Err(_) = code_generator::generate(&mut out_file, &ast, &config.src_file) {
+        // TODO: エラーメッセージ
+        return ExitCode::FAILURE;
+    }
 
     // コンパイル
     println!("\n[*] Compiling...");
