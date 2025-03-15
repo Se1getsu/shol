@@ -1,24 +1,53 @@
 use std::num::{ ParseIntError, ParseFloatError };
+use std::ops::Range;
 use logos::Logos;
 use std::fmt;
 
-// MARK: エラー型
+// MARK: LexicalError
 
-#[derive(Default, Debug, Clone, PartialEq)]
-pub enum LexicalError {
-    #[default]
-    InvalidToken,
+#[derive(Debug, Clone, PartialEq)]
+pub struct LexicalError {
+    /// エラーが発生した範囲 (Lexer が後から設定する)
+    pub range: Range<usize>,
+    /// エラーの種類
+    pub error_type: LexicalErrorKind,
 }
 
-impl From<ParseIntError> for LexicalError {
-    fn from(_: ParseIntError) -> Self {
-        LexicalError::InvalidToken
+/// エラーの種類
+#[derive(Debug, Clone, PartialEq)]
+pub enum LexicalErrorKind {
+    /// 無効なトークン
+    InvalidToken,
+    /// 整数パースエラー
+    InvalidIntegerLiteral,
+    /// 浮動小数点パースエラー
+    InvalidFloatLiteral,
+}
+
+// MARK: LexicalError の生成ルール
+
+impl Default for LexicalError {
+    fn default() -> Self {
+        LexicalError {
+            range: 0..0,
+            error_type: LexicalErrorKind::InvalidToken,
+        }
     }
 }
-
+impl From<ParseIntError> for LexicalError {
+    fn from(_: ParseIntError) -> Self {
+        LexicalError {
+            range: 0..0,
+            error_type: LexicalErrorKind::InvalidIntegerLiteral,
+        }
+    }
+}
 impl From<ParseFloatError> for LexicalError {
     fn from(_: ParseFloatError) -> Self {
-        LexicalError::InvalidToken
+        LexicalError {
+            range: 0..0,
+            error_type: LexicalErrorKind::InvalidFloatLiteral,
+        }
     }
 }
 

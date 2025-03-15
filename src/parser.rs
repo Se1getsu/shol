@@ -110,8 +110,11 @@ fn format_expected_tokens(tokens: &[String]) -> String {
 
 // MARK: エラー変換
 
-/// LALRPOP のエラーを CompileError に変換
-fn convert_parse_error(error: ParseError<usize, tokens::Token, tokens::LexicalError>, program: &str) -> SyntaxError {
+/// LALRPOP のエラーを SyntaxError に変換
+fn convert_parse_error(
+    error: ParseError<usize, tokens::Token, tokens::LexicalError>, 
+    program: &str
+) -> SyntaxError {
     match error {
         ParseError::InvalidToken { location } => {
             // どういう時にこのエラーが出るのか不明
@@ -120,7 +123,7 @@ fn convert_parse_error(error: ParseError<usize, tokens::Token, tokens::LexicalEr
                 line,
                 column,
                 length: 1,
-                message: "無効なトークンです".to_string()
+                message: "無効なトークンです。(InvalidToken)".to_string()
             }
         },
         ParseError::UnrecognizedEof { location, expected } => {
@@ -153,17 +156,34 @@ fn convert_parse_error(error: ParseError<usize, tokens::Token, tokens::LexicalEr
                 line,
                 column,
                 length: end - start,
-                message: format!("無効な文法です。")
+                message: format!("無効な文法です。(ExtraToken)")
             }
         },
-        ParseError::User { error } => {
+        ParseError::User { error } =>
+            convert_lexical_error(error, program),
+    }
+}
+
+/// LexicalError を SyntaxError に変換
+fn convert_lexical_error(error: tokens::LexicalError, program: &str) -> SyntaxError {
+    let (line, column) = position_to_line_column(program, error.range.start);
+    let length = error.range.end - error.range.start;
+    match error.error_type {
+        tokens::LexicalErrorKind::InvalidToken =>
             SyntaxError {
-                line: 1,
-                column: 1,
-                length: 0,
-                message: format!("TODO: {:?}", error)
-            }
-        },
+                line, column, length,
+                message: "無効なトークンです。".to_string()
+            },
+        tokens::LexicalErrorKind::InvalidIntegerLiteral =>
+            SyntaxError {
+                line, column, length,
+                message: "整数リテラルを int 型の値にパースできません。".to_string()
+            },
+        tokens::LexicalErrorKind::InvalidFloatLiteral =>
+            SyntaxError {
+                line, column, length,
+                message: "浮動小数点リテラルを double 型の値にパースできません。".to_string()
+            },
     }
 }
 
