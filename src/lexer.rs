@@ -19,10 +19,13 @@ impl<'input> Iterator for Lexer<'input> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.token_stream.next().map(|(token, span)| {
-            // デバッグ出力
-            println!("token {}-{}: {:?}", span.start, span.end, token);
-            // トークンがエラーの場合も、ここで ? によりエラーを伝播
-            Ok((span.start, token?, span.end))
+            match token {
+                Ok(token) => Ok((span.start, token, span.end)),
+                Err(mut error) => {
+                    error.range = span; // エラー発生位置の情報を付加
+                    Err(error)
+                }
+            }
         })
     }
 }

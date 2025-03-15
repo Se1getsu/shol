@@ -298,6 +298,6 @@ extern {
         "," => Token::Comma,
         "#xx" => Token::Destination(<Option<String>>),
         "$xx" => Token::Capture(<String>),
-        "nl" => Token::NewLine(<String>),
+        "nl" => Token::NewLine,
     }
 }
