@@ -88,7 +88,7 @@ fn format_token(token: &str) -> Option<String> {
         "str" => Some("strリテラル".to_string()),
         "true" => Some("boolリテラル".to_string()),
         "false" => None,
-        "nl" => Some("改行".to_string()),
+        "nl" => Some("行終端".to_string()),
         "#xx" => Some("`#`".to_string()),
         "$xx" => Some("`$`".to_string()),
         _ => Some(format!("`{}`", token)),
