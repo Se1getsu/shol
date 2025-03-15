@@ -3,7 +3,7 @@ use regex::Regex;
 pub fn preprocess(program: &str) -> String {
     let mut program = program.to_string();
     program = append_trailing_new_line(&program);
-    program = remove_backslash_newline(&program);
+    program = merge_continued_lines(&program);
     program = add_double_quote(&program);
     program
 }
@@ -17,18 +17,38 @@ fn append_trailing_new_line(program: &str) -> String {
     program
 }
 
-/// バックスラッシュ+改行 を削除する
-fn remove_backslash_newline(program: &str) -> String {
-    let re = Regex::new(r"(?P<backslashes>\\*)(?P<del>\\\n[ \t]*)").unwrap();
-    re.replace_all(program, |caps: &regex::Captures| {
-        let del = &caps["del"];  // 削除箇所
-        let backslashes = &caps["backslashes"]; // 削除箇所の直前のバックスラッシュ
-        if backslashes.len() % 2 == 0 {
-            format!("{}", backslashes)
-        } else {
-            format!("{}{}", backslashes, del)
+/// バックスラッシュで分割された行を 1 行にまとめる
+fn merge_continued_lines(program: &str) -> String {
+    // program を行ごとに分割
+    let mut lines = program
+        .split('\n')
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
+
+    /// 削除対象の行かを判定
+    fn is_remove_target(line: &String) -> bool {
+        let trailing_backslashes = line
+            .chars()
+            .rev()
+            .take_while(|&c| c == '\\')
+            .count();
+        trailing_backslashes % 2 == 1
+    }
+
+    // 逆順に 1 行ずつ判定
+    for i in (0..lines.len() - 1).rev() {
+        if is_remove_target(&lines[i]) {
+            // 2 行を line[i] にまとめて line[i+1] を空行にする
+            lines[i] = {
+                let mut line = lines[i][..lines[i].len() - 1].to_string();
+                line.push_str(&lines[i+1].trim_start());
+                line
+            };
+            lines[i+1].clear(); // 空行のまま残すのは, コンパイルエラーで行番号がずれると分かりにくいため
         }
-    }).to_string()
+    }
+
+    lines.join("\n")
 }
 
 /// ダブルクォートが省略された文字列リソース行をダブルクォートで囲む
