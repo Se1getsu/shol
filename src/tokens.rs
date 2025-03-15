@@ -22,6 +22,13 @@ pub enum LexicalErrorKind {
     InvalidIntegerLiteral,
     /// 浮動小数点パースエラー
     InvalidFloatLiteral,
+    /// 文字列リテラルのエスケープエラー
+    InvalidStringEscape {
+        /// エラーメッセージ
+        message: String,
+        /// 文字列中のエスケープシーケンスの位置
+        position: Range<usize>,
+    },
 }
 
 // MARK: LexicalError の生成ルール
@@ -157,21 +164,21 @@ impl fmt::Display for Token {
     }
 }
 
-// MARK: ヘルパー関数
+// MARK: 文字列リテラルのデコード
 
 /// クォートで囲まれた文字列リテラルをデコードする
-fn decode_string(input: &str) -> String {
+fn decode_string(input: &str) -> Result<String, LexicalError> {
     let without_quotes = &input[1..input.len()-1];
     let mut result = String::with_capacity(without_quotes.len());
-    let mut chars = without_quotes.chars().peekable();
+    let mut chars = without_quotes.chars().enumerate();
 
-    while let Some(c) = chars.next() {
+    while let Some((start, c)) = chars.next() {
         if c != '\\' {
             result.push(c);
             continue;
         }
 
-        let next = {
+        let (_, next) = {
             let next = chars.next();
             if next.is_none() {
                 result.push(c);
@@ -192,34 +199,64 @@ fn decode_string(input: &str) -> String {
             '"' => result.push('"'),
             '\\' => result.push('\\'),
             'x' => {
-                let hex = chars.by_ref().take(2).collect::<String>();
+                let hex: String = chars.by_ref().take(2).map(|(_, c)| c).collect();
                 let code = match (hex.len() == 2, u8::from_str_radix(&hex, 16)) {
                     (true, Ok(code)) => code,
-                    _ => panic!("Unicode エスケープ \\xXX をデコードできません: \\x{}", hex),
+                    _ => return Err(LexicalError {
+                        range: 0..0,
+                        error_type: LexicalErrorKind::InvalidStringEscape {
+                            message: format!("Unicode エスケープ \\xXX をデコードできません: \\x{}", hex),
+                            position: start .. start + "\\x".len() + hex.len(),
+                        },
+                    }),
                 };
                 result.push(code as char);
             },
             'u' => {
-                let hex = chars.by_ref().take(4).collect::<String>();
+                let hex = chars.by_ref().take(4).map(|(_, c)| c).collect::<String>();
                 let code = match (hex.len() == 4, u16::from_str_radix(&hex, 16)) {
                     (true, Ok(code)) => code,
-                    _ => panic!("Unicode エスケープ \\uXXXX をデコードできません: \\u{}", hex),
+                    _ => return Err(LexicalError {
+                        range: 0..0,
+                        error_type: LexicalErrorKind::InvalidStringEscape {
+                            message: format!("Unicode エスケープ \\uXXXX をデコードできません: \\u{}", hex),
+                            position: start .. start + "\\u".len() + hex.len(),
+                        },
+                    }),
                 };
                 let c = match char::from_u32(code as u32) {
                     Some(c) => c,
-                    None => panic!("Unicode エスケープ \\u{} は不正な文字です。", hex),
+                    None => return Err(LexicalError {
+                        range: 0..0,
+                        error_type: LexicalErrorKind::InvalidStringEscape {
+                            message: format!("Unicode エスケープ \\u{} は不正な文字です。", hex),
+                            position: start .. start + "\\u".len() + hex.len(),
+                        },
+                    }),
                 };
                 result.push(c);
             },
             'U' => {
-                let hex = chars.by_ref().take(8).collect::<String>();
+                let hex = chars.by_ref().take(8).map(|(_, c)| c).collect::<String>();
                 let code = match (hex.len() == 8, u32::from_str_radix(&hex, 16)) {
                     (true, Ok(code)) => code,
-                    _ => panic!("Unicode エスケープ \\UXXXXXXXX をデコードできません: \\U{}", hex),
+                    _ => return Err(LexicalError {
+                        range: 0..0,
+                        error_type: LexicalErrorKind::InvalidStringEscape {
+                            message: format!("Unicode エスケープ \\UXXXXXXXX をデコードできません: \\U{}", hex),
+                            position: start .. start + "\\U".len() + hex.len(),
+                        },
+                    }),
                 };
                 let c = match char::from_u32(code) {
                     Some(c) => c,
-                    None => panic!("Unicode エスケープ \\U{} は不正な文字です。", hex),
+                    None => return Err(LexicalError {
+                        range: 0..0,
+                        error_type: LexicalErrorKind::InvalidStringEscape {
+                            message: format!("Unicode エスケープ \\U{} は不正な文字です。", hex),
+                            position: start .. start + "\\U".len() + hex.len(),
+                        },
+                    }),
                 };
                 result.push(c);
             },
@@ -229,7 +266,7 @@ fn decode_string(input: &str) -> String {
             }
         }
     } // while let Some(c) = chars.next()
-    result
+    Ok(result)
 }
 
 // MARK: - Tests

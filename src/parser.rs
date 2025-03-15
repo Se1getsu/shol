@@ -184,6 +184,13 @@ fn convert_lexical_error(error: tokens::LexicalError, program: &str) -> SyntaxEr
                 line, column, length,
                 message: "浮動小数点リテラルを double 型の値にパースできません。".to_string()
             },
+        tokens::LexicalErrorKind::InvalidStringEscape { message, position } =>
+            SyntaxError {
+                line,
+                column: column + position.start + 1,
+                length: position.end - position.start,
+                message: format!("{}", message)
+            },
     }
 }
 
