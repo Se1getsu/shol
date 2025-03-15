@@ -118,8 +118,8 @@ pub enum Token {
     Capture(String),
 
     // 改行
-    #[regex(r"\n|\r\n|\r|\f", |lex| lex.slice().to_string())]
-    NewLine(String),
+    #[regex(r"\n|\r\n|\r|\f")]
+    NewLine,
 }
 
 impl fmt::Display for Token {

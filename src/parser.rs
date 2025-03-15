@@ -132,13 +132,18 @@ fn convert_parse_error(error: ParseError<usize, tokens::Token, tokens::LexicalEr
                 message: format!("予期せぬファイル終端です。期待されるトークン: {}", format_expected_tokens(&expected))
             }
         },
-        ParseError::UnrecognizedToken { token: (start, _, end), expected } => {
+        ParseError::UnrecognizedToken { token: (start, token, end), expected } => {
             let (line, column) = position_to_line_column(program, start);
             SyntaxError {
                 line,
                 column,
                 length: end - start,
-                message: format!("予期せぬトークンです。期待されるトークン: {}", format_expected_tokens(&expected))
+                message: match token {
+                    tokens::Token::NewLine =>
+                        format!("予期せぬ行終端です。期待されるトークン: {}", format_expected_tokens(&expected)),
+                    _ =>
+                        format!("予期せぬトークンです。期待されるトークン: {}", format_expected_tokens(&expected)),
+                }
             }
         },
         ParseError::ExtraToken { token: (start, _, end) } => {
