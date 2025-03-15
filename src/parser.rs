@@ -172,7 +172,12 @@ fn convert_lexical_error(error: tokens::LexicalError, program: &str) -> SyntaxEr
         tokens::LexicalErrorKind::InvalidToken =>
             SyntaxError {
                 line, column, length,
-                message: "無効なトークンです。".to_string()
+                // message: "無効なトークンです。".to_string()
+                message: if let Some('"') = program.chars().nth(error.range.start) {
+                    "文字列リテラルが閉じられていません。".to_string()
+                } else {
+                    "無効なトークンです。".to_string()
+                }
             },
         tokens::LexicalErrorKind::InvalidIntegerLiteral =>
             SyntaxError {
