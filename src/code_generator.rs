@@ -137,7 +137,7 @@ pub fn generate(
     writeln!(f, ")]")?;
 
     // use 宣言
-    writeln!(f, "use std::{{collections::HashMap, io::{{self, BufRead}}, process::ExitCode, sync::mpsc, thread}};")?;
+    writeln!(f, "use std::{{collections::HashMap, io::{{self, BufRead, Write}}, process::ExitCode, sync::mpsc, thread}};")?;
     writeln!(f, "")?;
 
     // 型定義
@@ -328,10 +328,22 @@ fn generate_colony_extension(
         "cout" => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
-        ResourceType::String(v) => print!("{{v}}"),
-        ResourceType::Bool(v) => print!("{{v}}"),
-        ResourceType::Int(v) => print!("{{v}}"),
-        ResourceType::Double(v) => print!("{{v}}"),
+        ResourceType::String(v) => {{
+          print!("{{v}}");
+          io::stdout().flush().unwrap();
+        }},
+        ResourceType::Bool(v) => {{
+          print!("{{v}}");
+          io::stdout().flush().unwrap();
+        }},
+        ResourceType::Int(v) => {{
+          print!("{{v}}");
+          io::stdout().flush().unwrap();
+        }},
+        ResourceType::Double(v) => {{
+          print!("{{v}}");
+          io::stdout().flush().unwrap();
+        }},
       }}
     }}
     self.resources = vec![];"#)?;
