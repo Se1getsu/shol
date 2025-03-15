@@ -166,62 +166,69 @@ fn decode_string(input: &str) -> String {
     let mut chars = without_quotes.chars().peekable();
 
     while let Some(c) = chars.next() {
-        if c == '\\' {
-            if let Some(next) = chars.next() {
-                match next {
-                    '0' => result.push('\0'),
-                    'a' => result.push('\x07'),
-                    'b' => result.push('\x08'),
-                    't' => result.push('\t'),
-                    'n' => result.push('\n'),
-                    'v' => result.push('\x0b'),
-                    'f' => result.push('\x0c'),
-                    'r' => result.push('\r'),
-                    'e' => result.push('\x1b'),
-                    '"' => result.push('"'),
-                    '\\' => result.push('\\'),
-                    'x' => {
-                        let hex = chars.by_ref().take(2).collect::<String>();
-                        let code = match (hex.len() == 2, u8::from_str_radix(&hex, 16)) {
-                            (true, Ok(code)) => code,
-                            _ => panic!("Unicode エスケープ \\xXX をデコードできません: \\x{}", hex),
-                        };
-                        result.push(code as char);
-                    },
-                    'u' => {
-                        let hex = chars.by_ref().take(4).collect::<String>();
-                        let code = match (hex.len() == 4, u16::from_str_radix(&hex, 16)) {
-                            (true, Ok(code)) => code,
-                            _ => panic!("Unicode エスケープ \\uXXXX をデコードできません: \\u{}", hex),
-                        };
-                        let c = match char::from_u32(code as u32) {
-                            Some(c) => c,
-                            None => panic!("Unicode エスケープ \\u{} は不正な文字です。", hex),
-                        };
-                        result.push(c);
-                    },
-                    'U' => {
-                        let hex = chars.by_ref().take(8).collect::<String>();
-                        let code = match (hex.len() == 8, u32::from_str_radix(&hex, 16)) {
-                            (true, Ok(code)) => code,
-                            _ => panic!("Unicode エスケープ \\UXXXXXXXX をデコードできません: \\U{}", hex),
-                        };
-                        let c = match char::from_u32(code) {
-                            Some(c) => c,
-                            None => panic!("Unicode エスケープ \\U{} は不正な文字です。", hex),
-                        };
-                        result.push(c);
-                    },
-                    _ => {
-                        result.push('\\');
-                        result.push(next);
-                    }
-                }
-            }
-        } else {
+        if c != '\\' {
             result.push(c);
+            continue;
         }
-    }
+
+        let next = {
+            let next = chars.next();
+            if next.is_none() {
+                result.push(c);
+                break;
+            }
+            next.unwrap()
+        };
+        match next {
+            '0' => result.push('\0'),
+            'a' => result.push('\x07'),
+            'b' => result.push('\x08'),
+            't' => result.push('\t'),
+            'n' => result.push('\n'),
+            'v' => result.push('\x0b'),
+            'f' => result.push('\x0c'),
+            'r' => result.push('\r'),
+            'e' => result.push('\x1b'),
+            '"' => result.push('"'),
+            '\\' => result.push('\\'),
+            'x' => {
+                let hex = chars.by_ref().take(2).collect::<String>();
+                let code = match (hex.len() == 2, u8::from_str_radix(&hex, 16)) {
+                    (true, Ok(code)) => code,
+                    _ => panic!("Unicode エスケープ \\xXX をデコードできません: \\x{}", hex),
+                };
+                result.push(code as char);
+            },
+            'u' => {
+                let hex = chars.by_ref().take(4).collect::<String>();
+                let code = match (hex.len() == 4, u16::from_str_radix(&hex, 16)) {
+                    (true, Ok(code)) => code,
+                    _ => panic!("Unicode エスケープ \\uXXXX をデコードできません: \\u{}", hex),
+                };
+                let c = match char::from_u32(code as u32) {
+                    Some(c) => c,
+                    None => panic!("Unicode エスケープ \\u{} は不正な文字です。", hex),
+                };
+                result.push(c);
+            },
+            'U' => {
+                let hex = chars.by_ref().take(8).collect::<String>();
+                let code = match (hex.len() == 8, u32::from_str_radix(&hex, 16)) {
+                    (true, Ok(code)) => code,
+                    _ => panic!("Unicode エスケープ \\UXXXXXXXX をデコードできません: \\U{}", hex),
+                };
+                let c = match char::from_u32(code) {
+                    Some(c) => c,
+                    None => panic!("Unicode エスケープ \\U{} は不正な文字です。", hex),
+                };
+                result.push(c);
+            },
+            _ => {
+                result.push('\\');
+                result.push(next);
+            }
+        }
+    } // while let Some(c) = chars.next()
     result
 }
 
