@@ -6,6 +6,7 @@ use tempfile;
 pub mod ast;
 pub mod tokens;
 pub mod lexer;
+pub mod parser;
 pub mod preprocessor;
 pub mod semantics;
 pub mod code_generator;
@@ -77,10 +78,10 @@ fn main() -> ExitCode {
 
     // AST 生成
     println!("[*] AST generating...");
-    let mut lexer = lexer::Lexer::new(&program);
-    let parser = shol::ProgramParser::new();
-    let mut ast = parser.parse(&mut lexer)
-        .expect("Failed to parse program");
+    let mut ast = match parser::parse_program(&program) {
+        Ok(ast) => ast,
+        Err(e) => return e,
+    };
     println!("{{\"AST\":{:?}}}", ast);
 
     // 意味解析
