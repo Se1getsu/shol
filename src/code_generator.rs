@@ -850,10 +850,10 @@ fn generate_expr(
             write!(f, "{}", b)?;
             result_type = Type::Bool;
         },
-        ast::ExprAST::Capture(name) => {
+        ast::ExprAST::Capture(name, _) => {
             return generate_capture(f, name);
         },
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let (operand_type, operand_code) = {
                 let mut buffer = Vec::new();
                 let operand_type = generate_expr(&mut buffer, operand, generate_capture)?;
@@ -872,7 +872,7 @@ fn generate_expr(
                 None => panic!("不正な型の演算です: {:?} {:?}", opcode, operand_type),
             }
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let (lhs_type, mut lhs_code) = {
                 let mut buffer = Vec::new();
                 let lhs_type = generate_expr(&mut buffer, lhs, generate_capture)?;

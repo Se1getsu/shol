@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::Range;
 use regex::Regex;
 
 use crate::semantics;
@@ -104,9 +105,9 @@ pub enum ExprAST {
     Double(f64),
     Str(String),
     Bool(bool),
-    Capture(String),
-    UnaryOp(UnaryOpcode, Box<ExprAST>),
-    BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>),
+    Capture(String, Range<usize>),
+    UnaryOp(UnaryOpcode, Box<ExprAST>, Range<usize>),
+    BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>, Range<usize>),
 }
 
 impl fmt::Debug for ExprAST {
@@ -120,11 +121,11 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
             ExprAST::Bool(b) =>
                 write!(f, "{{\"Bool({})\":{{\"_\":{{}}}}}}", b),
-            ExprAST::Capture(s) =>
+            ExprAST::Capture(s, _) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
-            ExprAST::UnaryOp(op, operand) =>
+            ExprAST::UnaryOp(op, operand, _) =>
                 write!(f, "{{\"BinaryOp({:?})\":{:?}}}", op, operand),
-            ExprAST::BinaryOp(lhs, op, rhs) =>
+            ExprAST::BinaryOp(lhs, op, rhs, _) =>
                 write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
     }

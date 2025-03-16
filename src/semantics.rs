@@ -191,8 +191,8 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
         ast::ExprAST::Double(_) => Ok(Type::Double),
         ast::ExprAST::Str(_) => Ok(Type::String),
         ast::ExprAST::Bool(_) => Ok(Type::Bool),
-        ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::Capture(name, _) => Ok(captures.get(name).unwrap().clone()),
+        ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let operand_type = type_validate_expr(operand, captures)?;
             if let Some(result) = opcode.result_type(operand_type) {
                 Ok(result)
@@ -200,7 +200,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
                 Err(expr)
             }
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let lhs_type = type_validate_expr(lhs, captures)?;
             let rhs_type = type_validate_expr(rhs, captures)?;
             if let Some(result) = opcode.result_type(lhs_type, rhs_type) {
@@ -297,12 +297,12 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
     fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
         match expr {
             ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
-            ast::ExprAST::Capture(name) =>
+            ast::ExprAST::Capture(name, _) =>
                 if !captures.contains(name) { captures.push(name.clone()); },
-            ast::ExprAST::UnaryOp(_, operand) => {
+            ast::ExprAST::UnaryOp(_, operand, _) => {
                 collect_captures(operand, captures);
             },
-            ast::ExprAST::BinaryOp(lhs, _, rhs) => {
+            ast::ExprAST::BinaryOp(lhs, _, rhs, _) => {
                 collect_captures(lhs, captures);
                 collect_captures(rhs, captures);
             },
@@ -333,8 +333,8 @@ fn condition_kind(expr: &ast::ExprAST) -> (ConditionKind, bool) {
     let mut is_typed_capture = false;
 
     // $:int のような場合は キャプチャ単体 に変換する
-    if let ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand) = expr {
-        if let ast::ExprAST::Capture(name) = &**operand {
+    if let ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand, _) = expr {
+        if let ast::ExprAST::Capture(name, _) = &**operand {
             kind = ConditionKind::Capture(name.clone());
             is_typed_capture = true;
         }
@@ -351,8 +351,8 @@ fn _condition_kind(expr: &ast::ExprAST) -> ConditionKind {
         ast::ExprAST::Double(_) => ConditionKind::Equal(Type::Double),
         ast::ExprAST::Str(_) => ConditionKind::Equal(Type::String),
         ast::ExprAST::Bool(_) => ConditionKind::Equal(Type::Bool),
-        ast::ExprAST::Capture(name) => ConditionKind::Capture(name.clone()),
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::Capture(name, _) => ConditionKind::Capture(name.clone()),
+        ast::ExprAST::UnaryOp(opcode, operand, _) => {
             // オペランドの条件式種別を取得
             let operand_kind = _condition_kind(operand);
 
@@ -373,7 +373,7 @@ fn _condition_kind(expr: &ast::ExprAST) -> ConditionKind {
                 },
             }
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             // 左辺と右辺の条件式種別を取得
             let lhs_kind = _condition_kind(lhs);
             let rhs_kind = _condition_kind(rhs);
@@ -593,7 +593,7 @@ fn analyze_output_ast(
         ast::ExprAST::Bool(_) => AOAResult::Constant(Type::Bool),
 
         // capture_infers に登録されているインデックスを返す
-        ast::ExprAST::Capture(name) => {
+        ast::ExprAST::Capture(name, _) => {
             if let Some(index) = capture_infers.get(name) {
                 AOAResult::Infer { index: InfersIndex(*index) }
             } else {
@@ -602,7 +602,7 @@ fn analyze_output_ast(
         },
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let operand = analyze_output_ast(operand, infers, capture_infers);
 
             // 定数式なら AOAResult::Constant を返す
@@ -637,7 +637,7 @@ fn analyze_output_ast(
         }
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let lhs = analyze_output_ast(lhs, infers, capture_infers);
             let rhs = analyze_output_ast(rhs, infers, capture_infers);
 
@@ -876,8 +876,8 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
-                    ast::ExprAST::Capture(_) => (),
-                    ast::ExprAST::UnaryOp(opcode, operand) => {
+                    ast::ExprAST::Capture(_, _) => (),
+                    ast::ExprAST::UnaryOp(opcode, operand, _) => {
                         // エラーメッセージの作成
                         let mut err_msg = String::new();
                         let type_list = capture_print_order.iter().map(|name| {
@@ -888,7 +888,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
                         err_msg.push_str(&format!("\n    {:?}", operand));
                         return Err(err_msg)
                     },
-                    ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+                    ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
                         // エラーメッセージの作成
                         let mut err_msg = String::new();
                         let type_list = capture_print_order.iter().map(|name| {

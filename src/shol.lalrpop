@@ -118,99 +118,104 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
     <Factor>,
-    <Factor> ":int" => {
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Int), <>))
+    <e:Factor> <l:@L> ":int" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Int), e, l..r))
     },
-    <Factor> ":double" => {
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Double), <>))
+    <e:Factor> <l:@L> ":double" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Double), e, l..r))
     },
-    <Factor> ":str" => {
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::String), <>))
+    <e:Factor> <l:@L> ":str" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::String), e, l..r))
     },
-    <Factor> ":bool" => {
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Bool), <>))
+    <e:Factor> <l:@L> ":bool" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Bool), e, l..r))
     },
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <lhs:Expr> "*" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mul, rhs))
+    <lhs:Expr> <l:@L> "*" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mul, rhs, l..r))
     },
-    <lhs:Expr> "/" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Div, rhs))
+    <lhs:Expr> <l:@L> "/" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Div, rhs, l..r))
     },
-    <lhs:Expr> "%" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mod, rhs))
+    <lhs:Expr> <l:@L> "%" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mod, rhs, l..r))
     },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <lhs:Expr> "+" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Add, rhs))
+    <lhs:Expr> <l:@L> "+" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Add, rhs, l..r))
     },
-    <lhs:Expr> "-" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Sub, rhs))
+    <lhs:Expr> <l:@L> "-" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Sub, rhs, l..r))
     },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <lhs:Expr> "<<" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftLeft, rhs))
+    <lhs:Expr> <l:@L> "<<" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftLeft, rhs, l..r))
     },
-    <lhs:Expr> ">>" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftRight, rhs))
+    <lhs:Expr> <l:@L> ">>" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftRight, rhs, l..r))
     },
 
     #[precedence(level="5")] #[assoc(side="left")]
-    <lhs:Expr> "=" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Eq, rhs))
+    <lhs:Expr> <l:@L> "=" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Eq, rhs, l..r))
     },
-    <lhs:Expr> "!=" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ne, rhs))
+    <lhs:Expr> <l:@L> "!=" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ne, rhs, l..r))
     },
-    <lhs:Expr> "<" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Lt, rhs))
+    <lhs:Expr> <l:@L> "<" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Lt, rhs, l..r))
     },
-    <lhs:Expr> ">" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Gt, rhs))
+    <lhs:Expr> <l:@L> ">" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Gt, rhs, l..r))
     },
-    <lhs:Expr> "<=" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Le, rhs))
+    <lhs:Expr> <l:@L> "<=" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Le, rhs, l..r))
     },
-    <lhs:Expr> ">=" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs))
+    <lhs:Expr> <l:@L> ">=" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs, l..r))
     },
 
     #[precedence(level="6")] #[assoc(side="left")]
-    <lhs:Expr> "&" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitAnd, rhs))
+    <lhs:Expr> <l:@L> "&" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitAnd, rhs, l..r))
     },
 
     #[precedence(level="7")] #[assoc(side="left")]
-    <lhs:Expr> "^" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitXor, rhs))
+    <lhs:Expr> <l:@L> "^" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitXor, rhs, l..r))
     },
 
     #[precedence(level="8")] #[assoc(side="left")]
-    <lhs:Expr> "|" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitOr, rhs))
+    <lhs:Expr> <l:@L> "|" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitOr, rhs, l..r))
     },
 
     #[precedence(level="9")] #[assoc(side="left")]
-    <lhs:Expr> "&&" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalAnd, rhs))
+    <lhs:Expr> <l:@L> "&&" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalAnd, rhs, l..r))
     },
 
     #[precedence(level="10")] #[assoc(side="left")]
-    <lhs:Expr> "||" <rhs:Expr> => {
-        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalOr, rhs))
+    <lhs:Expr> <l:@L> "||" <r:@R> <rhs:Expr> => {
+        Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalOr, rhs, l..r))
     },
 }
 
 Factor: Box<ast::ExprAST> = {
     #[precedence(level="1")]
-    "$xx" => Box::new(ast::ExprAST::Capture(<>)),
+    <l:@L> <name:"$xx"> <r:@R> =>
+        Box::new(ast::ExprAST::Capture(name, l..r)),
     "(" <Expr> ")",
-    "-" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, <>)),
-    "!" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, <>)),
-    "~" <Factor> => Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, <>)),
+    <l:@L> "-" <r:@R> <e:Factor> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, e, l..r)),
+    <l:@L> "!" <r:@R> <e:Factor> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, e, l..r)),
+    <l:@L> "~" <r:@R> <e:Factor> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, e, l..r)),
+
     #[precedence(level="2")]
     <Literal> => Box::new(<>),
 }
