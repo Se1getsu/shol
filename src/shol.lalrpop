@@ -10,18 +10,20 @@ pub Program: Vec<ast::StatementAST> = {
 };
 
 Statement: ast::StatementAST = {
-    "*" <name:"identf"> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
+    <l:@L> "*" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
         ast::StatementAST::ColonyDecl {
             name,
             resources,
             rules: prules,
+            location: l..r,
         }
     },
-    "%" <name:"identf"> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
+    <l:@L> "%" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
         ast::StatementAST::ColonyExtension {
             name,
             resources,
             rules: prules,
+            location: l..r,
         }
     }
 }

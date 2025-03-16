@@ -222,9 +222,9 @@ pub fn analyze_program(program: &mut Vec<ast::StatementAST>) {
 // 子ノードを探索するだけ
 fn analyze_statement(statement: &mut ast::StatementAST) {
     match statement {
-        ast::StatementAST::ColonyDecl { name: _, resources: _, rules } =>
+        ast::StatementAST::ColonyDecl { name: _, resources: _, rules, location: _ } =>
             rules.iter_mut().for_each(analyze_rule_set),
-        ast::StatementAST::ColonyExtension { name: _, resources: _, rules } =>
+        ast::StatementAST::ColonyExtension { name: _, resources: _, rules, location: _ } =>
             rules.iter_mut().for_each(analyze_rule_set),
     }
 }

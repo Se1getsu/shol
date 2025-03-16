@@ -16,16 +16,26 @@ fn urlencode(s: &str) -> String {
 // MARK: StatementAST
 
 pub enum StatementAST {
-    ColonyDecl { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
-    ColonyExtension { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
+    ColonyDecl {
+        name: String,
+        resources: Vec<ExprAST>,
+        rules: Vec<RuleSetAST>,
+        location: Range<usize>,
+    },
+    ColonyExtension {
+        name: String,
+        resources: Vec<ExprAST>,
+        rules: Vec<RuleSetAST>,
+        location: Range<usize>,
+    },
 }
 
 impl fmt::Debug for StatementAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            StatementAST::ColonyDecl { name, resources, rules } =>
+            StatementAST::ColonyDecl { name, resources, rules, location: _ } =>
                 write!(f, "{{\"ColonyDecl({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
-            StatementAST::ColonyExtension { name, resources, rules } =>
+            StatementAST::ColonyExtension { name, resources, rules, location: _ } =>
                 write!(f, "{{\"ColonyExtension({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
         }
     }
