@@ -66,12 +66,19 @@ pub struct ConditionAST {
     pub sqc_start: usize,
     /// 連続規則の RuleAST::conditions での終了インデックス
     pub sqc_end: usize,
+    /// プログラム中の式の位置
+    pub location: Range<usize>,
+    /// 意味解析で追加されるメタデータ
     pub meta: Option<semantics::ConditionASTMeta>,
 }
 
 pub struct OutputAST {
     pub expr: ExprAST,
+    /// 出力先コロニーの名前
     pub destination: Option<String>,
+    /// プログラム中の式の位置
+    pub location: Range<usize>,
+    /// 意味解析で追加されるメタデータ
     pub meta: Option<semantics::OutputASTMeta>,
 }
 
