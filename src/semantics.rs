@@ -271,7 +271,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) -> Result<(), SemanticError> {
 fn analyze_condition<'src>(
     condition: &'src mut ast::ConditionAST,
     rule_meta: &mut RuleASTMeta,
-) -> Result<(), SemanticError<'src>> {
+) -> Result<(), SemanticError> {
     // 条件式種別を判定
     let (kind, is_typed_capture) = condition_kind(&condition.expr);
 
@@ -280,10 +280,7 @@ fn analyze_condition<'src>(
         ConditionKind::Equal(_) => (),
         ConditionKind::Capture(name) => {
             if rule_meta.captures.contains_key(name) {
-                return Err(SemanticError::DuplicateCaptureName {
-                    name: name.clone(),
-                    condition,
-                });
+                return Err(SemanticError::duplicate_capture_name(name.clone(), condition));
             }
             if is_typed_capture {
                 let types = analyze_capture_condition(
@@ -298,10 +295,7 @@ fn analyze_condition<'src>(
         },
         ConditionKind::CaptureCondition(name) => {
             if rule_meta.captures.contains_key(name) {
-                return Err(SemanticError::DuplicateCaptureName {
-                    name: name.clone(),
-                    condition,
-                });
+                return Err(SemanticError::duplicate_capture_name(name.clone(), condition));
             }
             let types = analyze_capture_condition(
                 &condition.expr,

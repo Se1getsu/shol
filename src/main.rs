@@ -4,6 +4,7 @@ use getopts::Options;
 use tempfile;
 
 pub mod ast;
+pub mod compile_error;
 pub mod tokens;
 pub mod lexer;
 pub mod parser;
@@ -88,7 +89,8 @@ fn main() -> ExitCode {
     // 意味解析
     println!("\n[*] Semantics analyzing...");
     if let Err(e) = semantics::analyze_program(&mut ast) {
-        eprintln!("{}", e.format(&program));
+        let e = e.build_compile_error(&program);
+        eprintln!("{}", e);
         return ExitCode::FAILURE;
     }
     println!("{{\"AST\":{:?}}}", ast);
