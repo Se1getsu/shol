@@ -19,7 +19,7 @@ impl SemanticError {
 
     /// コロニーの定義が重複している場合のエラー
     pub fn duplicate_colony_definition(
-        name: String,
+        name: &str,
         location: &Range<usize>,
         previous_location: &Range<usize>,
     ) -> Self {
@@ -37,7 +37,10 @@ impl SemanticError {
     }
 
     /// 未定義のコロニーへの出力が存在する場合のエラー
-    pub fn undefined_colony(name: &str, location: &Range<usize>) -> Self {
+    pub fn undefined_colony(
+        name: &str,
+        location: &Range<usize>,
+    ) -> Self {
         let message = format!("未定義のコロニーへの出力: {}", name);
         let location = location.clone();
         Self(Box::new(move |source: &str| {
@@ -49,7 +52,10 @@ impl SemanticError {
     }
 
     /// キャプチャ名が他の条件式と重複している場合のエラー
-    pub fn duplicate_capture_name(name: String, capture_location: &Range<usize>) -> Self {
+    pub fn duplicate_capture_name(
+        name: &str,
+        capture_location: &Range<usize>,
+    ) -> Self {
         let message = format!("キャプチャ名 ${} は既に使用されています。", name);
         let location = capture_location.clone();
         Self(Box::new(move |source: &str| {
@@ -63,7 +69,7 @@ impl SemanticError {
 
     /// 1 つの条件式に複数のキャプチャが含まれている場合のエラー
     pub fn multiple_captures_in_condition(
-        capture_names: (String, String),
+        capture_names: (&str, &str),
         capture_locations: (&Range<usize>, &Range<usize>),
     ) -> Self {
         let message = format!(
@@ -88,7 +94,10 @@ impl SemanticError {
     }
 
     /// 未定義のキャプチャが使用されている場合のエラー
-    pub fn undefined_capture(name: String, location: &Range<usize>) -> Self {
+    pub fn undefined_capture(
+        name: &str,
+        location: &Range<usize>
+    ) -> Self {
         let message = format!("未定義のキャプチャ ${} が使用されています。", name);
         let location = location.clone();
         Self(Box::new(move |source: &str| {
@@ -100,7 +109,11 @@ impl SemanticError {
     }
 
     /// 単項演算子の型エラー
-    pub fn type_error_unary(opcode: &UnaryOpcode, location: &Range<usize>, operand_t: Type) -> Self {
+    pub fn type_error_unary(
+        opcode: &UnaryOpcode,
+        location: &Range<usize>,
+        operand_t: Type,
+    ) -> Self {
         let message = format!(
             "単項演算子 {} は {} 型のオペランドをサポートしていません。",
             opcode, operand_t
@@ -115,7 +128,12 @@ impl SemanticError {
     }
 
     /// 二項演算子の型エラー
-    pub fn type_error_binary(opcode: &Opcode, location: &Range<usize>, lhs_t: Type, rhs_t: Type) -> Self {
+    pub fn type_error_binary(
+        opcode: &Opcode,
+        location: &Range<usize>,
+        lhs_t: Type,
+        rhs_t: Type,
+    ) -> Self {
         let message = format!(
             "{} {} {} の演算はサポートされていません。",
             lhs_t, opcode, rhs_t
@@ -130,7 +148,9 @@ impl SemanticError {
     }
 
     /// 条件式を評価可能なキャプチャ型が存在しない場合のエラー
-    pub fn no_type_matches(location: &Range<usize>) -> Self {
+    pub fn no_type_matches(
+        location: &Range<usize>,
+    ) -> Self {
         let message = "この条件式を評価可能なキャプチャ型は存在しません。";
         let location = location.clone();
         Self(Box::new(move |source: &str| {
@@ -142,7 +162,9 @@ impl SemanticError {
     }
 
     /// キャプチャ条件式の結果が真偽値にならない場合のエラー
-    pub fn not_bool_condition(location: &Range<usize>) -> Self {
+    pub fn not_bool_condition(
+        location: &Range<usize>,
+    ) -> Self {
         let message = "結果が bool 型にならないキャプチャ条件式はサポートされていません。";
         let location = location.clone();
         Self(Box::new(move |source: &str| {

@@ -234,7 +234,7 @@ pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
                 ast::StatementAST::ColonyExtension { name, location, .. } => {
                     if colony_indices.contains_key(name) {
                         return Err(SemanticError::duplicate_colony_definition(
-                            name.clone(),
+                            name,
                             location,
                             &locations[name],
                         ));
@@ -323,7 +323,7 @@ fn analyze_condition(
         KindWithRange::Equal(_) => (),
         KindWithRange::Capture(name, cap_loc) => {
             if rule_meta.captures.contains_key(name) {
-                return Err(SemanticError::duplicate_capture_name(name.clone(), cap_loc));
+                return Err(SemanticError::duplicate_capture_name(name, cap_loc));
             }
             if is_typed_capture {
                 let types = analyze_capture_condition(
@@ -339,7 +339,7 @@ fn analyze_condition(
         },
         KindWithRange::CaptureCondition(name, cap_loc) => {
             if rule_meta.captures.contains_key(name) {
-                return Err(SemanticError::duplicate_capture_name(name.clone(), cap_loc));
+                return Err(SemanticError::duplicate_capture_name(name, cap_loc));
             }
             let types = analyze_capture_condition(
                 &condition.expr,
@@ -532,7 +532,7 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> 
                 ) => {
                     if name_l != name_r {
                         return Err(SemanticError::multiple_captures_in_condition(
-                            (name_l.clone(), name_r.clone()),
+                            (name_l, name_r),
                             (cap_loc_l, cap_loc_r),
                         ));
                     }
@@ -545,7 +545,7 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> 
                 ) => {
                     if name_l != name_r {
                         return Err(SemanticError::multiple_captures_in_condition(
-                            (name_l.clone(), name_r.clone()),
+                            (name_l, name_r),
                             (cap_loc_l, cap_loc_r),
                         ));
                     }
@@ -561,7 +561,7 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> 
                 ) => {
                     if name_l != name_r {
                         return Err(SemanticError::multiple_captures_in_condition(
-                            (name_l.clone(), name_r.clone()),
+                            (name_l, name_r),
                             (cap_loc_l, cap_loc_r),
                         ));
                     }
@@ -754,7 +754,7 @@ fn analyze_output_ast(
             if let Some(index) = capture_infers.get(name) {
                 Ok(AOAResult::Infer { index: InfersIndex(*index) })
             } else {
-                return Err(SemanticError::undefined_capture(name.clone(), cap_loc));
+                return Err(SemanticError::undefined_capture(name, cap_loc));
             }
         },
 
