@@ -938,9 +938,7 @@ fn request_update(
     captures: &mut HashMap<String, TypeHint>,
 ) {
     match &mut infers[target.0] {
-        InferredType::Constant(_) =>
-            panic!("logic error: 定数式 {:?} に型更新を要求した: {:?}", target, types),
-
+        InferredType::Constant(_) => {}
         InferredType::Capture(name) => {
             // captures の型を更新
             captures.get_mut(name).unwrap().possible_types = types.clone();
