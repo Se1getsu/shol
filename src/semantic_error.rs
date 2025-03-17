@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 use std::fmt;
 use std::ops::Range;
+use std::collections::HashMap;
 use crate::ast::{UnaryOpcode, Opcode};
-use crate::semantics::Type;
+use crate::semantics::{Type, TypeHint};
 use crate::compile_error::{CompileError, CompileErrorBuilder, ErrorKind};
 
 // MARK: SemanticError
@@ -165,6 +166,55 @@ impl SemanticError {
             CompileErrorBuilder::new(source, ErrorKind::TypeError)
                 .header(&message, location.start)
                 .location_pointer(&location)
+                .build()
+        }))
+    }
+
+    /// 出力式にキャプチャ間の型制約関係が含まれる場合のエラー
+    pub fn type_constraint_detected(
+        captures: &HashMap<String, TypeHint>,
+        associated_captures: &Vec<String>,
+        failed_captures_type: &HashMap<String, Type>,
+        failed_opcode: &Opcode,
+        failed_location: &Range<usize>,
+    ) -> Self {
+        let message = {
+            let possible_types = associated_captures
+                .iter()
+                .map(|name| {
+                    format!(
+                        "  ${}:{}",
+                        name,
+                        captures[name].possible_types.format()
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join("\n");
+            let failed_types = associated_captures
+                .iter()
+                .map(|name| {
+                    format!(
+                        "${}:{}",
+                        name,
+                        failed_captures_type[name]
+                    )
+                })
+                .collect::<Vec<String>>()
+                .join(", ");
+            format!(
+                "キャプチャ間の型制約関係を検出しました。\n\
+                各キャプチャは以下の型を取り得ます。\n\
+                {}\n\
+                しかし {} のとき、以下の {} 演算が行えません。",
+                possible_types, failed_types, failed_opcode
+            )
+        };
+        let location = failed_location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .hint("型ヒント演算子を用いてキャプチャの型を絞ることで、このエラーを解消できます。")
                 .build()
         }))
     }

@@ -348,7 +348,7 @@ fn analyze_output(
     println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
 
     // 型検証
-    validate_inference(captures, outputs);
+    validate_inference(captures, outputs)?;
     Ok(())
 }
 
@@ -992,43 +992,38 @@ fn request_update(
 }
 
 /// 出力式の型推論結果の検証
-fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::OutputAST>) {
+fn validate_inference(
+    captures: &HashMap<String, TypeHint>,
+    outputs: &Vec<ast::OutputAST>,
+) -> Result<(), SemanticError> {
+    /// 型検証の失敗情報
+    struct FailedCase {
+        captures_type: HashMap<String, Type>,
+        opcode: Opcode,
+        location: Range<usize>,
+    }
+
     // 再帰関数でキャプチャの型の組み合わせを総当たりで検証
     fn _validate_inference(
         captures: &HashMap<String, TypeHint>,
         captures_type: &HashMap<String, Type>,
         output: &ast::OutputAST,
         capture_print_order: &Vec<String>,
-    ) -> Result<(), String> {
+    ) -> Result<(), FailedCase> {
         if captures.is_empty() {
             // 型検証
             if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
-                    ast::ExprAST::Capture(_, _) => (),
-                    ast::ExprAST::UnaryOp(opcode, operand, _) => {
-                        // エラーメッセージの作成
-                        let mut err_msg = String::new();
-                        let type_list = capture_print_order.iter().map(|name| {
-                            format!("${}: {:?}", name, captures_type[name])
-                        }).collect::<Vec<String>>().join(", ");
-                        err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
-                        err_msg.push_str(&format!("\n    {:?}", opcode));
-                        err_msg.push_str(&format!("\n    {:?}", operand));
-                        return Err(err_msg)
-                    },
-                    ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
-                        // エラーメッセージの作成
-                        let mut err_msg = String::new();
-                        let type_list = capture_print_order.iter().map(|name| {
-                            format!("${}: {:?}", name, captures_type[name])
-                        }).collect::<Vec<String>>().join(", ");
-                        err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
-                        err_msg.push_str(&format!("\n    {:?}", lhs));
-                        err_msg.push_str(&format!("\n    {:?}", opcode));
-                        err_msg.push_str(&format!("\n    {:?}", rhs));
-                        return Err(err_msg)
-                    },
+                    ast::ExprAST::Capture(_, _) => unreachable!(),
+                    // 単項演算子ではキャプチャ間の型制約関係は発生し得ない
+                    ast::ExprAST::UnaryOp(..) => unreachable!(),
+                    ast::ExprAST::BinaryOp(_, opcode, _, op_loc) =>
+                        return Err(FailedCase {
+                            captures_type: captures_type.clone(),
+                            opcode: opcode.clone(),
+                            location: op_loc.clone(),
+                        }),
                 }
             }
         } else {
@@ -1047,7 +1042,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
         Ok(())
     }
 
-    outputs.iter().for_each(|output| {
+    for output in outputs.iter() {
         // captures から output に登場するキャプチャだけを取り出す
         let associated_captures = &output.meta.as_ref().unwrap().associated_captures;
         let captures: HashMap<String, TypeHint> = associated_captures.iter()
@@ -1063,16 +1058,15 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             associated_captures
         );
 
-        if let Err(detail) = result {
-            // エラーメッセージの作成
-            let mut err_msg = String::new();
-            err_msg.push_str(&format!("出力式にキャプチャ間の型制約関係が含まれます:"));
-            err_msg.push_str(&format!("\n  推論されたキャプチャの型:"));
-            associated_captures.iter().for_each(|name| {
-                err_msg.push_str(&format!("\n    ${}: {:?}", name, captures[name].possible_types));
-            });
-            err_msg.push_str(&detail);
-            panic!("{}", err_msg);
+        if let Err(failed_case) = result {
+            return Err(SemanticError::type_constraint_detected(
+                &captures,
+                associated_captures,
+                &failed_case.captures_type,
+                &failed_case.opcode,
+                &failed_case.location,
+            ));
         }
-    });
+    }
+    Ok(())
 }
