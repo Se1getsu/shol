@@ -17,6 +17,25 @@ impl SemanticError {
         (self.0)(source)
     }
 
+    /// コロニーの定義が重複している場合のエラー
+    pub fn duplicate_colony_definition(
+        name: String,
+        location: &Range<usize>,
+        previous_location: &Range<usize>,
+    ) -> Self {
+        let message = format!("{} コロニーの定義が重複しています。", name);
+        let location = location.clone();
+        let previous_location = previous_location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::Error)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .line("最初の定義:")
+                .location_pointer(&previous_location)
+                .build()
+        }))
+    }
+
     /// キャプチャ名が他の条件式と重複している場合のエラー
     pub fn duplicate_capture_name(name: String, capture_location: &Range<usize>) -> Self {
         let message = format!("キャプチャ名 ${} は既に使用されています。", name);

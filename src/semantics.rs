@@ -225,12 +225,21 @@ pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
     // ProgramAST のメタデータを作成
     let colony_indices: HashMap<String, usize> = {
         let mut colony_indices = HashMap::new();
+        let mut locations = HashMap::new();
         let mut count = 0;
         for stmt in &program.statements {
             match stmt {
-                ast::StatementAST::ColonyDecl { name, .. } |
-                ast::StatementAST::ColonyExtension { name, .. } => {
+                ast::StatementAST::ColonyDecl { name, location, .. } |
+                ast::StatementAST::ColonyExtension { name, location, .. } => {
+                    if colony_indices.contains_key(name) {
+                        return Err(SemanticError::duplicate_colony_definition(
+                            name.clone(),
+                            location,
+                            &locations[name],
+                        ));
+                    }
                     colony_indices.insert(name.clone(), count);
+                    locations.insert(name, location.clone());
                     count += 1;
                 }
             }
@@ -246,8 +255,8 @@ pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
     Ok(())
 }
 
-// 子ノードを探索するだけ
 fn analyze_statement(statement: &mut ast::StatementAST) -> Result<(), SemanticError> {
+    // 子ノードを探索
     match statement {
         ast::StatementAST::ColonyDecl { name: _, resources: _, rules, location: _ } => {
             for rule_set in rules.iter_mut() {

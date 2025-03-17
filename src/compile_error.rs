@@ -68,6 +68,12 @@ impl<'src> CompileErrorBuilder<'src> {
         self
     }
 
+    /// 行を追加
+    pub fn line(mut self, line: &str) -> Self {
+        self.error.0.push_str(&format!("{line}\n"));
+        self
+    }
+
     /// エラー発生箇所を示すパートを追加
     pub fn location_pointer(mut self, location: &Range<usize>) -> Self {
         let (line, column) = self.position_to_line_column(location.start);
