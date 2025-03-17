@@ -5,8 +5,12 @@ grammar;
 
 // MARK: 構文
 
-pub Program: Vec<ast::StatementAST> = {
-    "nl"* <stmts:Statement*> => stmts
+pub Program: ast::ProgramAST = {
+    "nl"* <statements:Statement*> => {
+        ast::ProgramAST {
+            statements
+        }
+    }
 };
 
 Statement: ast::StatementAST = {

@@ -13,6 +13,18 @@ fn urlencode(s: &str) -> String {
     }).into_owned()
 }
 
+// MARK: ProgramAST
+
+pub struct ProgramAST {
+    pub statements: Vec<StatementAST>,
+}
+
+impl fmt::Debug for ProgramAST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{\"Program\":{{\".statements\":{:?}}}}}", self.statements)
+    }
+}
+
 // MARK: StatementAST
 
 pub enum StatementAST {

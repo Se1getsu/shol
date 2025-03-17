@@ -8,7 +8,7 @@ use crate::compile_error::{CompileError, CompileErrorBuilder, ErrorKind::SyntaxE
 // MARK: 構文解析
 
 /// プログラムを構文解析して AST を生成
-pub fn parse_program(source: &str) -> Result<Vec<ast::StatementAST>, CompileError> {
+pub fn parse_program(source: &str) -> Result<ast::ProgramAST, CompileError> {
     let mut lexer = lexer::Lexer::new(&source);
     let parser = shol::ProgramParser::new();
     let parse_result = parser.parse(&mut lexer);

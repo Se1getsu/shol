@@ -112,7 +112,7 @@ impl Identf {
 
 pub fn generate(
     f: &mut impl Write,
-    program: &Vec<ast::StatementAST>,
+    program: &ast::ProgramAST,
     src_file: &String,
 ) -> io::Result<()> {
     // ヘッダ
@@ -160,7 +160,7 @@ pub fn generate(
     let colony_indices: HashMap<&String, usize> = {
         let mut colony_indices = HashMap::new();
         let mut count = 0;
-        for stmt in program {
+        for stmt in &program.statements {
             match stmt {
                 ast::StatementAST::ColonyDecl { name, .. } |
                 ast::StatementAST::ColonyExtension { name, .. } => {
@@ -173,7 +173,7 @@ pub fn generate(
     };
 
     // 各コロニーを定義
-    for stmt in program {
+    for stmt in &program.statements {
         writeln!(f, "")?;
         match stmt {
             ast::StatementAST::ColonyDecl { name, rules, .. } =>
@@ -189,7 +189,7 @@ pub fn generate(
 
     // V_COLONIES の作成
     writeln!(f, "  let mut {}: Vec<Box<dyn {}>> = Vec::new();", Identf::V_COLONIES, Identf::TR_COLONY)?;
-    for stmt in program {
+    for stmt in &program.statements {
         match stmt {
             ast::StatementAST::ColonyDecl { name, resources, .. } |
             ast::StatementAST::ColonyExtension { name, resources, .. } => {

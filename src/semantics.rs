@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
 use std::ops::Range;
-use crate::ast::{self, UnaryOpcode, Opcode};
+use crate::ast::{self, Opcode, ProgramAST, UnaryOpcode};
 use crate::semantic_error::SemanticError;
 
 // MARK: メタデータ
@@ -217,8 +217,8 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
 // MARK: AST 探索関数
 
 // 子ノードを探索するだけ
-pub fn analyze_program(program: &mut Vec<ast::StatementAST>) -> Result<(), SemanticError> {
-    for statement in program.iter_mut() {
+pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
+    for statement in program.statements.iter_mut() {
         analyze_statement(statement)?;
     }
     Ok(())
