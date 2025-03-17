@@ -339,7 +339,7 @@ impl fmt::Display for Opcode {
             Opcode::BitShiftRight => ">>",
             Opcode::LogicalAnd => "&&",
             Opcode::LogicalOr => "||",
-            Opcode::Eq => "==",
+            Opcode::Eq => "=",
             Opcode::Ne => "!=",
             Opcode::Lt => "<",
             Opcode::Gt => ">",
