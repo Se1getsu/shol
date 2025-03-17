@@ -6,6 +6,11 @@ use crate::semantic_error::SemanticError;
 
 // MARK: メタデータ
 
+pub struct ProgramASTMeta {
+    /// コロニー名と V_COLONIES のインデックスの対応表
+    pub colony_indices: HashMap<String, usize>,
+}
+
 pub struct RuleASTMeta {
     pub captures: HashMap<String, TypeHint>,
 }
@@ -15,7 +20,7 @@ pub struct ConditionASTMeta {
 }
 
 pub struct OutputASTMeta {
-    // 出力式に含まれるキャプチャのリスト
+    /// 出力式に含まれるキャプチャのリスト
     pub associated_captures: Vec<String>,
 }
 
@@ -216,8 +221,25 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
 
 // MARK: AST 探索関数
 
-// 子ノードを探索するだけ
 pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
+    // ProgramAST のメタデータを作成
+    let colony_indices: HashMap<String, usize> = {
+        let mut colony_indices = HashMap::new();
+        let mut count = 0;
+        for stmt in &program.statements {
+            match stmt {
+                ast::StatementAST::ColonyDecl { name, .. } |
+                ast::StatementAST::ColonyExtension { name, .. } => {
+                    colony_indices.insert(name.clone(), count);
+                    count += 1;
+                }
+            }
+        }
+        colony_indices
+    };
+    program.meta = Some(ProgramASTMeta { colony_indices });
+
+    // 子ノードを探索
     for statement in program.statements.iter_mut() {
         analyze_statement(statement)?;
     }

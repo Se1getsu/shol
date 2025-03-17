@@ -156,21 +156,8 @@ pub fn generate(
         Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
 
-    // コロニー名と V_COLONIES のインデックス対応表作成
-    let colony_indices: HashMap<&String, usize> = {
-        let mut colony_indices = HashMap::new();
-        let mut count = 0;
-        for stmt in &program.statements {
-            match stmt {
-                ast::StatementAST::ColonyDecl { name, .. } |
-                ast::StatementAST::ColonyExtension { name, .. } => {
-                    colony_indices.insert(name, count);
-                    count += 1;
-                }
-            }
-        }
-        colony_indices
-    };
+    // コロニー名と V_COLONIES のインデックス対応表
+    let colony_indices = &program.meta.as_ref().unwrap().colony_indices;
 
     // 各コロニーを定義
     for stmt in &program.statements {
@@ -261,7 +248,7 @@ fn generate_colony_decl(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::RuleSetAST>,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -291,7 +278,7 @@ fn generate_colony_extension(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::RuleSetAST>,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -379,7 +366,7 @@ fn generate_colony_extension(
 fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     // 単一条件規則が 1 つ以上存在するか
     let has_single_cond_rule = rule_set.rules
@@ -456,7 +443,7 @@ fn generate_rule_set(
 fn generate_multi_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let captures = &rule.meta.as_ref().unwrap().captures;
 
@@ -613,7 +600,7 @@ fn generate_multi_condition_outputs(
     outputs: &Vec<ast::OutputAST>,
     captures: &HashMap<String, TypeHint>,
     capts_ref_code: &HashMap<String, String>,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let mut prev_cindex: Option<Option<usize>> = None;
     for output in outputs {
@@ -740,7 +727,7 @@ fn generate_single_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
     capture_type: Type,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let cond = &rule.conditions[0];
     let cond_meta = cond.meta.as_ref().unwrap();

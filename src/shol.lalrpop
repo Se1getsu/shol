@@ -8,7 +8,8 @@ grammar;
 pub Program: ast::ProgramAST = {
     "nl"* <statements:Statement*> => {
         ast::ProgramAST {
-            statements
+            statements,
+            meta: None,
         }
     }
 };

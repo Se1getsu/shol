@@ -17,6 +17,7 @@ fn urlencode(s: &str) -> String {
 
 pub struct ProgramAST {
     pub statements: Vec<StatementAST>,
+    pub meta: Option<semantics::ProgramASTMeta>,
 }
 
 impl fmt::Debug for ProgramAST {
