@@ -261,7 +261,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) -> Result<(), SemanticError> {
     }
 
     // 出力式を解析
-    analyze_output(&mut rule.outputs, &mut meta.captures);
+    analyze_output(&mut rule.outputs, &mut meta.captures)?;
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
@@ -311,7 +311,10 @@ fn analyze_condition<'src>(
     Ok(())
 }
 
-fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<String, TypeHint>) {
+fn analyze_output(
+    outputs: &mut Vec<ast::OutputAST>,
+    captures: &mut HashMap<String, TypeHint>
+) -> Result<(), SemanticError> {
     // 出力式に登場するキャプチャを調べる
     fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
         match expr {
@@ -334,7 +337,7 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
     }
 
     // 型推論に必要な InferredType を保存するベクタ
-    let mut infers = build_infers(outputs, captures);
+    let mut infers = build_infers(outputs, captures)?;
     println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
 
     // 型推論
@@ -343,6 +346,7 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
 
     // 型検証
     validate_inference(captures, outputs);
+    Ok(())
 }
 
 // MARK: 条件式の型推論
@@ -371,7 +375,7 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<ConditionKind, SemanticError> 
         ast::ExprAST::Str(_) => Ok(ConditionKind::Equal(Type::String)),
         ast::ExprAST::Bool(_) => Ok(ConditionKind::Equal(Type::Bool)),
         ast::ExprAST::Capture(name, _) => Ok(ConditionKind::Capture(name.clone())),
-        ast::ExprAST::UnaryOp(opcode, operand, _) => {
+        ast::ExprAST::UnaryOp(opcode, operand, location) => {
             // オペランドの条件式種別を取得
             let operand_kind = _condition_kind(operand)?;
 
@@ -381,7 +385,11 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<ConditionKind, SemanticError> 
                     if let Some(result) = opcode.result_type(*t) {
                         return Ok(ConditionKind::Equal(result));
                     } else {
-                        panic!("不正な型の演算です: {:?} {:?}", opcode, t);
+                        return Err(SemanticError::type_error_unary(
+                            opcode,
+                            location,
+                            *t,
+                        ));
                     }
                 },
                 ConditionKind::Capture(name) => {
@@ -577,7 +585,10 @@ fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) 
 }
 
 /// infers 配列を作成する
-fn build_infers(outputs: &Vec<ast::OutputAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
+fn build_infers(
+    outputs: &Vec<ast::OutputAST>,
+    captures: &HashMap<String, TypeHint>,
+) -> Result<Vec<InferredType>, SemanticError> {
     // InferredType を保存するベクタ
     let mut infers: Vec<InferredType> = captures.keys()
         .map(|name| {
@@ -591,10 +602,10 @@ fn build_infers(outputs: &Vec<ast::OutputAST>, captures: &HashMap<String, TypeHi
         .collect();
 
     // AST を探索して infers 配列を作成
-    outputs.iter().for_each(|output| {
-        analyze_output_ast(&output.expr, &mut infers, &capture_infers);
-    });
-    infers
+    for output in outputs {
+        analyze_output_ast(&output.expr, &mut infers, &capture_infers)?;
+    }
+    Ok(infers)
 }
 
 /// analyze_output_ast 関数の戻り値
@@ -608,33 +619,37 @@ fn analyze_output_ast(
     expr: &ast::ExprAST,
     infers: &mut Vec<InferredType>,
     capture_infers: &HashMap<String, usize>,
-) -> AOAResult {
+) -> Result<AOAResult, SemanticError> {
     match expr {
         // 定数式の型を返す
-        ast::ExprAST::Number(_) => AOAResult::Constant(Type::Int),
-        ast::ExprAST::Double(_) => AOAResult::Constant(Type::Double),
-        ast::ExprAST::Str(_) => AOAResult::Constant(Type::String),
-        ast::ExprAST::Bool(_) => AOAResult::Constant(Type::Bool),
+        ast::ExprAST::Number(_) => Ok(AOAResult::Constant(Type::Int)),
+        ast::ExprAST::Double(_) => Ok(AOAResult::Constant(Type::Double)),
+        ast::ExprAST::Str(_) => Ok(AOAResult::Constant(Type::String)),
+        ast::ExprAST::Bool(_) => Ok(AOAResult::Constant(Type::Bool)),
 
         // capture_infers に登録されているインデックスを返す
         ast::ExprAST::Capture(name, _) => {
             if let Some(index) = capture_infers.get(name) {
-                AOAResult::Infer { index: InfersIndex(*index) }
+                Ok(AOAResult::Infer { index: InfersIndex(*index) })
             } else {
                 panic!("未定義のキャプチャ: {}", name);
             }
         },
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::UnaryOp(opcode, operand, _) => {
-            let operand = analyze_output_ast(operand, infers, capture_infers);
+        ast::ExprAST::UnaryOp(opcode, operand, location) => {
+            let operand = analyze_output_ast(operand, infers, capture_infers)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let AOAResult::Constant(t) = &operand {
                 if let Some(result) = opcode.result_type(*t) {
-                    return AOAResult::Constant(result);
+                    return Ok(AOAResult::Constant(result));
                 } else {
-                    panic!("不正な型の演算です: {:?} {:?}", opcode, t);
+                    return Err(SemanticError::type_error_unary(
+                        opcode,
+                        location,
+                        *t,
+                    ));
                 }
             }
 
@@ -657,20 +672,25 @@ fn analyze_output_ast(
             // 自身を lhs, rhs の親ノードを設定
             infers[i_operand.0].set_parent(&i_self);
 
-            AOAResult::Infer { index: i_self }
+            Ok(AOAResult::Infer { index: i_self })
         }
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
-            let lhs = analyze_output_ast(lhs, infers, capture_infers);
-            let rhs = analyze_output_ast(rhs, infers, capture_infers);
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, location) => {
+            let lhs = analyze_output_ast(lhs, infers, capture_infers)?;
+            let rhs = analyze_output_ast(rhs, infers, capture_infers)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let (AOAResult::Constant(t_l), AOAResult::Constant(t_r)) = (&lhs, &rhs) {
                 if let Some(result) = opcode.result_type(*t_l, *t_r) {
-                    return AOAResult::Constant(result);
+                    return Ok(AOAResult::Constant(result));
                 } else {
-                    panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
+                    return Err(SemanticError::type_error_binary(
+                        opcode,
+                        location,
+                        *t_l,
+                        *t_r,
+                    ));
                 }
             }
 
@@ -705,7 +725,7 @@ fn analyze_output_ast(
             infers[i_l.0].set_parent(&i_self);
             infers[i_r.0].set_parent(&i_self);
 
-            AOAResult::Infer { index: i_self }
+            Ok(AOAResult::Infer { index: i_self })
         },
     }
 }

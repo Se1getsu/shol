@@ -32,6 +32,21 @@ impl SemanticError {
         }))
     }
 
+    /// 単項演算子の型エラー
+    pub fn type_error_unary(opcode: &UnaryOpcode, location: &Range<usize>, operand_t: Type) -> Self {
+        let message = format!(
+            "単項演算子 {} は {} 型のオペランドをサポートしていません。",
+            opcode, operand_t
+        );
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
     /// 二項演算子の型エラー
     pub fn type_error_binary(opcode: &Opcode, location: &Range<usize>, lhs_t: Type, rhs_t: Type) -> Self {
         let message = format!(
