@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
+use std::ops::Range;
 use crate::ast::{self, UnaryOpcode, Opcode};
 use crate::semantic_error::SemanticError;
 
@@ -277,10 +278,10 @@ fn analyze_condition<'src>(
 
     // キャプチャを rule_meta に登録
     match &kind {
-        ConditionKind::Equal(_) => (),
-        ConditionKind::Capture(name) => {
+        KindWithRange::Equal(_) => (),
+        KindWithRange::Capture(name, cap_loc) => {
             if rule_meta.captures.contains_key(name) {
-                return Err(SemanticError::duplicate_capture_name(name.clone(), condition));
+                return Err(SemanticError::duplicate_capture_name(name.clone(), cap_loc));
             }
             if is_typed_capture {
                 let types = analyze_capture_condition(
@@ -293,9 +294,9 @@ fn analyze_condition<'src>(
                 rule_meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
             }
         },
-        ConditionKind::CaptureCondition(name) => {
+        KindWithRange::CaptureCondition(name, cap_loc) => {
             if rule_meta.captures.contains_key(name) {
-                return Err(SemanticError::duplicate_capture_name(name.clone(), condition));
+                return Err(SemanticError::duplicate_capture_name(name.clone(), cap_loc));
             }
             let types = analyze_capture_condition(
                 &condition.expr,
@@ -307,7 +308,7 @@ fn analyze_condition<'src>(
     }
 
     // AST にメタデータを追加
-    condition.meta = Some(ConditionASTMeta { kind });
+    condition.meta = Some(ConditionASTMeta { kind: kind.into() });
     Ok(())
 }
 
@@ -351,14 +352,38 @@ fn analyze_output(
 
 // MARK: 条件式の型推論
 
-fn condition_kind(expr: &ast::ExprAST) -> Result<(ConditionKind, bool), SemanticError> {
+/// ConditionKind にキャプチャの位置情報を追加した型
+#[derive(Clone)]
+pub enum KindWithRange {
+    /// 条件式の値と一致するリソースを指定している
+    Equal(Type),
+    /// キャプチャ単体 (キャプチャ名, キャプチャの初登場位置)
+    Capture(String, Range<usize>),
+    /// キャプチャを含む条件式 (キャプチャ名, キャプチャの初登場位置)
+    CaptureCondition(String, Range<usize>),
+}
+
+impl From<KindWithRange> for ConditionKind {
+    fn from(kind: KindWithRange) -> Self {
+        match kind {
+            KindWithRange::Equal(t) =>
+                ConditionKind::Equal(t),
+            KindWithRange::Capture(name, _) =>
+                ConditionKind::Capture(name),
+            KindWithRange::CaptureCondition(name, _) =>
+                ConditionKind::CaptureCondition(name),
+        }
+    }
+}
+
+fn condition_kind(expr: &ast::ExprAST) -> Result<(KindWithRange, bool), SemanticError> {
     let mut kind = _condition_kind(expr)?;
     let mut is_typed_capture = false;
 
     // $:int のような場合は キャプチャ単体 に変換する
     if let ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand, _) = expr {
-        if let ast::ExprAST::Capture(name, _) = &**operand {
-            kind = ConditionKind::Capture(name.clone());
+        if let ast::ExprAST::Capture(name, cap_loc) = &**operand {
+            kind = KindWithRange::Capture(name.clone(), cap_loc.clone());
             is_typed_capture = true;
         }
     }
@@ -368,34 +393,35 @@ fn condition_kind(expr: &ast::ExprAST) -> Result<(ConditionKind, bool), Semantic
 
 /// 条件式の種別を取得
 /// NOTE: $:int のような場合は キャプチャ条件式 と判定する
-fn _condition_kind(expr: &ast::ExprAST) -> Result<ConditionKind, SemanticError> {
+fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> {
     match expr {
-        ast::ExprAST::Number(_) => Ok(ConditionKind::Equal(Type::Int)),
-        ast::ExprAST::Double(_) => Ok(ConditionKind::Equal(Type::Double)),
-        ast::ExprAST::Str(_) => Ok(ConditionKind::Equal(Type::String)),
-        ast::ExprAST::Bool(_) => Ok(ConditionKind::Equal(Type::Bool)),
-        ast::ExprAST::Capture(name, _) => Ok(ConditionKind::Capture(name.clone())),
-        ast::ExprAST::UnaryOp(opcode, operand, location) => {
+        ast::ExprAST::Number(_) => Ok(KindWithRange::Equal(Type::Int)),
+        ast::ExprAST::Double(_) => Ok(KindWithRange::Equal(Type::Double)),
+        ast::ExprAST::Str(_) => Ok(KindWithRange::Equal(Type::String)),
+        ast::ExprAST::Bool(_) => Ok(KindWithRange::Equal(Type::Bool)),
+        ast::ExprAST::Capture(name, cap_loc) =>
+            Ok(KindWithRange::Capture(name.clone(), cap_loc.clone())),
+        ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
             // オペランドの条件式種別を取得
             let operand_kind = _condition_kind(operand)?;
 
             // Equal or キャプチャ条件式 を返す
             match &operand_kind {
-                ConditionKind::Equal(t) => {
+                KindWithRange::Equal(t) => {
                     if let Some(result) = opcode.result_type(*t) {
-                        return Ok(ConditionKind::Equal(result));
+                        return Ok(KindWithRange::Equal(result));
                     } else {
                         return Err(SemanticError::type_error_unary(
                             opcode,
-                            location,
+                            op_loc,
                             *t,
                         ));
                     }
                 },
-                ConditionKind::Capture(name) => {
-                    return Ok(ConditionKind::CaptureCondition((*name).clone()));
+                KindWithRange::Capture(name, cap_loc) => {
+                    return Ok(KindWithRange::CaptureCondition((*name).clone(), cap_loc.clone()));
                 },
-                ConditionKind::CaptureCondition(_) => {
+                KindWithRange::CaptureCondition(..) => {
                     return Ok(operand_kind);
                 },
             }
@@ -407,9 +433,12 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<ConditionKind, SemanticError> 
 
             // 左辺と右辺のどちらかがキャプチャ条件式の場合, キャプチャ条件式を返す
             match (&lhs_kind, &rhs_kind) {
-                (ConditionKind::Equal(t_l), ConditionKind::Equal(t_r)) => {
+                (
+                    KindWithRange::Equal(t_l),
+                    KindWithRange::Equal(t_r),
+                ) => {
                     if let Some(result) = opcode.result_type(*t_l, *t_r) {
-                        return Ok(ConditionKind::Equal(result));
+                        return Ok(KindWithRange::Equal(result));
                     } else {
                         return Err(SemanticError::type_error_binary(
                             opcode,
@@ -418,36 +447,64 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<ConditionKind, SemanticError> 
                             *t_r,
                         ));
                     }
-                }
-                (ConditionKind::Equal(_), ConditionKind::Capture(name)) |
-                (ConditionKind::Capture(name), ConditionKind::Equal(_)) => {
-                    return Ok(ConditionKind::CaptureCondition((*name).clone()));
                 },
-                (ConditionKind::Equal(_), ConditionKind::CaptureCondition(_)) => {
+
+                (
+                    KindWithRange::Equal(_),
+                    KindWithRange::Capture(name, cap_loc)
+                ) | (
+                    KindWithRange::Capture(name, cap_loc),
+                    KindWithRange::Equal(_)
+                ) => {
+                    return Ok(KindWithRange::CaptureCondition((*name).clone(), cap_loc.clone()));
+                },
+
+                (
+                    KindWithRange::Equal(_),
+                    KindWithRange::CaptureCondition(..)
+                ) => {
                     return Ok(rhs_kind);
                 },
-                (ConditionKind::CaptureCondition(_), ConditionKind::Equal(_)) => {
+
+                (
+                    KindWithRange::CaptureCondition(..),
+                    KindWithRange::Equal(_)
+                ) => {
                     return Ok(lhs_kind);
-                }
-                (ConditionKind::Capture(name_l), ConditionKind::Capture(name_r)) => {
+                },
+
+                (
+                    KindWithRange::Capture(name_l, cap_loc),
+                    KindWithRange::Capture(name_r, _)
+                ) => {
                     if name_l != name_r {
                         panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
                     }
-                    return Ok(ConditionKind::CaptureCondition((*name_l).clone()));
-                }
-                (ConditionKind::Capture(name_l), ConditionKind::CaptureCondition(name_r)) => {
+                    return Ok(KindWithRange::CaptureCondition((*name_l).clone(), cap_loc.clone()));
+                },
+
+                (
+                    KindWithRange::Capture(name_l, _),
+                    KindWithRange::CaptureCondition(name_r, _)
+                ) => {
                     if name_l != name_r {
                         panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
                     }
                     return Ok(rhs_kind);
-                }
-                (ConditionKind::CaptureCondition(name_l), ConditionKind::Capture(name_r)) |
-                (ConditionKind::CaptureCondition(name_l), ConditionKind::CaptureCondition(name_r)) => {
+                },
+
+                (
+                    KindWithRange::CaptureCondition(name_l, _),
+                    KindWithRange::Capture(name_r, _)
+                ) | (
+                    KindWithRange::CaptureCondition(name_l, _),
+                    KindWithRange::CaptureCondition(name_r, _)
+                ) => {
                     if name_l != name_r {
                         panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
                     }
                     return Ok(lhs_kind);
-                }
+                },
             } // match (&lhs_kind, &rhs_kind)
         },
     } // match expr

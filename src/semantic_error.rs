@@ -1,6 +1,6 @@
 use std::fmt;
 use std::ops::Range;
-use crate::ast::{self, UnaryOpcode, Opcode};
+use crate::ast::{UnaryOpcode, Opcode};
 use crate::semantics::Type;
 use crate::compile_error::{CompileError, CompileErrorBuilder, ErrorKind};
 
@@ -16,8 +16,8 @@ impl SemanticError {
     }
 
     /// キャプチャ名が他の条件式と重複している場合のエラー
-    pub fn duplicate_capture_name(name: String, condition: &ast::ConditionAST) -> Self {
-        let location = condition.location.clone();
+    pub fn duplicate_capture_name(name: String, capture_location: &Range<usize>) -> Self {
+        let location = capture_location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::Error)
             .header(
