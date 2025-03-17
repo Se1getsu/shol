@@ -95,6 +95,18 @@ impl SemanticError {
             .build()
         }))
     }
+
+    /// キャプチャ条件式の結果が真偽値にならない場合のエラー
+    pub fn not_bool_condition(location: &Range<usize>) -> Self {
+        let message = "結果が bool 型にならないキャプチャ条件式はサポートされていません。";
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+            .header(&message, location.start)
+            .location_pointer(&location)
+            .build()
+        }))
+    }
 }
 
 // MARK: impl fmt::Display for Operators/Types

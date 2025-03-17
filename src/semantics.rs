@@ -553,7 +553,7 @@ fn analyze_capture_condition(
         if cannot_evaluate {
             return Err(SemanticError::no_type_matches(cond_loc));
         } else {
-            panic!("結果が真偽値にならない条件式はサポートされていません: {:?}", expr);
+            return Err(SemanticError::not_bool_condition(cond_loc));
         }
     }
     Ok(possible_types)
