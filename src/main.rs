@@ -82,7 +82,10 @@ fn main() -> ExitCode {
     println!("[*] AST generating...");
     let mut ast = match parser::parse_program(&program) {
         Ok(ast) => ast,
-        Err(e) => return e,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        }
     };
     println!("{{\"AST\":{:?}}}", ast);
 

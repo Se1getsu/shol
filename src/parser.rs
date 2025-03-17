@@ -1,77 +1,23 @@
-use std::process::ExitCode;
-use std::usize;
 use lalrpop_util::ParseError;
 use crate::shol;
 use crate::lexer;
 use crate::ast;
 use crate::tokens;
+use crate::compile_error::{CompileError, CompileErrorBuilder, ErrorKind::SyntaxError};
 
 // MARK: 構文解析
 
 /// プログラムを構文解析して AST を生成
-pub fn parse_program(program: &str) -> Result<Vec<ast::StatementAST>, ExitCode> {
-    let mut lexer = lexer::Lexer::new(&program);
+pub fn parse_program(source: &str) -> Result<Vec<ast::StatementAST>, CompileError> {
+    let mut lexer = lexer::Lexer::new(&source);
     let parser = shol::ProgramParser::new();
     let parse_result = parser.parse(&mut lexer);
     match parse_result {
         Ok(ast) => Ok(ast),
         Err(err) => {
-            let compile_error = convert_parse_error(err, &program);
-            eprintln!("{}", compile_error.format(&program));
-            return Err(ExitCode::FAILURE);
+            let compile_error = convert_parse_error(err, &source);
+            return Err(compile_error);
         }
-    }
-}
-
-// MARK: エラー型
-
-/// コンパイルエラー型
-#[derive(Debug)]
-    /// 構文解析エラー
-struct SyntaxError {
-    /// エラーが発生した位置（行）
-    line: usize,
-    /// エラーが発生した位置（列）
-    column: usize,
-    /// エラーが発生した位置(長さ)
-    length: usize,
-    /// エラーメッセージ
-    message: String
-}
-
-impl SyntaxError {
-    /// コンパイルエラーとして出力するエラーメッセージを生成
-    pub fn format(&self, source: &str) -> String {
-        let line = self.line;
-        let column = self.column;
-        let length = self.length;
-        let line_content = source.lines().nth(line - 1).unwrap_or("");
-
-        // エラー位置を示す矢印を作成
-        let mut pointer = String::new();
-        for _ in 0..column-1 {
-            pointer.push(' ');
-        }
-        pointer.push_str("\x1b[1;31m");
-        for _ in 0..length {
-            pointer.push('^');
-        }
-        pointer.push_str("\x1b[0m");
-
-        // エラーメッセージを整形
-        let line = line.to_string();
-        format!(
-            "{red}構文エラー{reset}: {msg}\n\
-            {blue}  -->{reset} {line} 行目 {column} 文字目\n\
-            {blue}{space} |\n\
-            {line} | {reset}{line_content}\n\
-            {blue}{space} | {reset}{pointer}\n",
-            red = "\x1b[1;31m",
-            blue = "\x1b[1;34m",
-            reset = "\x1b[0m",
-            msg = self.message,
-            space = " ".repeat(line.len()),
-        )
     }
 }
 
@@ -113,102 +59,82 @@ fn format_expected_tokens(tokens: &[String]) -> String {
 /// LALRPOP のエラーを SyntaxError に変換
 fn convert_parse_error(
     error: ParseError<usize, tokens::Token, tokens::LexicalError>,
-    program: &str
-) -> SyntaxError {
+    source: &str
+) -> CompileError {
     match error {
         ParseError::InvalidToken { location } => {
             // どういう時にこのエラーが出るのか不明
-            let (line, column) = position_to_line_column(program, location);
-            SyntaxError {
-                line,
-                column,
-                length: 1,
-                message: "無効なトークンです。(InvalidToken)".to_string()
-            }
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header("無効なトークンです。(InvalidToken)", location)
+                .location_pointer(&(location..location+1))
+                .build()
         },
         ParseError::UnrecognizedEof { location, expected } => {
-            let (line, column) = position_to_line_column(program, location);
-            SyntaxError {
-                line,
-                column,
-                length: 1,
-                message: format!("予期せぬファイル終端です。期待されるトークン: {}", format_expected_tokens(&expected))
-            }
+            let message = format!(
+                "予期せぬファイル終端です。期待されるトークン: {}",
+                format_expected_tokens(&expected)
+            );
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header(&message, location)
+                .location_pointer(&(location..location+1))
+                .build()
         },
         ParseError::UnrecognizedToken { token: (start, token, end), expected } => {
-            let (line, column) = position_to_line_column(program, start);
-            SyntaxError {
-                line,
-                column,
-                length: end - start,
-                message: match token {
-                    tokens::Token::NewLine =>
-                        format!("予期せぬ行終端です。期待されるトークン: {}", format_expected_tokens(&expected)),
-                    _ =>
-                        format!("予期せぬトークンです。期待されるトークン: {}", format_expected_tokens(&expected)),
-                }
-            }
+            let message = match token {
+                tokens::Token::NewLine =>
+                    format!("予期せぬ行終端です。期待されるトークン: {}", format_expected_tokens(&expected)),
+                _ =>
+                    format!("予期せぬトークンです。期待されるトークン: {}", format_expected_tokens(&expected)),
+            };
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header(&message, start)
+                .location_pointer(&(start..end))
+                .build()
         },
         ParseError::ExtraToken { token: (start, _, end) } => {
             // どういう時にこのエラーが出るのか不明
-            let (line, column) = position_to_line_column(program, start);
-            SyntaxError {
-                line,
-                column,
-                length: end - start,
-                message: format!("無効な文法です。(ExtraToken)")
-            }
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header("無効な文法です。(ExtraToken)", start)
+                .location_pointer(&(start..end))
+                .build()
         },
         ParseError::User { error } =>
-            convert_lexical_error(error, program),
+            convert_lexical_error(error, source),
     }
 }
 
-/// LexicalError を SyntaxError に変換
-fn convert_lexical_error(error: tokens::LexicalError, program: &str) -> SyntaxError {
-    let (line, column) = position_to_line_column(program, error.range.start);
-    let length = error.range.end - error.range.start;
+/// LexicalError を CompileError に変換
+fn convert_lexical_error(error: tokens::LexicalError, source: &str) -> CompileError {
     match error.error_type {
-        tokens::LexicalErrorKind::InvalidToken =>
-            SyntaxError {
-                line, column, length,
-                // message: "無効なトークンです。".to_string()
-                message: if let Some('"') = program.chars().nth(error.range.start) {
-                    "文字列リテラルが閉じられていません。".to_string()
-                } else {
-                    "無効なトークンです。".to_string()
-                }
-            },
-        tokens::LexicalErrorKind::InvalidIntegerLiteral =>
-            SyntaxError {
-                line, column, length,
-                message: "整数リテラルを int 型の値にパースできません。".to_string()
-            },
-        tokens::LexicalErrorKind::InvalidFloatLiteral =>
-            SyntaxError {
-                line, column, length,
-                message: "浮動小数点リテラルを double 型の値にパースできません。".to_string()
-            },
-        tokens::LexicalErrorKind::InvalidStringEscape { message, position } =>
-            SyntaxError {
-                line,
-                column: column + position.start + 1,
-                length: position.end - position.start,
-                message: format!("{}", message)
-            },
-    }
-}
-
-/// 行と列の位置に変換
-pub fn position_to_line_column(program: &str, pos: usize) -> (usize, usize) {
-    program
-        .chars()
-        .take(pos)
-        .fold((1, 1), |(line, col), c| {
-            if c == '\n' {
-                (line + 1, 1)
+        tokens::LexicalErrorKind::InvalidToken => {
+            let message = if let Some('"') = source.chars().nth(error.location.start) {
+                "文字列リテラルが閉じられていません。".to_string()
             } else {
-                (line, col + 1)
-            }
-        })
+                "無効なトークンです。".to_string()
+            };
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header(&message, error.location.start)
+                .location_pointer(&error.location)
+                .build()
+        }
+        tokens::LexicalErrorKind::InvalidIntegerLiteral => {
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header("整数リテラルを int 型の値にパースできません。", error.location.start)
+                .location_pointer(&error.location)
+                .build()
+        }
+        tokens::LexicalErrorKind::InvalidFloatLiteral => {
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header("浮動小数点リテラルを double 型の値にパースできません。", error.location.start)
+                .location_pointer(&error.location)
+                .build()
+        }
+        tokens::LexicalErrorKind::InvalidStringEscape { message, position } => {
+            let location = error.location.start + position.start .. error.location.start + position.end;
+            CompileErrorBuilder::new(source, SyntaxError)
+                .header(&format!("{}", message), location.start)
+                .location_pointer(&location)
+                .build()
+        }
+    }
 }

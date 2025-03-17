@@ -22,7 +22,7 @@ impl<'input> Iterator for Lexer<'input> {
             match token {
                 Ok(token) => Ok((span.start, token, span.end)),
                 Err(mut error) => {
-                    error.range = span; // エラー発生位置の情報を付加
+                    error.location = span; // エラー発生位置の情報を付加
                     Err(error)
                 }
             }
