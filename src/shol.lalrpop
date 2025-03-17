@@ -1,3 +1,4 @@
+use std::ops::Range;
 use crate::tokens::{Token, LexicalError};
 use crate::ast;
 use crate::semantics;
@@ -104,24 +105,24 @@ Outputs: Vec<ast::OutputAST> = {
     <OutputsEndsWithDest> => <>.0,
     <OutputsEndsWithExpr> => <>.0,
 }
-OutputsEndsWithDest: (Vec<ast::OutputAST>, Option<String>) = {
-    <dest:"#xx"> => (vec![], dest),
+OutputsEndsWithDest: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
+    <l:@L> <dest:"#xx"> <r:@R> => (vec![], dest, l..r),
 }
-OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>) = {
-    <mut vd:OutputsEndsWithDest> <l:@L> <expr:Expr> <r:@R> => {
+OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
+    <mut vd:OutputsEndsWithDest> <expr:Expr> => {
         vd.0.push(ast::OutputAST {
             expr: *expr,
             destination: vd.1.clone(),
-            location: l..r,
+            destination_location: vd.2.clone(),
             meta: None,
         });
         vd
     },
-    <mut vd:OutputsEndsWithExpr> "," <l:@L> <expr:Expr> <r:@R> => {
+    <mut vd:OutputsEndsWithExpr> "," <expr:Expr> => {
         vd.0.push(ast::OutputAST {
             expr: *expr,
             destination: vd.1.clone(),
-            location: l..r,
+            destination_location: vd.2.clone(),
             meta: None,
         });
         vd

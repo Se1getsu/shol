@@ -221,6 +221,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
 
 // MARK: AST 探索関数
 
+/// AST を意味解析してメタデータを付与する
 pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
     // ProgramAST のメタデータを作成
     let colony_indices: HashMap<String, usize> = {
@@ -246,26 +247,30 @@ pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
         }
         colony_indices
     };
-    program.meta = Some(ProgramASTMeta { colony_indices });
 
     // 子ノードを探索
     for statement in program.statements.iter_mut() {
-        analyze_statement(statement)?;
+        analyze_statement(statement, &colony_indices)?;
     }
+
+    program.meta = Some(ProgramASTMeta { colony_indices });
     Ok(())
 }
 
-fn analyze_statement(statement: &mut ast::StatementAST) -> Result<(), SemanticError> {
+fn analyze_statement(
+    statement: &mut ast::StatementAST,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
     // 子ノードを探索
     match statement {
         ast::StatementAST::ColonyDecl { name: _, resources: _, rules, location: _ } => {
             for rule_set in rules.iter_mut() {
-                analyze_rule_set(rule_set)?;
+                analyze_rule_set(rule_set, colony_indices)?;
             }
         }
         ast::StatementAST::ColonyExtension { name: _, resources: _, rules, location: _ } => {
             for rule_set in rules.iter_mut() {
-                analyze_rule_set(rule_set)?;
+                analyze_rule_set(rule_set, colony_indices)?;
             }
         }
     }
@@ -273,15 +278,21 @@ fn analyze_statement(statement: &mut ast::StatementAST) -> Result<(), SemanticEr
 }
 
 // 子ノードを探索するだけ
-fn analyze_rule_set(rule_set: &mut ast::RuleSetAST) -> Result<(), SemanticError> {
+fn analyze_rule_set(
+    rule_set: &mut ast::RuleSetAST,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
     for rule in rule_set.rules.iter_mut() {
-        analyze_rule(rule)?;
+        analyze_rule(rule, colony_indices)?;
     }
     Ok(())
 }
 
 // RuleAST のメタデータを作成
-fn analyze_rule(rule: &mut ast::RuleAST) -> Result<(), SemanticError> {
+fn analyze_rule(
+    rule: &mut ast::RuleAST,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
     // メタデータ構造体を作成
     let mut meta = RuleASTMeta {
         captures: HashMap::new(),
@@ -293,7 +304,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) -> Result<(), SemanticError> {
     }
 
     // 出力式を解析
-    analyze_output(&mut rule.outputs, &mut meta.captures)?;
+    analyze_output(&mut rule.outputs, &mut meta.captures, colony_indices)?;
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
@@ -347,7 +358,8 @@ fn analyze_condition(
 
 fn analyze_output(
     outputs: &mut Vec<ast::OutputAST>,
-    captures: &mut HashMap<String, TypeHint>
+    captures: &mut HashMap<String, TypeHint>,
+    colony_indices: &HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
     // 出力式に登場するキャプチャを調べる
     fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
@@ -367,6 +379,14 @@ fn analyze_output(
     for output in outputs.iter_mut() {
         let mut associated_captures = Vec::new();
         collect_captures(&output.expr, &mut associated_captures);
+        if let Some(destination) = output.destination.as_ref() {
+            if !colony_indices.contains_key(destination) {
+                return Err(SemanticError::undefined_colony(
+                    destination,
+                    &output.destination_location,
+                ));
+            }
+        }
         output.meta = Some(OutputASTMeta { associated_captures });
     }
 

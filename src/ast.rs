@@ -99,8 +99,8 @@ pub struct OutputAST {
     pub expr: ExprAST,
     /// 出力先コロニーの名前
     pub destination: Option<String>,
-    /// プログラム中の式の位置
-    pub location: Range<usize>,
+    /// プログラム中の #xx の位置
+    pub destination_location: Range<usize>,
     /// 意味解析で追加されるメタデータ
     pub meta: Option<semantics::OutputASTMeta>,
 }

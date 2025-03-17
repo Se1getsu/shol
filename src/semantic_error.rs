@@ -36,6 +36,18 @@ impl SemanticError {
         }))
     }
 
+    /// 未定義のコロニーへの出力が存在する場合のエラー
+    pub fn undefined_colony(name: &str, location: &Range<usize>) -> Self {
+        let message = format!("未定義のコロニーへの出力: {}", name);
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::Error)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
     /// キャプチャ名が他の条件式と重複している場合のエラー
     pub fn duplicate_capture_name(name: String, capture_location: &Range<usize>) -> Self {
         let message = format!("キャプチャ名 ${} は既に使用されています。", name);
