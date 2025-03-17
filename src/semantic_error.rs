@@ -54,6 +54,18 @@ impl SemanticError {
         }))
     }
 
+    /// 未定義のキャプチャが使用されている場合のエラー
+    pub fn undefined_capture(name: String, location: &Range<usize>) -> Self {
+        let message = format!("未定義のキャプチャ ${} が使用されています。", name);
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+            .header(&message, location.start)
+            .location_pointer(&location)
+            .build()
+        }))
+    }
+
     /// 単項演算子の型エラー
     pub fn type_error_unary(opcode: &UnaryOpcode, location: &Range<usize>, operand_t: Type) -> Self {
         let message = format!(

@@ -697,11 +697,11 @@ fn analyze_output_ast(
         ast::ExprAST::Bool(_) => Ok(AOAResult::Constant(Type::Bool)),
 
         // capture_infers に登録されているインデックスを返す
-        ast::ExprAST::Capture(name, _) => {
+        ast::ExprAST::Capture(name, cap_loc) => {
             if let Some(index) = capture_infers.get(name) {
                 Ok(AOAResult::Infer { index: InfersIndex(*index) })
             } else {
-                panic!("未定義のキャプチャ: {}", name);
+                return Err(SemanticError::undefined_capture(name.clone(), cap_loc));
             }
         },
 
