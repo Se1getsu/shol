@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 use std::ops::Range;
 use crate::ast::{UnaryOpcode, Opcode};
@@ -118,6 +119,92 @@ impl SemanticError {
                 .location_pointer(&location)
                 .build()
         }))
+    }
+
+    /// 出力式の型推論に失敗した場合のエラー (単項演算子)
+    pub fn type_inference_failed_unary(
+        location: &Range<usize>,
+        t_operand: &HashSet<Type>,
+        opcode: &UnaryOpcode,
+        t_result: &HashSet<Type>
+    ) -> Self {
+        let expr = if opcode.is_prefix() {
+            format!("{} {}", opcode, t_operand.format())
+        } else {
+            format!("{} {}", t_operand.format(), opcode)
+        };
+        let message = format!(
+            "出力式の型推論に失敗しました。\n\
+            {} -> {} は解決できません。",
+            expr, t_result.format()
+        );
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
+    /// 出力式の型推論に失敗した場合のエラー (二項演算子)
+    pub fn type_inference_failed_binary(
+        location: &Range<usize>,
+        t_lhs: &HashSet<Type>,
+        opcode: &Opcode,
+        t_rhs: &HashSet<Type>,
+        t_result: &HashSet<Type>
+    ) -> Self {
+        let message = format!(
+            "出力式の型推論に失敗しました。\n\
+            {} {} {} -> {} は解決できません。",
+            t_lhs.format(), opcode, t_rhs.format(), t_result.format()
+        );
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+}
+
+// MARK: UnaryOpcode::is_prefix
+
+impl UnaryOpcode {
+    /// 前置演算子かどうかを返す
+    pub fn is_prefix(&self) -> bool {
+        match self {
+            UnaryOpcode::Neg
+            | UnaryOpcode::LogicalNot
+            | UnaryOpcode::BitNot
+            => true,
+            UnaryOpcode::As(_)
+            => false,
+        }
+    }
+}
+
+// MARK: Format
+
+trait Format {
+    fn format(&self) -> String;
+}
+
+impl Format for HashSet<Type> {
+    fn format(&self) -> String {
+        let mut type_strings: Vec<String> = self
+            .iter()
+            .map(|t| t.to_string())
+            .collect();
+        type_strings.sort();
+
+        let mut buf = String::new();
+        buf.push_str("{");
+        buf.push_str(&type_strings.join(", "));
+        buf.push_str("}");
+        buf
     }
 }
 

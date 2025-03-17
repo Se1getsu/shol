@@ -344,7 +344,7 @@ fn analyze_output(
     println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
 
     // 型推論
-    infer_infers(&mut infers, captures);
+    infer_infers(&mut infers, captures)?;
     println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
 
     // 型検証
@@ -585,6 +585,7 @@ enum InferredType {
         parent: Option<InfersIndex>,
         result: HashSet<Type>,
         needs_update: bool,
+        location: Range<usize>,
     },
     /// キャプチャを含む二項演算式
     BinaryExpr {
@@ -594,6 +595,7 @@ enum InferredType {
         parent: Option<InfersIndex>,
         result: HashSet<Type>,
         needs_update: bool,
+        location: Range<usize>,
     },
 }
 
@@ -706,7 +708,7 @@ fn analyze_output_ast(
         },
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::UnaryOp(opcode, operand, location) => {
+        ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
             let operand = analyze_output_ast(operand, infers, capture_infers)?;
 
             // 定数式なら AOAResult::Constant を返す
@@ -716,7 +718,7 @@ fn analyze_output_ast(
                 } else {
                     return Err(SemanticError::type_error_unary(
                         opcode,
-                        location,
+                        op_loc,
                         *t,
                     ));
                 }
@@ -735,6 +737,7 @@ fn analyze_output_ast(
                 parent: None,
                 result: Type::all_types(),
                 needs_update: true,
+                location: op_loc.clone(),
             });
             let i_self = InfersIndex(infers.len() - 1);
 
@@ -745,7 +748,7 @@ fn analyze_output_ast(
         }
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs, location) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, op_loc) => {
             let lhs = analyze_output_ast(lhs, infers, capture_infers)?;
             let rhs = analyze_output_ast(rhs, infers, capture_infers)?;
 
@@ -756,7 +759,7 @@ fn analyze_output_ast(
                 } else {
                     return Err(SemanticError::type_error_binary(
                         opcode,
-                        location,
+                        op_loc,
                         *t_l,
                         *t_r,
                     ));
@@ -787,6 +790,7 @@ fn analyze_output_ast(
                 parent: None,
                 result: Type::all_types(),
                 needs_update: true,
+                location: op_loc.clone(),
             });
             let i_self = InfersIndex(infers.len() - 1);
 
@@ -800,7 +804,10 @@ fn analyze_output_ast(
 }
 
 // infers 配列について型推論を行う
-fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, TypeHint>) {
+fn infer_infers(
+    infers: &mut Vec<InferredType>,
+    captures: &mut HashMap<String, TypeHint>
+) -> Result<(), SemanticError> {
     let mut updated = true;
     while updated {
         updated = false;
@@ -816,6 +823,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
                     operand,
                     result,
                     needs_update,
+                    location,
                     ..
                 } => {
                     if !*needs_update { continue; }
@@ -838,8 +846,12 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
 
                     // 空集合があれば型エラー
                     if new_t_operand.is_empty() || new_t_result.is_empty() {
-                        panic!("出力式の型推論に失敗しました: {:?} {:?} = {:?}",
-                            opcode, t_operand, new_t_result);
+                        return Err(SemanticError::type_inference_failed_unary(
+                            location,
+                            &t_operand,
+                            opcode,
+                            &t_result
+                        ));
                     }
 
                     // 自身と隣接するノードの型を更新
@@ -856,6 +868,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
                     rhs,
                     result,
                     needs_update,
+                    location,
                     ..
                 } => {
                     if !*needs_update { continue; }
@@ -883,8 +896,10 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
 
                     // 空集合があれば型エラー
                     if new_t_lhs.is_empty() || new_t_rhs.is_empty() || new_t_result.is_empty() {
-                        panic!("出力式の型推論に失敗しました: {:?} {:?} {:?} = {:?}",
-                            t_lhs, opcode, t_rhs, new_t_result);
+                        return Err(SemanticError::type_inference_failed_binary(
+                            location,
+                            &t_lhs, opcode, &t_rhs, &t_result
+                        ));
                     }
 
                     // 自身と隣接するノードの型を更新
@@ -912,6 +927,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
             }
         } // for myself in index of infers
     } // while updated
+    Ok(())
 }
 
 /// target の型を types に更新し, 隣接するノードの needs_update を更新にする
