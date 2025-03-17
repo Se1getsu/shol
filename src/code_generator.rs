@@ -606,9 +606,7 @@ fn generate_multi_condition_outputs(
     for output in outputs {
         // 出力先コロニーのインデックス
         let cindex: Option<usize> = output.destination.as_ref().map(|dest| {
-            let index = colony_indices.get(dest)
-                .expect(&format!("未定義のコロニーへの出力: {dest}"));
-            *index
+            colony_indices[dest]
         });
         // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
         if prev_cindex != Some(cindex) {
@@ -767,9 +765,7 @@ fn generate_single_condition_rule(
     for output in &rule.outputs {
         // 出力先コロニーのインデックス
         let cindex = output.destination.as_ref().map(|dest| {
-            let index = colony_indices.get(dest)
-                .expect(&format!("未定義のコロニーへの出力: {dest}"));
-            *index
+            colony_indices[dest]
         });
         // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
         if let Some(index) = cindex {
