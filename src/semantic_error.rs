@@ -17,17 +17,39 @@ impl SemanticError {
 
     /// キャプチャ名が他の条件式と重複している場合のエラー
     pub fn duplicate_capture_name(name: String, capture_location: &Range<usize>) -> Self {
+        let message = format!("キャプチャ名 ${} は既に使用されています。", name);
         let location = capture_location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::Error)
-            .header(
-                &format!("キャプチャ名 ${} は既に使用されています。", name),
-                location.start,
-            )
+            .header(&message, location.start)
             .location_pointer(&location)
-            .hint(
-                "条件式に他の条件式のキャプチャを含めることはできません。",
+            .hint("条件式に他の条件式のキャプチャを含めることはできません。")
+            .build()
+        }))
+    }
+
+    /// 1 つの条件式に複数のキャプチャが含まれている場合のエラー
+    pub fn multiple_captures_in_condition(
+        capture_names: (String, String),
+        capture_locations: (&Range<usize>, &Range<usize>),
+    ) -> Self {
+        let message = format!(
+            "条件式に異なる複数のキャプチャが含まれています: ${}, ${}",
+            capture_names.0, capture_names.1
+        );
+        let locations = (
+            capture_locations.0.clone(),
+            capture_locations.1.clone(),
+        );
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::Error)
+            .header(
+                &message,
+                locations.1.start,
             )
+            .location_pointer(&locations.0)
+            .location_pointer(&locations.1)
+            .hint("条件式に他の条件式のキャプチャを含めることはできません。")
             .build()
         }))
     }

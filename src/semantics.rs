@@ -474,34 +474,43 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> 
                 },
 
                 (
-                    KindWithRange::Capture(name_l, cap_loc),
-                    KindWithRange::Capture(name_r, _)
+                    KindWithRange::Capture(name_l, cap_loc_l),
+                    KindWithRange::Capture(name_r, cap_loc_r)
                 ) => {
                     if name_l != name_r {
-                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
+                        return Err(SemanticError::multiple_captures_in_condition(
+                            (name_l.clone(), name_r.clone()),
+                            (cap_loc_l, cap_loc_r),
+                        ));
                     }
-                    return Ok(KindWithRange::CaptureCondition((*name_l).clone(), cap_loc.clone()));
+                    return Ok(KindWithRange::CaptureCondition((*name_l).clone(), cap_loc_l.clone()));
                 },
 
                 (
-                    KindWithRange::Capture(name_l, _),
-                    KindWithRange::CaptureCondition(name_r, _)
+                    KindWithRange::Capture(name_l, cap_loc_l),
+                    KindWithRange::CaptureCondition(name_r, cap_loc_r)
                 ) => {
                     if name_l != name_r {
-                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
+                        return Err(SemanticError::multiple_captures_in_condition(
+                            (name_l.clone(), name_r.clone()),
+                            (cap_loc_l, cap_loc_r),
+                        ));
                     }
                     return Ok(rhs_kind);
                 },
 
                 (
-                    KindWithRange::CaptureCondition(name_l, _),
-                    KindWithRange::Capture(name_r, _)
+                    KindWithRange::CaptureCondition(name_l, cap_loc_l),
+                    KindWithRange::Capture(name_r, cap_loc_r)
                 ) | (
-                    KindWithRange::CaptureCondition(name_l, _),
-                    KindWithRange::CaptureCondition(name_r, _)
+                    KindWithRange::CaptureCondition(name_l, cap_loc_l),
+                    KindWithRange::CaptureCondition(name_r, cap_loc_r)
                 ) => {
                     if name_l != name_r {
-                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
+                        return Err(SemanticError::multiple_captures_in_condition(
+                            (name_l.clone(), name_r.clone()),
+                            (cap_loc_l, cap_loc_r),
+                        ));
                     }
                     return Ok(lhs_kind);
                 },
