@@ -21,10 +21,10 @@ impl SemanticError {
         let location = capture_location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::Error)
-            .header(&message, location.start)
-            .location_pointer(&location)
-            .hint("条件式に他の条件式のキャプチャを含めることはできません。")
-            .build()
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .hint("条件式に他の条件式のキャプチャを含めることはできません。")
+                .build()
         }))
     }
 
@@ -43,14 +43,14 @@ impl SemanticError {
         );
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::Error)
-            .header(
-                &message,
-                locations.1.start,
-            )
-            .location_pointer(&locations.0)
-            .location_pointer(&locations.1)
-            .hint("条件式に他の条件式のキャプチャを含めることはできません。")
-            .build()
+                .header(
+                    &message,
+                    locations.1.start,
+                )
+                .location_pointer(&locations.0)
+                .location_pointer(&locations.1)
+                .hint("条件式に他の条件式のキャプチャを含めることはできません。")
+                .build()
         }))
     }
 
@@ -60,9 +60,9 @@ impl SemanticError {
         let location = location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::TypeError)
-            .header(&message, location.start)
-            .location_pointer(&location)
-            .build()
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
         }))
     }
 
@@ -102,9 +102,9 @@ impl SemanticError {
         let location = location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::TypeError)
-            .header(&message, location.start)
-            .location_pointer(&location)
-            .build()
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
         }))
     }
 
@@ -114,9 +114,9 @@ impl SemanticError {
         let location = location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::TypeError)
-            .header(&message, location.start)
-            .location_pointer(&location)
-            .build()
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
         }))
     }
 }
