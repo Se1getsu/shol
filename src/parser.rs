@@ -112,7 +112,7 @@ fn format_expected_tokens(tokens: &[String]) -> String {
 
 /// LALRPOP のエラーを SyntaxError に変換
 fn convert_parse_error(
-    error: ParseError<usize, tokens::Token, tokens::LexicalError>, 
+    error: ParseError<usize, tokens::Token, tokens::LexicalError>,
     program: &str
 ) -> SyntaxError {
     match error {
@@ -200,7 +200,7 @@ fn convert_lexical_error(error: tokens::LexicalError, program: &str) -> SyntaxEr
 }
 
 /// 行と列の位置に変換
-fn position_to_line_column(program: &str, pos: usize) -> (usize, usize) {
+pub fn position_to_line_column(program: &str, pos: usize) -> (usize, usize) {
     program
         .chars()
         .take(pos)

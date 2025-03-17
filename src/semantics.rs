@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
 use crate::ast::{self, UnaryOpcode, Opcode};
+use crate::semantic_error::SemanticError;
 
 // MARK: メタデータ
 
@@ -215,27 +216,40 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
 // MARK: AST 探索関数
 
 // 子ノードを探索するだけ
-pub fn analyze_program(program: &mut Vec<ast::StatementAST>) {
-    program.iter_mut().for_each(analyze_statement);
-}
-
-// 子ノードを探索するだけ
-fn analyze_statement(statement: &mut ast::StatementAST) {
-    match statement {
-        ast::StatementAST::ColonyDecl { name: _, resources: _, rules, location: _ } =>
-            rules.iter_mut().for_each(analyze_rule_set),
-        ast::StatementAST::ColonyExtension { name: _, resources: _, rules, location: _ } =>
-            rules.iter_mut().for_each(analyze_rule_set),
+pub fn analyze_program(program: &mut Vec<ast::StatementAST>) -> Result<(), SemanticError> {
+    for statement in program.iter_mut() {
+        analyze_statement(statement)?;
     }
+    Ok(())
 }
 
 // 子ノードを探索するだけ
-fn analyze_rule_set(rule_set: &mut ast::RuleSetAST) {
-    rule_set.rules.iter_mut().for_each(analyze_rule);
+fn analyze_statement(statement: &mut ast::StatementAST) -> Result<(), SemanticError> {
+    match statement {
+        ast::StatementAST::ColonyDecl { name: _, resources: _, rules, location: _ } => {
+            for rule_set in rules.iter_mut() {
+                analyze_rule_set(rule_set)?;
+            }
+        }
+        ast::StatementAST::ColonyExtension { name: _, resources: _, rules, location: _ } => {
+            for rule_set in rules.iter_mut() {
+                analyze_rule_set(rule_set)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+// 子ノードを探索するだけ
+fn analyze_rule_set(rule_set: &mut ast::RuleSetAST) -> Result<(), SemanticError> {
+    for rule in rule_set.rules.iter_mut() {
+        analyze_rule(rule)?;
+    }
+    Ok(())
 }
 
 // RuleAST のメタデータを作成
-fn analyze_rule(rule: &mut ast::RuleAST) {
+fn analyze_rule(rule: &mut ast::RuleAST) -> Result<(), SemanticError> {
     // メタデータ構造体を作成
     let mut meta = RuleASTMeta {
         captures: HashMap::new(),
@@ -243,7 +257,7 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
 
     // 条件式を解析
     for condition in rule.conditions.iter_mut() {
-        analyze_condition(condition, &mut meta);
+        analyze_condition(condition, &mut meta)?;
     }
 
     // 出力式を解析
@@ -251,9 +265,13 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
+    Ok(())
 }
 
-fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTMeta) {
+fn analyze_condition<'src>(
+    condition: &'src mut ast::ConditionAST,
+    rule_meta: &mut RuleASTMeta,
+) -> Result<(), SemanticError<'src>> {
     // 条件式種別を判定
     let (kind, is_typed_capture) = condition_kind(&condition.expr);
 
@@ -262,7 +280,10 @@ fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTM
         ConditionKind::Equal(_) => (),
         ConditionKind::Capture(name) => {
             if rule_meta.captures.contains_key(name) {
-                panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
+                return Err(SemanticError::DuplicateCaptureName {
+                    name: name.clone(),
+                    condition,
+                });
             }
             if is_typed_capture {
                 let types = analyze_capture_condition(
@@ -277,7 +298,10 @@ fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTM
         },
         ConditionKind::CaptureCondition(name) => {
             if rule_meta.captures.contains_key(name) {
-                panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
+                return Err(SemanticError::DuplicateCaptureName {
+                    name: name.clone(),
+                    condition,
+                });
             }
             let types = analyze_capture_condition(
                 &condition.expr,
@@ -290,6 +314,7 @@ fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTM
 
     // AST にメタデータを追加
     condition.meta = Some(ConditionASTMeta { kind });
+    Ok(())
 }
 
 fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<String, TypeHint>) {

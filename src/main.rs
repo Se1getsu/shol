@@ -9,6 +9,7 @@ pub mod lexer;
 pub mod parser;
 pub mod preprocessor;
 pub mod semantics;
+pub mod semantic_error;
 pub mod code_generator;
 lalrpop_mod!(pub shol);
 
@@ -86,7 +87,10 @@ fn main() -> ExitCode {
 
     // 意味解析
     println!("\n[*] Semantics analyzing...");
-    semantics::analyze_program(&mut ast);
+    if let Err(e) = semantics::analyze_program(&mut ast) {
+        eprintln!("{}", e.format(&program));
+        return ExitCode::FAILURE;
+    }
     println!("{{\"AST\":{:?}}}", ast);
 
     // 出力ファイルを開く
