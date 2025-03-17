@@ -67,7 +67,7 @@ Conditions: Vec<ast::ConditionAST> = {
         }
         v
     },
-    <mut v:SequentialCondition> "," <mut new_v:SequentialCondition> => {
+    <mut v:Conditions> "," <mut new_v:SequentialCondition> => {
         let total_len = v.len() + new_v.len();
         for c in new_v.iter_mut() {
             c.sqc_start = v.len();
