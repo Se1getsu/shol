@@ -35,8 +35,12 @@ pub struct CompileErrorBuilder<'src> {
 }
 
 pub enum ErrorKind {
+    /// 構文エラー
     SyntaxError,
-    SemanticError,
+    /// 型エラー
+    TypeError,
+    /// エラー (その他のエラー)
+    Error,
 }
 
 impl<'src> CompileErrorBuilder<'src> {
@@ -54,7 +58,8 @@ impl<'src> CompileErrorBuilder<'src> {
         let (line, column) = self.position_to_line_column(location);
         let kind = match self.kind {
             ErrorKind::SyntaxError => "構文エラー",
-            ErrorKind::SemanticError => "エラー",
+            ErrorKind::TypeError => "型エラー",
+            ErrorKind::Error => "エラー",
         };
         self.error.0.push_str(&format!(
             "{RED}{kind}{RESET}: {message}\n\
