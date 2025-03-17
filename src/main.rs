@@ -109,8 +109,8 @@ fn main() -> ExitCode {
 
     // コード生成
     println!("\n[*] Generating code...");
-    if let Err(_) = code_generator::generate(&mut out_file, &ast, &config.src_file) {
-        // TODO: エラーメッセージ
+    if let Err(e) = code_generator::generate(&mut out_file, &ast, &config.src_file) {
+        eprintln!("出力ファイル書き込みエラー: {}", e);
         return ExitCode::FAILURE;
     }
 
