@@ -269,8 +269,8 @@ fn analyze_rule(rule: &mut ast::RuleAST) -> Result<(), SemanticError> {
     Ok(())
 }
 
-fn analyze_condition<'src>(
-    condition: &'src mut ast::ConditionAST,
+fn analyze_condition(
+    condition: &mut ast::ConditionAST,
     rule_meta: &mut RuleASTMeta,
 ) -> Result<(), SemanticError> {
     // 条件式種別を判定
@@ -286,9 +286,10 @@ fn analyze_condition<'src>(
             if is_typed_capture {
                 let types = analyze_capture_condition(
                     &condition.expr,
+                    &condition.location,
                     name,
                     is_typed_capture,
-                );
+                )?;
                 rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
             } else {
                 rule_meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
@@ -300,9 +301,10 @@ fn analyze_condition<'src>(
             }
             let types = analyze_capture_condition(
                 &condition.expr,
+                &condition.location,
                 name,
                 is_typed_capture,
-            );
+            )?;
             rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
         },
     }
@@ -523,9 +525,10 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> 
 /// 戻り値: キャプチャの possible_types
 fn analyze_capture_condition(
     expr: &ast::ExprAST,
+    cond_loc: &Range<usize>,
     capture_name: &String,
     is_typed_capture: bool, // true の場合は条件式の結果が bool 型かのチェックを行わない
-) -> HashSet<Type> {
+) -> Result<HashSet<Type>, SemanticError> {
     // キャプチャに型を 1 つずつ割り当てて検証
     let mut possible_types = HashSet::new();
     let mut cannot_evaluate = true;
@@ -548,12 +551,12 @@ fn analyze_capture_condition(
 
     if possible_types.is_empty() {
         if cannot_evaluate {
-            panic!("この条件式を評価可能なキャプチャ型は存在しません: {:?}", expr);
+            return Err(SemanticError::no_type_matches(cond_loc));
         } else {
             panic!("結果が真偽値にならない条件式はサポートされていません: {:?}", expr);
         }
     }
-    possible_types
+    Ok(possible_types)
 }
 
 // MARK: 出力式の型推論

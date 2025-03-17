@@ -83,6 +83,18 @@ impl SemanticError {
                 .build()
         }))
     }
+
+    /// 条件式を評価可能なキャプチャ型が存在しない場合のエラー
+    pub fn no_type_matches(location: &Range<usize>) -> Self {
+        let message = "この条件式を評価可能なキャプチャ型は存在しません。";
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+            .header(&message, location.start)
+            .location_pointer(&location)
+            .build()
+        }))
+    }
 }
 
 // MARK: impl fmt::Display for Operators/Types
