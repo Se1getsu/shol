@@ -40,15 +40,16 @@ pub enum StatementAST {
         resources: Vec<ExprAST>,
         rules: Vec<RuleSetAST>,
         location: Range<usize>,
+        meta: Option<semantics::ColonyExtensionASTMeta>,
     },
 }
 
 impl fmt::Debug for StatementAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            StatementAST::ColonyDecl { name, resources, rules, location: _ } =>
+            StatementAST::ColonyDecl { name, resources, rules, .. } =>
                 write!(f, "{{\"ColonyDecl({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
-            StatementAST::ColonyExtension { name, resources, rules, location: _ } =>
+            StatementAST::ColonyExtension { name, resources, rules, .. } =>
                 write!(f, "{{\"ColonyExtension({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
         }
     }

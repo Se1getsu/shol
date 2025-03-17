@@ -30,6 +30,7 @@ Statement: ast::StatementAST = {
             resources,
             rules: prules,
             location: l..r,
+            meta: None
         }
     }
 }

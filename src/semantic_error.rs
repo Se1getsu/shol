@@ -51,6 +51,21 @@ impl SemanticError {
         }))
     }
 
+    /// ビルトインコロニーの名前が不正な場合のエラー
+    pub fn invalid_builtin_colony(
+        name: &str,
+        location: &Range<usize>,
+    ) -> Self {
+        let message = format!("組み込みコロニー {} は存在しません。", name);
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::Error)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
     /// キャプチャ名が他の条件式と重複している場合のエラー
     pub fn duplicate_capture_name(
         name: &str,

@@ -11,6 +11,40 @@ pub struct ProgramASTMeta {
     pub colony_indices: HashMap<String, usize>,
 }
 
+pub struct ColonyExtensionASTMeta {
+    pub builtin_colony: BuiltinColony,
+}
+
+pub enum BuiltinColony {
+    Print,
+    Cin,
+    Cout,
+    Exit,
+}
+
+impl fmt::Display for BuiltinColony {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BuiltinColony::Print => write!(f, "print"),
+            BuiltinColony::Cin => write!(f, "cin"),
+            BuiltinColony::Cout => write!(f, "cout"),
+            BuiltinColony::Exit => write!(f, "exit"),
+        }
+    }
+}
+
+impl BuiltinColony {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "print" => Some(BuiltinColony::Print),
+            "cin" => Some(BuiltinColony::Cin),
+            "cout" => Some(BuiltinColony::Cout),
+            "exit" => Some(BuiltinColony::Exit),
+            _ => None,
+        }
+    }
+}
+
 pub struct RuleASTMeta {
     pub captures: HashMap<String, TypeHint>,
 }
@@ -263,12 +297,18 @@ fn analyze_statement(
 ) -> Result<(), SemanticError> {
     // 子ノードを探索
     match statement {
-        ast::StatementAST::ColonyDecl { name: _, resources: _, rules, location: _ } => {
+        ast::StatementAST::ColonyDecl { rules, .. } => {
             for rule_set in rules.iter_mut() {
                 analyze_rule_set(rule_set, colony_indices)?;
             }
         }
-        ast::StatementAST::ColonyExtension { name: _, resources: _, rules, location: _ } => {
+        ast::StatementAST::ColonyExtension { rules, name, location, meta, .. } => {
+            let builtin_colony = BuiltinColony::from_str(name);
+            if let Some(builtin_colony) = builtin_colony {
+                *meta = Some(ColonyExtensionASTMeta { builtin_colony });
+            } else {
+                return Err(SemanticError::invalid_builtin_colony(name, &location));
+            }
             for rule_set in rules.iter_mut() {
                 analyze_rule_set(rule_set, colony_indices)?;
             }
