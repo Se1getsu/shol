@@ -144,7 +144,7 @@ pub fn generate(
         process::ExitCode,\
         sync::mpsc,\
         thread,\
-        time::Duration,
+        time::Duration\
     }};")?;
     writeln!(f, "")?;
 
