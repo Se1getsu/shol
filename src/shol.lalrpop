@@ -260,6 +260,8 @@ Literal: ast::ExprAST = {
         ast::ExprAST::Str(<>),
     "str" =>
         ast::ExprAST::Str(<>),
+    "symbol" =>
+        ast::ExprAST::Symbol(<>),
     "true" =>
         ast::ExprAST::Bool(true),
     "false" =>
@@ -300,6 +302,7 @@ extern {
         "int" => Token::IntegerLiteral(<i32>),
         "intmin" => Token::IntegerMin(<i32>),
         "str" => Token::StringLiteral(<String>),
+        "symbol" => Token::SymbolLiteral(<String>),
         "true" => Token::True,
         "false" => Token::False,
         "(" => Token::LParen,
