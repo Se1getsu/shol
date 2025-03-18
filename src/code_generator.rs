@@ -2,7 +2,7 @@ use core::panic;
 use std::collections::HashMap;
 use std::io::{ self, Write };
 use crate::ast::{ self, UnaryOpcode, Opcode };
-use crate::semantics::{ ConditionKind, UnaryOpcodeSignatureExt, OpcodeSignatureExt, Type, TypeHint };
+use crate::semantics::{ self, BuiltinColony, ConditionKind, UnaryOpcodeSignatureExt, OpcodeSignatureExt, Type, TypeHint };
 
 // MARK: ヘルパー関数など
 
@@ -112,7 +112,7 @@ impl Identf {
 
 pub fn generate(
     f: &mut impl Write,
-    program: &Vec<ast::StatementAST>,
+    program: &ast::ProgramAST,
     src_file: &String,
 ) -> io::Result<()> {
     // ヘッダ
@@ -156,30 +156,17 @@ pub fn generate(
         Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
 
-    // コロニー名と V_COLONIES のインデックス対応表作成
-    let colony_indices: HashMap<&String, usize> = {
-        let mut colony_indices = HashMap::new();
-        let mut count = 0;
-        for stmt in program {
-            match stmt {
-                ast::StatementAST::ColonyDecl { name, .. } |
-                ast::StatementAST::ColonyExtension { name, .. } => {
-                    colony_indices.insert(name, count);
-                    count += 1;
-                }
-            }
-        }
-        colony_indices
-    };
+    // コロニー名と V_COLONIES のインデックス対応表
+    let colony_indices = &program.meta.as_ref().unwrap().colony_indices;
 
     // 各コロニーを定義
-    for stmt in program {
+    for stmt in &program.statements {
         writeln!(f, "")?;
         match stmt {
             ast::StatementAST::ColonyDecl { name, rules, .. } =>
                 generate_colony_decl(f, name, rules, &colony_indices)?,
-            ast::StatementAST::ColonyExtension { name, rules, .. } =>
-                generate_colony_extension(f, name, rules, &colony_indices)?,
+            ast::StatementAST::ColonyExtension { name, rules, meta, .. } =>
+                generate_colony_extension(f, name, rules, meta, &colony_indices)?,
         }
     }
 
@@ -189,7 +176,7 @@ pub fn generate(
 
     // V_COLONIES の作成
     writeln!(f, "  let mut {}: Vec<Box<dyn {}>> = Vec::new();", Identf::V_COLONIES, Identf::TR_COLONY)?;
-    for stmt in program {
+    for stmt in &program.statements {
         match stmt {
             ast::StatementAST::ColonyDecl { name, resources, .. } |
             ast::StatementAST::ColonyExtension { name, resources, .. } => {
@@ -261,7 +248,7 @@ fn generate_colony_decl(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::RuleSetAST>,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -291,7 +278,8 @@ fn generate_colony_extension(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::RuleSetAST>,
-    colony_indices: &HashMap<&String, usize>,
+    meta: &Option<semantics::ColonyExtensionASTMeta>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -312,8 +300,8 @@ fn generate_colony_extension(
     }
 
     // 組み込みコロニーのデフォルト規則
-    match name {
-        "print" => {
+    match meta.as_ref().unwrap().builtin_colony {
+        BuiltinColony::Print => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
         ResourceType::String(v) => println!("{{v}}"),
@@ -324,8 +312,8 @@ fn generate_colony_extension(
     }}
     self.resources = vec![];"#)?;
         },
-        "cin" => (),
-        "cout" => {
+        BuiltinColony::Cin => (),
+        BuiltinColony::Cout => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
         ResourceType::String(v) => {{
@@ -348,7 +336,7 @@ fn generate_colony_extension(
     }}
     self.resources = vec![];"#)?;
         },
-        "exit" => {
+        BuiltinColony::Exit => {
             writeln!(f, r#"    let mut buf = Vec::new();
     for resource in &self.resources {{
       let mut no_match = true;
@@ -364,7 +352,6 @@ fn generate_colony_extension(
     }}
     self.resources = buf;"#)?;
         },
-        _ => panic!("組み込みコロニー {name} は存在しません。")
     }
 
     writeln!(f, "    Ok({})", Identf::V_GIFTS)?;
@@ -379,7 +366,7 @@ fn generate_colony_extension(
 fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     // 単一条件規則が 1 つ以上存在するか
     let has_single_cond_rule = rule_set.rules
@@ -456,7 +443,7 @@ fn generate_rule_set(
 fn generate_multi_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let captures = &rule.meta.as_ref().unwrap().captures;
 
@@ -613,15 +600,13 @@ fn generate_multi_condition_outputs(
     outputs: &Vec<ast::OutputAST>,
     captures: &HashMap<String, TypeHint>,
     capts_ref_code: &HashMap<String, String>,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let mut prev_cindex: Option<Option<usize>> = None;
     for output in outputs {
         // 出力先コロニーのインデックス
         let cindex: Option<usize> = output.destination.as_ref().map(|dest| {
-            let index = colony_indices.get(dest)
-                .expect(&format!("未定義のコロニーへの出力: {dest}"));
-            *index
+            colony_indices[dest]
         });
         // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
         if prev_cindex != Some(cindex) {
@@ -740,7 +725,7 @@ fn generate_single_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
     capture_type: Type,
-    colony_indices: &HashMap<&String, usize>,
+    colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let cond = &rule.conditions[0];
     let cond_meta = cond.meta.as_ref().unwrap();
@@ -780,9 +765,7 @@ fn generate_single_condition_rule(
     for output in &rule.outputs {
         // 出力先コロニーのインデックス
         let cindex = output.destination.as_ref().map(|dest| {
-            let index = colony_indices.get(dest)
-                .expect(&format!("未定義のコロニーへの出力: {dest}"));
-            *index
+            colony_indices[dest]
         });
         // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
         if let Some(index) = cindex {
@@ -850,10 +833,10 @@ fn generate_expr(
             write!(f, "{}", b)?;
             result_type = Type::Bool;
         },
-        ast::ExprAST::Capture(name) => {
+        ast::ExprAST::Capture(name, _) => {
             return generate_capture(f, name);
         },
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let (operand_type, operand_code) = {
                 let mut buffer = Vec::new();
                 let operand_type = generate_expr(&mut buffer, operand, generate_capture)?;
@@ -872,7 +855,7 @@ fn generate_expr(
                 None => panic!("不正な型の演算です: {:?} {:?}", opcode, operand_type),
             }
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let (lhs_type, mut lhs_code) = {
                 let mut buffer = Vec::new();
                 let lhs_type = generate_expr(&mut buffer, lhs, generate_capture)?;

@@ -1,8 +1,49 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
-use crate::ast::{self, UnaryOpcode, Opcode};
+use std::ops::Range;
+use crate::ast::{self, Opcode, ProgramAST, UnaryOpcode};
+use crate::semantic_error::SemanticError;
 
 // MARK: メタデータ
+
+pub struct ProgramASTMeta {
+    /// コロニー名と V_COLONIES のインデックスの対応表
+    pub colony_indices: HashMap<String, usize>,
+}
+
+pub struct ColonyExtensionASTMeta {
+    pub builtin_colony: BuiltinColony,
+}
+
+pub enum BuiltinColony {
+    Print,
+    Cin,
+    Cout,
+    Exit,
+}
+
+impl fmt::Display for BuiltinColony {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BuiltinColony::Print => write!(f, "print"),
+            BuiltinColony::Cin => write!(f, "cin"),
+            BuiltinColony::Cout => write!(f, "cout"),
+            BuiltinColony::Exit => write!(f, "exit"),
+        }
+    }
+}
+
+impl BuiltinColony {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "print" => Some(BuiltinColony::Print),
+            "cin" => Some(BuiltinColony::Cin),
+            "cout" => Some(BuiltinColony::Cout),
+            "exit" => Some(BuiltinColony::Exit),
+            _ => None,
+        }
+    }
+}
 
 pub struct RuleASTMeta {
     pub captures: HashMap<String, TypeHint>,
@@ -13,7 +54,7 @@ pub struct ConditionASTMeta {
 }
 
 pub struct OutputASTMeta {
-    // 出力式に含まれるキャプチャのリスト
+    /// 出力式に含まれるキャプチャのリスト
     pub associated_captures: Vec<String>,
 }
 
@@ -191,8 +232,8 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
         ast::ExprAST::Double(_) => Ok(Type::Double),
         ast::ExprAST::Str(_) => Ok(Type::String),
         ast::ExprAST::Bool(_) => Ok(Type::Bool),
-        ast::ExprAST::Capture(name) => Ok(captures.get(name).unwrap().clone()),
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::Capture(name, _) => Ok(captures.get(name).unwrap().clone()),
+        ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let operand_type = type_validate_expr(operand, captures)?;
             if let Some(result) = opcode.result_type(operand_type) {
                 Ok(result)
@@ -200,7 +241,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
                 Err(expr)
             }
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let lhs_type = type_validate_expr(lhs, captures)?;
             let rhs_type = type_validate_expr(rhs, captures)?;
             if let Some(result) = opcode.result_type(lhs_type, rhs_type) {
@@ -214,28 +255,84 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
 
 // MARK: AST 探索関数
 
-// 子ノードを探索するだけ
-pub fn analyze_program(program: &mut Vec<ast::StatementAST>) {
-    program.iter_mut().for_each(analyze_statement);
-}
+/// AST を意味解析してメタデータを付与する
+pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
+    // ProgramAST のメタデータを作成
+    let colony_indices: HashMap<String, usize> = {
+        let mut colony_indices = HashMap::new();
+        let mut locations = HashMap::new();
+        let mut count = 0;
+        for stmt in &program.statements {
+            match stmt {
+                ast::StatementAST::ColonyDecl { name, location, .. } |
+                ast::StatementAST::ColonyExtension { name, location, .. } => {
+                    if colony_indices.contains_key(name) {
+                        return Err(SemanticError::duplicate_colony_definition(
+                            name,
+                            location,
+                            &locations[name],
+                        ));
+                    }
+                    colony_indices.insert(name.clone(), count);
+                    locations.insert(name, location.clone());
+                    count += 1;
+                }
+            }
+        }
+        colony_indices
+    };
 
-// 子ノードを探索するだけ
-fn analyze_statement(statement: &mut ast::StatementAST) {
-    match statement {
-        ast::StatementAST::ColonyDecl { name: _, resources: _, rules } =>
-            rules.iter_mut().for_each(analyze_rule_set),
-        ast::StatementAST::ColonyExtension { name: _, resources: _, rules } =>
-            rules.iter_mut().for_each(analyze_rule_set),
+    // 子ノードを探索
+    for statement in program.statements.iter_mut() {
+        analyze_statement(statement, &colony_indices)?;
     }
+
+    program.meta = Some(ProgramASTMeta { colony_indices });
+    Ok(())
+}
+
+fn analyze_statement(
+    statement: &mut ast::StatementAST,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
+    // 子ノードを探索
+    match statement {
+        ast::StatementAST::ColonyDecl { rules, .. } => {
+            for rule_set in rules.iter_mut() {
+                analyze_rule_set(rule_set, colony_indices)?;
+            }
+        }
+        ast::StatementAST::ColonyExtension { rules, name, location, meta, .. } => {
+            let builtin_colony = BuiltinColony::from_str(name);
+            if let Some(builtin_colony) = builtin_colony {
+                *meta = Some(ColonyExtensionASTMeta { builtin_colony });
+            } else {
+                return Err(SemanticError::invalid_builtin_colony(name, &location));
+            }
+            for rule_set in rules.iter_mut() {
+                analyze_rule_set(rule_set, colony_indices)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 // 子ノードを探索するだけ
-fn analyze_rule_set(rule_set: &mut ast::RuleSetAST) {
-    rule_set.rules.iter_mut().for_each(analyze_rule);
+fn analyze_rule_set(
+    rule_set: &mut ast::RuleSetAST,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
+    for rule in rule_set.rules.iter_mut() {
+        analyze_rule(rule, colony_indices)?;
+    }
+    Ok(())
 }
 
 // RuleAST のメタデータを作成
-fn analyze_rule(rule: &mut ast::RuleAST) {
+fn analyze_rule(
+    rule: &mut ast::RuleAST,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
     // メタデータ構造体を作成
     let mut meta = RuleASTMeta {
         captures: HashMap::new(),
@@ -243,66 +340,77 @@ fn analyze_rule(rule: &mut ast::RuleAST) {
 
     // 条件式を解析
     for condition in rule.conditions.iter_mut() {
-        analyze_condition(condition, &mut meta);
+        analyze_condition(condition, &mut meta)?;
     }
 
     // 出力式を解析
-    analyze_output(&mut rule.outputs, &mut meta.captures);
+    analyze_output(&mut rule.outputs, &mut meta.captures, colony_indices)?;
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
+    Ok(())
 }
 
-fn analyze_condition(condition: &mut ast::ConditionAST, rule_meta: &mut RuleASTMeta) {
+fn analyze_condition(
+    condition: &mut ast::ConditionAST,
+    rule_meta: &mut RuleASTMeta,
+) -> Result<(), SemanticError> {
     // 条件式種別を判定
-    let (kind, is_typed_capture) = condition_kind(&condition.expr);
+    let (kind, is_typed_capture) = condition_kind(&condition.expr)?;
 
     // キャプチャを rule_meta に登録
     match &kind {
-        ConditionKind::Equal(_) => (),
-        ConditionKind::Capture(name) => {
+        KindWithRange::Equal(_) => (),
+        KindWithRange::Capture(name, cap_loc) => {
             if rule_meta.captures.contains_key(name) {
-                panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
+                return Err(SemanticError::duplicate_capture_name(name, cap_loc));
             }
             if is_typed_capture {
                 let types = analyze_capture_condition(
                     &condition.expr,
+                    &condition.location,
                     name,
                     is_typed_capture,
-                );
+                )?;
                 rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
             } else {
                 rule_meta.captures.insert(name.clone(), TypeHint { possible_types: Type::all_types() });
             }
         },
-        ConditionKind::CaptureCondition(name) => {
+        KindWithRange::CaptureCondition(name, cap_loc) => {
             if rule_meta.captures.contains_key(name) {
-                panic!("別々の条件に同じ名前のキャプチャが使われています: {}", name);
+                return Err(SemanticError::duplicate_capture_name(name, cap_loc));
             }
             let types = analyze_capture_condition(
                 &condition.expr,
+                &condition.location,
                 name,
                 is_typed_capture,
-            );
+            )?;
             rule_meta.captures.insert(name.clone(), TypeHint { possible_types: types });
         },
     }
 
     // AST にメタデータを追加
-    condition.meta = Some(ConditionASTMeta { kind });
+    condition.meta = Some(ConditionASTMeta { kind: kind.into() });
+    Ok(())
 }
 
-fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<String, TypeHint>) {
+fn analyze_output(
+    outputs: &mut Vec<ast::OutputAST>,
+    captures: &mut HashMap<String, TypeHint>,
+    colony_indices: &HashMap<String, usize>,
+) -> Result<(), SemanticError> {
     // 出力式に登場するキャプチャを調べる
     fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
         match expr {
             ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
-            ast::ExprAST::Capture(name) =>
+            ast::ExprAST::Capture(name, _) =>
                 if !captures.contains(name) { captures.push(name.clone()); },
-            ast::ExprAST::UnaryOp(_, operand) => {
+            ast::ExprAST::UnaryOp(_, operand, _) => {
                 collect_captures(operand, captures);
             },
-            ast::ExprAST::BinaryOp(lhs, _, rhs) => {
+            ast::ExprAST::BinaryOp(lhs, _, rhs, _) => {
                 collect_captures(lhs, captures);
                 collect_captures(rhs, captures);
             },
@@ -311,111 +419,194 @@ fn analyze_output(outputs: &mut Vec<ast::OutputAST>, captures: &mut HashMap<Stri
     for output in outputs.iter_mut() {
         let mut associated_captures = Vec::new();
         collect_captures(&output.expr, &mut associated_captures);
+        if let Some(destination) = output.destination.as_ref() {
+            if !colony_indices.contains_key(destination) {
+                return Err(SemanticError::undefined_colony(
+                    destination,
+                    &output.destination_location,
+                ));
+            }
+        }
         output.meta = Some(OutputASTMeta { associated_captures });
     }
 
     // 型推論に必要な InferredType を保存するベクタ
-    let mut infers = build_infers(outputs, captures);
+    let mut infers = build_infers(outputs, captures)?;
     println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
 
     // 型推論
-    infer_infers(&mut infers, captures);
+    infer_infers(&mut infers, captures)?;
     println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
 
     // 型検証
-    validate_inference(captures, outputs);
+    validate_inference(captures, outputs)?;
+    Ok(())
 }
 
 // MARK: 条件式の型推論
 
-fn condition_kind(expr: &ast::ExprAST) -> (ConditionKind, bool) {
-    let mut kind = _condition_kind(expr);
+/// ConditionKind にキャプチャの位置情報を追加した型
+#[derive(Clone)]
+pub enum KindWithRange {
+    /// 条件式の値と一致するリソースを指定している
+    Equal(Type),
+    /// キャプチャ単体 (キャプチャ名, キャプチャの初登場位置)
+    Capture(String, Range<usize>),
+    /// キャプチャを含む条件式 (キャプチャ名, キャプチャの初登場位置)
+    CaptureCondition(String, Range<usize>),
+}
+
+impl From<KindWithRange> for ConditionKind {
+    fn from(kind: KindWithRange) -> Self {
+        match kind {
+            KindWithRange::Equal(t) =>
+                ConditionKind::Equal(t),
+            KindWithRange::Capture(name, _) =>
+                ConditionKind::Capture(name),
+            KindWithRange::CaptureCondition(name, _) =>
+                ConditionKind::CaptureCondition(name),
+        }
+    }
+}
+
+fn condition_kind(expr: &ast::ExprAST) -> Result<(KindWithRange, bool), SemanticError> {
+    let mut kind = _condition_kind(expr)?;
     let mut is_typed_capture = false;
 
     // $:int のような場合は キャプチャ単体 に変換する
-    if let ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand) = expr {
-        if let ast::ExprAST::Capture(name) = &**operand {
-            kind = ConditionKind::Capture(name.clone());
+    if let ast::ExprAST::UnaryOp(UnaryOpcode::As(_), operand, _) = expr {
+        if let ast::ExprAST::Capture(name, cap_loc) = &**operand {
+            kind = KindWithRange::Capture(name.clone(), cap_loc.clone());
             is_typed_capture = true;
         }
     }
 
-    (kind, is_typed_capture)
+    Ok((kind, is_typed_capture))
 }
 
 /// 条件式の種別を取得
 /// NOTE: $:int のような場合は キャプチャ条件式 と判定する
-fn _condition_kind(expr: &ast::ExprAST) -> ConditionKind {
+fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> {
     match expr {
-        ast::ExprAST::Number(_) => ConditionKind::Equal(Type::Int),
-        ast::ExprAST::Double(_) => ConditionKind::Equal(Type::Double),
-        ast::ExprAST::Str(_) => ConditionKind::Equal(Type::String),
-        ast::ExprAST::Bool(_) => ConditionKind::Equal(Type::Bool),
-        ast::ExprAST::Capture(name) => ConditionKind::Capture(name.clone()),
-        ast::ExprAST::UnaryOp(opcode, operand) => {
+        ast::ExprAST::Number(_) => Ok(KindWithRange::Equal(Type::Int)),
+        ast::ExprAST::Double(_) => Ok(KindWithRange::Equal(Type::Double)),
+        ast::ExprAST::Str(_) => Ok(KindWithRange::Equal(Type::String)),
+        ast::ExprAST::Bool(_) => Ok(KindWithRange::Equal(Type::Bool)),
+        ast::ExprAST::Capture(name, cap_loc) =>
+            Ok(KindWithRange::Capture(name.clone(), cap_loc.clone())),
+        ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
             // オペランドの条件式種別を取得
-            let operand_kind = _condition_kind(operand);
+            let operand_kind = _condition_kind(operand)?;
 
             // Equal or キャプチャ条件式 を返す
             match &operand_kind {
-                ConditionKind::Equal(t) => {
+                KindWithRange::Equal(t) => {
                     if let Some(result) = opcode.result_type(*t) {
-                        return ConditionKind::Equal(result);
+                        return Ok(KindWithRange::Equal(result));
                     } else {
-                        panic!("不正な型の演算です: {:?} {:?}", opcode, t);
+                        return Err(SemanticError::type_error_unary(
+                            opcode,
+                            op_loc,
+                            *t,
+                        ));
                     }
                 },
-                ConditionKind::Capture(name) => {
-                    return ConditionKind::CaptureCondition((*name).clone())
+                KindWithRange::Capture(name, cap_loc) => {
+                    return Ok(KindWithRange::CaptureCondition((*name).clone(), cap_loc.clone()));
                 },
-                ConditionKind::CaptureCondition(_) => {
-                    return operand_kind
+                KindWithRange::CaptureCondition(..) => {
+                    return Ok(operand_kind);
                 },
             }
         },
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, location) => {
             // 左辺と右辺の条件式種別を取得
-            let lhs_kind = _condition_kind(lhs);
-            let rhs_kind = _condition_kind(rhs);
+            let lhs_kind = _condition_kind(lhs)?;
+            let rhs_kind = _condition_kind(rhs)?;
 
             // 左辺と右辺のどちらかがキャプチャ条件式の場合, キャプチャ条件式を返す
             match (&lhs_kind, &rhs_kind) {
-                (ConditionKind::Equal(t_l), ConditionKind::Equal(t_r)) => {
+                (
+                    KindWithRange::Equal(t_l),
+                    KindWithRange::Equal(t_r),
+                ) => {
                     if let Some(result) = opcode.result_type(*t_l, *t_r) {
-                        return ConditionKind::Equal(result);
+                        return Ok(KindWithRange::Equal(result));
                     } else {
-                        panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
+                        return Err(SemanticError::type_error_binary(
+                            opcode,
+                            location,
+                            *t_l,
+                            *t_r,
+                        ));
                     }
-                }
-                (ConditionKind::Equal(_), ConditionKind::Capture(name)) |
-                (ConditionKind::Capture(name), ConditionKind::Equal(_)) => {
-                    return ConditionKind::CaptureCondition((*name).clone());
                 },
-                (ConditionKind::Equal(_), ConditionKind::CaptureCondition(_)) => {
-                    return rhs_kind;
+
+                (
+                    KindWithRange::Equal(_),
+                    KindWithRange::Capture(name, cap_loc)
+                ) | (
+                    KindWithRange::Capture(name, cap_loc),
+                    KindWithRange::Equal(_)
+                ) => {
+                    return Ok(KindWithRange::CaptureCondition((*name).clone(), cap_loc.clone()));
                 },
-                (ConditionKind::CaptureCondition(_), ConditionKind::Equal(_)) => {
-                    return lhs_kind;
-                }
-                (ConditionKind::Capture(name_l), ConditionKind::Capture(name_r)) => {
+
+                (
+                    KindWithRange::Equal(_),
+                    KindWithRange::CaptureCondition(..)
+                ) => {
+                    return Ok(rhs_kind);
+                },
+
+                (
+                    KindWithRange::CaptureCondition(..),
+                    KindWithRange::Equal(_)
+                ) => {
+                    return Ok(lhs_kind);
+                },
+
+                (
+                    KindWithRange::Capture(name_l, cap_loc_l),
+                    KindWithRange::Capture(name_r, cap_loc_r)
+                ) => {
                     if name_l != name_r {
-                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
+                        return Err(SemanticError::multiple_captures_in_condition(
+                            (name_l, name_r),
+                            (cap_loc_l, cap_loc_r),
+                        ));
                     }
-                    return ConditionKind::CaptureCondition((*name_l).clone());
-                }
-                (ConditionKind::Capture(name_l), ConditionKind::CaptureCondition(name_r)) => {
+                    return Ok(KindWithRange::CaptureCondition((*name_l).clone(), cap_loc_l.clone()));
+                },
+
+                (
+                    KindWithRange::Capture(name_l, cap_loc_l),
+                    KindWithRange::CaptureCondition(name_r, cap_loc_r)
+                ) => {
                     if name_l != name_r {
-                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
+                        return Err(SemanticError::multiple_captures_in_condition(
+                            (name_l, name_r),
+                            (cap_loc_l, cap_loc_r),
+                        ));
                     }
-                    return rhs_kind;
-                }
-                (ConditionKind::CaptureCondition(name_l), ConditionKind::Capture(name_r)) |
-                (ConditionKind::CaptureCondition(name_l), ConditionKind::CaptureCondition(name_r)) => {
+                    return Ok(rhs_kind);
+                },
+
+                (
+                    KindWithRange::CaptureCondition(name_l, cap_loc_l),
+                    KindWithRange::Capture(name_r, cap_loc_r)
+                ) | (
+                    KindWithRange::CaptureCondition(name_l, cap_loc_l),
+                    KindWithRange::CaptureCondition(name_r, cap_loc_r)
+                ) => {
                     if name_l != name_r {
-                        panic!("1 つのキャプチャ条件式が複数のキャプチャを含んでいます: ${}, ${}", name_l, name_r);
+                        return Err(SemanticError::multiple_captures_in_condition(
+                            (name_l, name_r),
+                            (cap_loc_l, cap_loc_r),
+                        ));
                     }
-                    return lhs_kind;
-                }
+                    return Ok(lhs_kind);
+                },
             } // match (&lhs_kind, &rhs_kind)
         },
     } // match expr
@@ -425,9 +616,10 @@ fn _condition_kind(expr: &ast::ExprAST) -> ConditionKind {
 /// 戻り値: キャプチャの possible_types
 fn analyze_capture_condition(
     expr: &ast::ExprAST,
+    cond_loc: &Range<usize>,
     capture_name: &String,
     is_typed_capture: bool, // true の場合は条件式の結果が bool 型かのチェックを行わない
-) -> HashSet<Type> {
+) -> Result<HashSet<Type>, SemanticError> {
     // キャプチャに型を 1 つずつ割り当てて検証
     let mut possible_types = HashSet::new();
     let mut cannot_evaluate = true;
@@ -450,12 +642,12 @@ fn analyze_capture_condition(
 
     if possible_types.is_empty() {
         if cannot_evaluate {
-            panic!("この条件式を評価可能なキャプチャ型は存在しません: {:?}", expr);
+            return Err(SemanticError::no_type_matches(cond_loc));
         } else {
-            panic!("結果が真偽値にならない条件式はサポートされていません: {:?}", expr);
+            return Err(SemanticError::not_bool_condition(cond_loc));
         }
     }
-    possible_types
+    Ok(possible_types)
 }
 
 // MARK: 出力式の型推論
@@ -484,6 +676,7 @@ enum InferredType {
         parent: Option<InfersIndex>,
         result: HashSet<Type>,
         needs_update: bool,
+        location: Range<usize>,
     },
     /// キャプチャを含む二項演算式
     BinaryExpr {
@@ -493,6 +686,7 @@ enum InferredType {
         parent: Option<InfersIndex>,
         result: HashSet<Type>,
         needs_update: bool,
+        location: Range<usize>,
     },
 }
 
@@ -553,7 +747,10 @@ fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) 
 }
 
 /// infers 配列を作成する
-fn build_infers(outputs: &Vec<ast::OutputAST>, captures: &HashMap<String, TypeHint>) -> Vec<InferredType> {
+fn build_infers(
+    outputs: &Vec<ast::OutputAST>,
+    captures: &HashMap<String, TypeHint>,
+) -> Result<Vec<InferredType>, SemanticError> {
     // InferredType を保存するベクタ
     let mut infers: Vec<InferredType> = captures.keys()
         .map(|name| {
@@ -567,10 +764,10 @@ fn build_infers(outputs: &Vec<ast::OutputAST>, captures: &HashMap<String, TypeHi
         .collect();
 
     // AST を探索して infers 配列を作成
-    outputs.iter().for_each(|output| {
-        analyze_output_ast(&output.expr, &mut infers, &capture_infers);
-    });
-    infers
+    for output in outputs {
+        analyze_output_ast(&output.expr, &mut infers, &capture_infers)?;
+    }
+    Ok(infers)
 }
 
 /// analyze_output_ast 関数の戻り値
@@ -584,33 +781,37 @@ fn analyze_output_ast(
     expr: &ast::ExprAST,
     infers: &mut Vec<InferredType>,
     capture_infers: &HashMap<String, usize>,
-) -> AOAResult {
+) -> Result<AOAResult, SemanticError> {
     match expr {
         // 定数式の型を返す
-        ast::ExprAST::Number(_) => AOAResult::Constant(Type::Int),
-        ast::ExprAST::Double(_) => AOAResult::Constant(Type::Double),
-        ast::ExprAST::Str(_) => AOAResult::Constant(Type::String),
-        ast::ExprAST::Bool(_) => AOAResult::Constant(Type::Bool),
+        ast::ExprAST::Number(_) => Ok(AOAResult::Constant(Type::Int)),
+        ast::ExprAST::Double(_) => Ok(AOAResult::Constant(Type::Double)),
+        ast::ExprAST::Str(_) => Ok(AOAResult::Constant(Type::String)),
+        ast::ExprAST::Bool(_) => Ok(AOAResult::Constant(Type::Bool)),
 
         // capture_infers に登録されているインデックスを返す
-        ast::ExprAST::Capture(name) => {
+        ast::ExprAST::Capture(name, cap_loc) => {
             if let Some(index) = capture_infers.get(name) {
-                AOAResult::Infer { index: InfersIndex(*index) }
+                Ok(AOAResult::Infer { index: InfersIndex(*index) })
             } else {
-                panic!("未定義のキャプチャ: {}", name);
+                return Err(SemanticError::undefined_capture(name, cap_loc));
             }
         },
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::UnaryOp(opcode, operand) => {
-            let operand = analyze_output_ast(operand, infers, capture_infers);
+        ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
+            let operand = analyze_output_ast(operand, infers, capture_infers)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let AOAResult::Constant(t) = &operand {
                 if let Some(result) = opcode.result_type(*t) {
-                    return AOAResult::Constant(result);
+                    return Ok(AOAResult::Constant(result));
                 } else {
-                    panic!("不正な型の演算です: {:?} {:?}", opcode, t);
+                    return Err(SemanticError::type_error_unary(
+                        opcode,
+                        op_loc,
+                        *t,
+                    ));
                 }
             }
 
@@ -627,26 +828,32 @@ fn analyze_output_ast(
                 parent: None,
                 result: Type::all_types(),
                 needs_update: true,
+                location: op_loc.clone(),
             });
             let i_self = InfersIndex(infers.len() - 1);
 
             // 自身を lhs, rhs の親ノードを設定
             infers[i_operand.0].set_parent(&i_self);
 
-            AOAResult::Infer { index: i_self }
+            Ok(AOAResult::Infer { index: i_self })
         }
 
         // 自身を infers に追加し, そのインデックスを返す
-        ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
-            let lhs = analyze_output_ast(lhs, infers, capture_infers);
-            let rhs = analyze_output_ast(rhs, infers, capture_infers);
+        ast::ExprAST::BinaryOp(lhs, opcode, rhs, op_loc) => {
+            let lhs = analyze_output_ast(lhs, infers, capture_infers)?;
+            let rhs = analyze_output_ast(rhs, infers, capture_infers)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let (AOAResult::Constant(t_l), AOAResult::Constant(t_r)) = (&lhs, &rhs) {
                 if let Some(result) = opcode.result_type(*t_l, *t_r) {
-                    return AOAResult::Constant(result);
+                    return Ok(AOAResult::Constant(result));
                 } else {
-                    panic!("不正な型の演算です: {:?} {:?} {:?}", t_l, opcode, t_r);
+                    return Err(SemanticError::type_error_binary(
+                        opcode,
+                        op_loc,
+                        *t_l,
+                        *t_r,
+                    ));
                 }
             }
 
@@ -674,6 +881,7 @@ fn analyze_output_ast(
                 parent: None,
                 result: Type::all_types(),
                 needs_update: true,
+                location: op_loc.clone(),
             });
             let i_self = InfersIndex(infers.len() - 1);
 
@@ -681,13 +889,16 @@ fn analyze_output_ast(
             infers[i_l.0].set_parent(&i_self);
             infers[i_r.0].set_parent(&i_self);
 
-            AOAResult::Infer { index: i_self }
+            Ok(AOAResult::Infer { index: i_self })
         },
     }
 }
 
 // infers 配列について型推論を行う
-fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, TypeHint>) {
+fn infer_infers(
+    infers: &mut Vec<InferredType>,
+    captures: &mut HashMap<String, TypeHint>
+) -> Result<(), SemanticError> {
     let mut updated = true;
     while updated {
         updated = false;
@@ -703,6 +914,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
                     operand,
                     result,
                     needs_update,
+                    location,
                     ..
                 } => {
                     if !*needs_update { continue; }
@@ -725,8 +937,12 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
 
                     // 空集合があれば型エラー
                     if new_t_operand.is_empty() || new_t_result.is_empty() {
-                        panic!("出力式の型推論に失敗しました: {:?} {:?} = {:?}",
-                            opcode, t_operand, new_t_result);
+                        return Err(SemanticError::type_inference_failed_unary(
+                            location,
+                            &t_operand,
+                            opcode,
+                            &t_result
+                        ));
                     }
 
                     // 自身と隣接するノードの型を更新
@@ -743,6 +959,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
                     rhs,
                     result,
                     needs_update,
+                    location,
                     ..
                 } => {
                     if !*needs_update { continue; }
@@ -770,8 +987,10 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
 
                     // 空集合があれば型エラー
                     if new_t_lhs.is_empty() || new_t_rhs.is_empty() || new_t_result.is_empty() {
-                        panic!("出力式の型推論に失敗しました: {:?} {:?} {:?} = {:?}",
-                            t_lhs, opcode, t_rhs, new_t_result);
+                        return Err(SemanticError::type_inference_failed_binary(
+                            location,
+                            &t_lhs, opcode, &t_rhs, &t_result
+                        ));
                     }
 
                     // 自身と隣接するノードの型を更新
@@ -799,6 +1018,7 @@ fn infer_infers(infers: &mut Vec<InferredType>, captures: &mut HashMap<String, T
             }
         } // for myself in index of infers
     } // while updated
+    Ok(())
 }
 
 /// target の型を types に更新し, 隣接するノードの needs_update を更新にする
@@ -809,9 +1029,7 @@ fn request_update(
     captures: &mut HashMap<String, TypeHint>,
 ) {
     match &mut infers[target.0] {
-        InferredType::Constant(_) =>
-            panic!("logic error: 定数式 {:?} に型更新を要求した: {:?}", target, types),
-
+        InferredType::Constant(_) => {}
         InferredType::Capture(name) => {
             // captures の型を更新
             captures.get_mut(name).unwrap().possible_types = types.clone();
@@ -863,43 +1081,38 @@ fn request_update(
 }
 
 /// 出力式の型推論結果の検証
-fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::OutputAST>) {
+fn validate_inference(
+    captures: &HashMap<String, TypeHint>,
+    outputs: &Vec<ast::OutputAST>,
+) -> Result<(), SemanticError> {
+    /// 型検証の失敗情報
+    struct FailedCase {
+        captures_type: HashMap<String, Type>,
+        opcode: Opcode,
+        location: Range<usize>,
+    }
+
     // 再帰関数でキャプチャの型の組み合わせを総当たりで検証
     fn _validate_inference(
         captures: &HashMap<String, TypeHint>,
         captures_type: &HashMap<String, Type>,
         output: &ast::OutputAST,
         capture_print_order: &Vec<String>,
-    ) -> Result<(), String> {
+    ) -> Result<(), FailedCase> {
         if captures.is_empty() {
             // 型検証
             if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
-                    ast::ExprAST::Capture(_) => (),
-                    ast::ExprAST::UnaryOp(opcode, operand) => {
-                        // エラーメッセージの作成
-                        let mut err_msg = String::new();
-                        let type_list = capture_print_order.iter().map(|name| {
-                            format!("${}: {:?}", name, captures_type[name])
-                        }).collect::<Vec<String>>().join(", ");
-                        err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
-                        err_msg.push_str(&format!("\n    {:?}", opcode));
-                        err_msg.push_str(&format!("\n    {:?}", operand));
-                        return Err(err_msg)
-                    },
-                    ast::ExprAST::BinaryOp(lhs, opcode, rhs) => {
-                        // エラーメッセージの作成
-                        let mut err_msg = String::new();
-                        let type_list = capture_print_order.iter().map(|name| {
-                            format!("${}: {:?}", name, captures_type[name])
-                        }).collect::<Vec<String>>().join(", ");
-                        err_msg.push_str(&format!("\n  {} の場合に以下の演算が行えません:", type_list));
-                        err_msg.push_str(&format!("\n    {:?}", lhs));
-                        err_msg.push_str(&format!("\n    {:?}", opcode));
-                        err_msg.push_str(&format!("\n    {:?}", rhs));
-                        return Err(err_msg)
-                    },
+                    ast::ExprAST::Capture(_, _) => unreachable!(),
+                    // 単項演算子ではキャプチャ間の型制約関係は発生し得ない
+                    ast::ExprAST::UnaryOp(..) => unreachable!(),
+                    ast::ExprAST::BinaryOp(_, opcode, _, op_loc) =>
+                        return Err(FailedCase {
+                            captures_type: captures_type.clone(),
+                            opcode: opcode.clone(),
+                            location: op_loc.clone(),
+                        }),
                 }
             }
         } else {
@@ -918,7 +1131,7 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
         Ok(())
     }
 
-    outputs.iter().for_each(|output| {
+    for output in outputs.iter() {
         // captures から output に登場するキャプチャだけを取り出す
         let associated_captures = &output.meta.as_ref().unwrap().associated_captures;
         let captures: HashMap<String, TypeHint> = associated_captures.iter()
@@ -934,16 +1147,15 @@ fn validate_inference(captures: &HashMap<String, TypeHint>, outputs: &Vec<ast::O
             associated_captures
         );
 
-        if let Err(detail) = result {
-            // エラーメッセージの作成
-            let mut err_msg = String::new();
-            err_msg.push_str(&format!("出力式にキャプチャ間の型制約関係が含まれます:"));
-            err_msg.push_str(&format!("\n  推論されたキャプチャの型:"));
-            associated_captures.iter().for_each(|name| {
-                err_msg.push_str(&format!("\n    ${}: {:?}", name, captures[name].possible_types));
-            });
-            err_msg.push_str(&detail);
-            panic!("{}", err_msg);
+        if let Err(failed_case) = result {
+            return Err(SemanticError::type_constraint_detected(
+                &captures,
+                associated_captures,
+                &failed_case.captures_type,
+                &failed_case.opcode,
+                &failed_case.location,
+            ));
         }
-    });
+    }
+    Ok(())
 }

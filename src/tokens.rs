@@ -8,7 +8,7 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub struct LexicalError {
     /// エラーが発生した範囲 (Lexer が後から設定する)
-    pub range: Range<usize>,
+    pub location: Range<usize>,
     /// エラーの種類
     pub error_type: LexicalErrorKind,
 }
@@ -36,7 +36,7 @@ pub enum LexicalErrorKind {
 impl Default for LexicalError {
     fn default() -> Self {
         LexicalError {
-            range: 0..0,
+            location: 0..0,
             error_type: LexicalErrorKind::InvalidToken,
         }
     }
@@ -44,7 +44,7 @@ impl Default for LexicalError {
 impl From<ParseIntError> for LexicalError {
     fn from(_: ParseIntError) -> Self {
         LexicalError {
-            range: 0..0,
+            location: 0..0,
             error_type: LexicalErrorKind::InvalidIntegerLiteral,
         }
     }
@@ -52,7 +52,7 @@ impl From<ParseIntError> for LexicalError {
 impl From<ParseFloatError> for LexicalError {
     fn from(_: ParseFloatError) -> Self {
         LexicalError {
-            range: 0..0,
+            location: 0..0,
             error_type: LexicalErrorKind::InvalidFloatLiteral,
         }
     }
@@ -168,9 +168,11 @@ impl fmt::Display for Token {
 
 /// クォートで囲まれた文字列リテラルをデコードする
 fn decode_string(input: &str) -> Result<String, LexicalError> {
-    let without_quotes = &input[1..input.len()-1];
-    let mut result = String::with_capacity(without_quotes.len());
-    let mut chars = without_quotes.chars().enumerate();
+    let mut result = String::with_capacity(input.len());
+    let mut chars = input
+        .chars()
+        .enumerate()
+        .skip(1).take(input.len() - 2); // 両端のクォートを除去
 
     while let Some((start, c)) = chars.next() {
         if c != '\\' {
@@ -203,7 +205,7 @@ fn decode_string(input: &str) -> Result<String, LexicalError> {
                 let code = match (hex.len() == 2, u8::from_str_radix(&hex, 16)) {
                     (true, Ok(code)) => code,
                     _ => return Err(LexicalError {
-                        range: 0..0,
+                        location: 0..0,
                         error_type: LexicalErrorKind::InvalidStringEscape {
                             message: format!("Unicode エスケープ \\xXX をデコードできません: \\x{}", hex),
                             position: start .. start + "\\x".len() + hex.len(),
@@ -217,7 +219,7 @@ fn decode_string(input: &str) -> Result<String, LexicalError> {
                 let code = match (hex.len() == 4, u16::from_str_radix(&hex, 16)) {
                     (true, Ok(code)) => code,
                     _ => return Err(LexicalError {
-                        range: 0..0,
+                        location: 0..0,
                         error_type: LexicalErrorKind::InvalidStringEscape {
                             message: format!("Unicode エスケープ \\uXXXX をデコードできません: \\u{}", hex),
                             position: start .. start + "\\u".len() + hex.len(),
@@ -227,7 +229,7 @@ fn decode_string(input: &str) -> Result<String, LexicalError> {
                 let c = match char::from_u32(code as u32) {
                     Some(c) => c,
                     None => return Err(LexicalError {
-                        range: 0..0,
+                        location: 0..0,
                         error_type: LexicalErrorKind::InvalidStringEscape {
                             message: format!("Unicode エスケープ \\u{} は不正な文字です。", hex),
                             position: start .. start + "\\u".len() + hex.len(),
@@ -241,7 +243,7 @@ fn decode_string(input: &str) -> Result<String, LexicalError> {
                 let code = match (hex.len() == 8, u32::from_str_radix(&hex, 16)) {
                     (true, Ok(code)) => code,
                     _ => return Err(LexicalError {
-                        range: 0..0,
+                        location: 0..0,
                         error_type: LexicalErrorKind::InvalidStringEscape {
                             message: format!("Unicode エスケープ \\UXXXXXXXX をデコードできません: \\U{}", hex),
                             position: start .. start + "\\U".len() + hex.len(),
@@ -251,7 +253,7 @@ fn decode_string(input: &str) -> Result<String, LexicalError> {
                 let c = match char::from_u32(code) {
                     Some(c) => c,
                     None => return Err(LexicalError {
-                        range: 0..0,
+                        location: 0..0,
                         error_type: LexicalErrorKind::InvalidStringEscape {
                             message: format!("Unicode エスケープ \\U{} は不正な文字です。", hex),
                             position: start .. start + "\\U".len() + hex.len(),

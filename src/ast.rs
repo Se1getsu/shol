@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::Range;
 use regex::Regex;
 
 use crate::semantics;
@@ -12,19 +13,43 @@ fn urlencode(s: &str) -> String {
     }).into_owned()
 }
 
+// MARK: ProgramAST
+
+pub struct ProgramAST {
+    pub statements: Vec<StatementAST>,
+    pub meta: Option<semantics::ProgramASTMeta>,
+}
+
+impl fmt::Debug for ProgramAST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{{\"Program\":{{\".statements\":{:?}}}}}", self.statements)
+    }
+}
+
 // MARK: StatementAST
 
 pub enum StatementAST {
-    ColonyDecl { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
-    ColonyExtension { name: String, resources: Vec<ExprAST>, rules: Vec<RuleSetAST> },
+    ColonyDecl {
+        name: String,
+        resources: Vec<ExprAST>,
+        rules: Vec<RuleSetAST>,
+        location: Range<usize>,
+    },
+    ColonyExtension {
+        name: String,
+        resources: Vec<ExprAST>,
+        rules: Vec<RuleSetAST>,
+        location: Range<usize>,
+        meta: Option<semantics::ColonyExtensionASTMeta>,
+    },
 }
 
 impl fmt::Debug for StatementAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            StatementAST::ColonyDecl { name, resources, rules } =>
+            StatementAST::ColonyDecl { name, resources, rules, .. } =>
                 write!(f, "{{\"ColonyDecl({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
-            StatementAST::ColonyExtension { name, resources, rules } =>
+            StatementAST::ColonyExtension { name, resources, rules, .. } =>
                 write!(f, "{{\"ColonyExtension({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
         }
     }
@@ -65,12 +90,19 @@ pub struct ConditionAST {
     pub sqc_start: usize,
     /// 連続規則の RuleAST::conditions での終了インデックス
     pub sqc_end: usize,
+    /// プログラム中の式の位置
+    pub location: Range<usize>,
+    /// 意味解析で追加されるメタデータ
     pub meta: Option<semantics::ConditionASTMeta>,
 }
 
 pub struct OutputAST {
     pub expr: ExprAST,
+    /// 出力先コロニーの名前
     pub destination: Option<String>,
+    /// プログラム中の #xx の位置
+    pub destination_location: Range<usize>,
+    /// 意味解析で追加されるメタデータ
     pub meta: Option<semantics::OutputASTMeta>,
 }
 
@@ -104,9 +136,9 @@ pub enum ExprAST {
     Double(f64),
     Str(String),
     Bool(bool),
-    Capture(String),
-    UnaryOp(UnaryOpcode, Box<ExprAST>),
-    BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>),
+    Capture(String, Range<usize>),
+    UnaryOp(UnaryOpcode, Box<ExprAST>, Range<usize>),
+    BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>, Range<usize>),
 }
 
 impl fmt::Debug for ExprAST {
@@ -120,11 +152,11 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
             ExprAST::Bool(b) =>
                 write!(f, "{{\"Bool({})\":{{\"_\":{{}}}}}}", b),
-            ExprAST::Capture(s) =>
+            ExprAST::Capture(s, _) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
-            ExprAST::UnaryOp(op, operand) =>
+            ExprAST::UnaryOp(op, operand, _) =>
                 write!(f, "{{\"BinaryOp({:?})\":{:?}}}", op, operand),
-            ExprAST::BinaryOp(lhs, op, rhs) =>
+            ExprAST::BinaryOp(lhs, op, rhs, _) =>
                 write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
         }
     }

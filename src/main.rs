@@ -4,11 +4,13 @@ use getopts::Options;
 use tempfile;
 
 pub mod ast;
+pub mod compile_error;
 pub mod tokens;
 pub mod lexer;
 pub mod parser;
 pub mod preprocessor;
 pub mod semantics;
+pub mod semantic_error;
 pub mod code_generator;
 lalrpop_mod!(pub shol);
 
@@ -80,13 +82,20 @@ fn main() -> ExitCode {
     println!("[*] AST generating...");
     let mut ast = match parser::parse_program(&program) {
         Ok(ast) => ast,
-        Err(e) => return e,
+        Err(e) => {
+            eprintln!("{}", e);
+            return ExitCode::FAILURE;
+        }
     };
     println!("{{\"AST\":{:?}}}", ast);
 
     // 意味解析
     println!("\n[*] Semantics analyzing...");
-    semantics::analyze_program(&mut ast);
+    if let Err(e) = semantics::analyze_program(&mut ast) {
+        let e = e.build_compile_error(&program);
+        eprintln!("{}", e);
+        return ExitCode::FAILURE;
+    }
     println!("{{\"AST\":{:?}}}", ast);
 
     // 出力ファイルを開く
@@ -100,8 +109,8 @@ fn main() -> ExitCode {
 
     // コード生成
     println!("\n[*] Generating code...");
-    if let Err(_) = code_generator::generate(&mut out_file, &ast, &config.src_file) {
-        // TODO: エラーメッセージ
+    if let Err(e) = code_generator::generate(&mut out_file, &ast, &config.src_file) {
+        eprintln!("出力ファイル書き込みエラー: {}", e);
         return ExitCode::FAILURE;
     }
 
