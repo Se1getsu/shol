@@ -146,6 +146,8 @@ pub enum Token {
     Dot,
     #[token(",")]
     Comma,
+    #[token("@debug")]
+    AtDebug,
     #[regex(r"#((\p{XID_Start}|_)\p{XID_Continue}*)?", // #a -> Some("a"), # -> None
         |lex| lex.slice().strip_prefix('#').filter(|s| !s.is_empty()).map(|s| s.to_string()))]
     Destination(Option<String>),

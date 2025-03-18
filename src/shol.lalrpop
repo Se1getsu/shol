@@ -16,7 +16,7 @@ pub Program: ast::ProgramAST = {
 };
 
 Statement: ast::StatementAST = {
-    <l:@L> "*" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
+    <l:@L> "*" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:MacroOrRuleSet*> => {
         ast::StatementAST::ColonyDecl {
             name,
             resources,
@@ -24,7 +24,7 @@ Statement: ast::StatementAST = {
             location: l..r,
         }
     },
-    <l:@L> "%" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
+    <l:@L> "%" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:MacroOrRuleSet*> => {
         ast::StatementAST::ColonyExtension {
             name,
             resources,
@@ -32,6 +32,17 @@ Statement: ast::StatementAST = {
             location: l..r,
             meta: None
         }
+    }
+}
+
+MacroOrRuleSet: ast::MacroOrRuleSetAST = {
+    <Macro> => ast::MacroOrRuleSetAST::Macro(<>),
+    <RuleSet> => ast::MacroOrRuleSetAST::RuleSet(<>),
+}
+
+Macro: ast::MacroAST = {
+    "@debug" <message:"identf"?> "nl"+ => {
+        ast::MacroAST::Debug { message: message.unwrap_or_default() }
     }
 }
 
@@ -318,6 +329,7 @@ extern {
         ":bool" => Token::AsBool,
         "." => Token::Dot,
         "," => Token::Comma,
+        "@debug" => Token::AtDebug,
         "#xx" => Token::Destination(<Option<String>>),
         "$xx" => Token::Capture(<String>),
         "nl" => Token::NewLine,

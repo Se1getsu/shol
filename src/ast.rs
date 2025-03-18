@@ -32,13 +32,13 @@ pub enum StatementAST {
     ColonyDecl {
         name: String,
         resources: Vec<ExprAST>,
-        rules: Vec<RuleSetAST>,
+        rules: Vec<MacroOrRuleSetAST>,
         location: Range<usize>,
     },
     ColonyExtension {
         name: String,
         resources: Vec<ExprAST>,
-        rules: Vec<RuleSetAST>,
+        rules: Vec<MacroOrRuleSetAST>,
         location: Range<usize>,
         meta: Option<semantics::ColonyExtensionASTMeta>,
     },
@@ -51,6 +51,41 @@ impl fmt::Debug for StatementAST {
                 write!(f, "{{\"ColonyDecl({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
             StatementAST::ColonyExtension { name, resources, rules, .. } =>
                 write!(f, "{{\"ColonyExtension({})\":{{\".resources\":{:?},\".rules\":{:?}}}}}", name, resources, rules),
+        }
+    }
+}
+
+// MARK: MacroOrRuleSetAST
+
+pub enum MacroOrRuleSetAST {
+    Macro(MacroAST),
+    RuleSet(RuleSetAST),
+}
+
+impl fmt::Debug for MacroOrRuleSetAST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MacroOrRuleSetAST::Macro(m) =>
+                write!(f, "{:?}", m),
+            MacroOrRuleSetAST::RuleSet(rule_set) =>
+                write!(f, "{:?}", rule_set),
+        }
+    }
+}
+
+// MARK: MacroAST
+
+pub enum MacroAST {
+    Debug {
+        message: String,
+    },
+}
+
+impl fmt::Debug for MacroAST {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            MacroAST::Debug { message } =>
+                write!(f, "{{\"Debug\":{{\".message\":{:?}}}}}", message),
         }
     }
 }
