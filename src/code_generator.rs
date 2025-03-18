@@ -57,6 +57,9 @@ impl Identf {
     /// fn (String) -> i32
     /// : 文字列の最初の文字を整数に変換するユーティリティ関数
     const FN_UTIL_ORD: &'static str = "ord";
+    /// fn (&str, Option<i32>, Option<i32>, Option<i32>) -> String
+    /// : 文字列のスライスを行うユーティリティ関数
+    const FN_SLICE: &'static str = "slice";
 
     /// Vec<EN_TYPE>: リソースのメンバ変数
     const ME_RESOURCE: &'static str = "resources";
@@ -65,6 +68,14 @@ impl Identf {
     const P_GIFTS: &'static str = "g";
     /// &Type::actual: ユーティリティ関数の引数
     const P_UTIL_ARG: &'static str = "a";
+    /// &str: ユーティリティ関数の引数
+    const P_SLICE_S: &'static str = "s";
+    /// Option<i32>: ユーティリティ関数の引数
+    const P_SLICE_START: &'static str = "start";
+    /// Option<i32>: ユーティリティ関数の引数
+    const P_SLICE_END: &'static str = "end";
+    /// Option<i32>: ユーティリティ関数の引数
+    const P_SLICE_STEP: &'static str = "step";
 
     /// [&str;n]: シンボルの名前対応表
     const V_SYMBOLS: &'static str = "SYMBOLS";
@@ -109,6 +120,10 @@ impl Identf {
     const V_LINE: &'static str = "l";
     /// &mut fmt::Formatter<'_>: fmt::Debug, fmt::Display の impl で使用
     const V_F_MUT: &'static str = "f";
+    /// i32: FN_SLICE のローカル変数
+    const V_SLICE_LEN: &'static str = "len";
+    /// String: FN_SLICE のローカル変数
+    const V_SLICE_R: &'static str = "r";
 
     /// usize: for ループで使用
     const V_I: &'static str = "i";
@@ -232,6 +247,39 @@ pub fn generate(
     writeln!(f, "fn {0}({1}:String)->i32{{\
         {1}.chars().next().unwrap_or(\'\\0\')as i32\
     }}", Identf::FN_UTIL_ORD, Identf::P_UTIL_ARG)?;
+    writeln!(f, "fn {slice}({s}: &str, {start}: Option<i32>, {end}: Option<i32>, {step}: Option<i32>) -> String {{
+  let {s}: Vec<char> = {s}.chars().collect();
+  let {len} = {s}.len() as i32;
+
+  let {step} = {step}.unwrap_or(1);
+  if {step} == 0 {{ return String::new(); }}
+
+  let {start} = match {start} {{
+    Some({start})=>if {start}<0{{ ({start}+{len}).max(0) }}else{{ {start}.clamp(0,{len}-1) }},
+    None=>if {step}>0{{ 0 }}else{{ {len}-1 }}
+  }};
+  let {end} = match {end} {{
+    Some({end})=>if {end}<0{{ ({end}+{len}).max(0) }}else{{ {end}.clamp(0,{len}) }},
+    None=>if {step}>0{{ {len} }}else{{ -1 }}
+  }};
+
+  let mut {r} = String::new();
+  if {step} > 0 {{
+    let mut {i} = {start};
+    while {i} < {end} {{
+      {r}.push({s}[{i} as usize]);
+      {i} += {step};
+    }}
+  }} else {{
+    let mut {i} = {start};
+    while {i} > {end} {{
+      {r}.push({s}[{i} as usize]);
+      {i} += {step};
+    }}
+  }}
+  {r}
+}}", slice=Identf::FN_SLICE, s=Identf::P_SLICE_S, start=Identf::P_SLICE_START, end=Identf::P_SLICE_END, step=Identf::P_SLICE_STEP,
+    len=Identf::V_SLICE_LEN, r=Identf::V_SLICE_R, i=Identf::V_I)?;
 
     // コロニートレイト定義
     writeln!(f, "trait {} {{", Identf::TR_COLONY)?;
