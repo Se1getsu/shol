@@ -1,3 +1,4 @@
+use std::ops::Range;
 use lalrpop_util::ParseError;
 use crate::shol;
 use crate::lexer;
@@ -130,11 +131,38 @@ fn convert_lexical_error(error: tokens::LexicalError, source: &str) -> CompileEr
                 .build()
         }
         tokens::LexicalErrorKind::InvalidStringEscape { message, position } => {
-            let location = error.location.start + position.start .. error.location.start + position.end;
+            let location = add_offset(position, error.location.start);
             CompileErrorBuilder::new(source, SyntaxError)
                 .header(&format!("{}", message), location.start)
                 .location_pointer(&location)
                 .build()
         }
+        tokens::LexicalErrorKind::UnclosedBlockComment {
+            block_comment_start,
+            last_terminated,
+        } => {
+            let location = add_offset(block_comment_start, error.location.start);
+            if let Some((terminated_start, terminated_end)) = last_terminated {
+                let s_loc = add_offset(terminated_start, error.location.start);
+                let e_loc = add_offset(terminated_end, error.location.start);
+                CompileErrorBuilder::new(source, SyntaxError)
+                    .header("ブロックコメントが閉じられていません。", location.start)
+                    .location_pointer(&location)
+                    .hint("最後に終端したネストしたブロックコメントはここで始まりました。")
+                    .location_line(&s_loc)
+                    .line("そして、ここで終端しました。")
+                    .location_line(&e_loc)
+                    .build()
+            } else {
+                CompileErrorBuilder::new(source, SyntaxError)
+                    .header("ブロックコメントが閉じられていません。", location.start)
+                    .location_pointer(&location)
+                    .build()
+            }
+        }
     }
+}
+
+fn add_offset(r: Range<usize>, offset: usize) -> Range<usize> {
+    r.start + offset .. r.end + offset
 }
