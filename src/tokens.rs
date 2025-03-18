@@ -1,6 +1,6 @@
 use std::num::{ ParseIntError, ParseFloatError };
 use std::ops::Range;
-use logos::Logos;
+use logos::{ Lexer, Logos };
 use std::fmt;
 
 // MARK: LexicalError
@@ -29,6 +29,13 @@ pub enum LexicalErrorKind {
         /// 文字列中のエスケープシーケンスの位置
         position: Range<usize>,
     },
+    /// ブロックコメントが閉じていない
+    UnclosedBlockComment {
+        /// ブロックコメントの開始位置
+        block_comment_start: Range<usize>,
+        /// 最後に終端したブロックコメントの開始位置と終了位置
+        last_terminated: Option<(Range<usize>, Range<usize>)>,
+    }
 }
 
 // MARK: LexicalError の生成ルール
@@ -63,6 +70,7 @@ impl From<ParseFloatError> for LexicalError {
 #[derive(Logos, Clone, Debug, PartialEq)]
 #[logos(error = LexicalError)]
 #[logos(skip r"[ \t]+")]
+#[logos(skip r"//.*")]
 #[logos(subpattern fractional = r"[0-9]+\.|[0-9]*\.[0-9]+")]
 #[logos(subpattern exponent = r"[eE][+-]?[0-9]+")]
 #[logos(subpattern double_literal = r"(?&fractional)(?&exponent)?|[0-9]+(?&exponent)")]
@@ -165,12 +173,61 @@ pub enum Token {
     // 改行
     #[regex(r"\n|\r\n|\r|\f")]
     NewLine,
+
+    // ブロックコメント
+    #[regex(r"/\*", parse_nested_comment)]
+    BlockCommentStart,
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
+}
+
+// MARK: ネストされたブロックコメントのパース
+
+fn parse_nested_comment<'a>(lex: &mut Lexer<'a, Token>) -> Result<(), LexicalError> {
+    // ブロックコメントの開始位置からのオフセット
+    let mut offset = 2;
+    // ブロックコメントの開始位置を保持
+    let mut nest_start_points = vec![0..2];
+    // 最後に終端したブロックコメントの開始位置と終了位置を保持
+    let mut last_terminated = None;
+    // 最初の `/*` 以降のプログラム
+    let remainder = lex.remainder();
+
+    while !nest_start_points.is_empty() {
+        let slice = &remainder[offset-2..];
+
+        // EOF
+        if slice.is_empty() {
+            return Err(LexicalError {
+                location: 0..0,
+                error_type: LexicalErrorKind::UnclosedBlockComment {
+                    block_comment_start: 0..2,
+                    last_terminated,
+                },
+            });
+        }
+        // 新たなブロックコメントの開始
+        else if slice.starts_with("/*") {
+            nest_start_points.push(offset..offset+2);
+            offset += 2;
+        }
+        // ブロックコメントの終了
+        else if slice.starts_with("*/") {
+            last_terminated = Some((nest_start_points.pop().unwrap(), offset..offset+2));
+            offset += 2;
+        }
+        // その他の文字
+        else {
+            offset += 1;
+        }
+    }
+
+    lex.bump(offset-2);
+    Ok(())
 }
 
 // MARK: 文字列リテラルのデコード

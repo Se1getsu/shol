@@ -74,7 +74,7 @@ impl<'src> CompileErrorBuilder<'src> {
         self
     }
 
-    /// エラー発生箇所を示すパートを追加
+    /// エラー発生箇所を強調した矢印で示すパートを追加
     pub fn location_pointer(mut self, location: &Range<usize>) -> Self {
         let (line, column) = self.position_to_line_column(location.start);
         let pointer = format_pointer(column, location.len(), '^');
@@ -85,6 +85,21 @@ impl<'src> CompileErrorBuilder<'src> {
             "{BLUE}{space} |\n\
             {line} | {RESET}{line_content}\n\
             {BLUE}{space} | {RESET}{RED}{pointer}{RESET}\n",
+        ));
+        self
+    }
+
+    /// エラー発生箇所を下線で示すパートを追加
+    pub fn location_line(mut self, location: &Range<usize>) -> Self {
+        let (line, column) = self.position_to_line_column(location.start);
+        let pointer = format_pointer(column, location.len(), '-');
+        let line_content = self.source.lines().nth(line - 1).unwrap_or("");
+        let line = line.to_string();
+        let space = " ".repeat(line.len());
+        self.error.0.push_str(&format!(
+            "{BLUE}{space} |\n\
+            {line} | {RESET}{line_content}\n\
+            {BLUE}{space} | {RESET}{BLUE}{pointer}{RESET}\n",
         ));
         self
     }
