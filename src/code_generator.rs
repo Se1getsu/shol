@@ -2,7 +2,7 @@ use core::panic;
 use std::collections::HashMap;
 use std::io::{ self, Write };
 use crate::ast::{ self, UnaryOpcode, Opcode };
-use crate::semantics::{ ConditionKind, UnaryOpcodeSignatureExt, OpcodeSignatureExt, Type, TypeHint };
+use crate::semantics::{ self, BuiltinColony, ConditionKind, UnaryOpcodeSignatureExt, OpcodeSignatureExt, Type, TypeHint };
 
 // MARK: ヘルパー関数など
 
@@ -165,8 +165,8 @@ pub fn generate(
         match stmt {
             ast::StatementAST::ColonyDecl { name, rules, .. } =>
                 generate_colony_decl(f, name, rules, &colony_indices)?,
-            ast::StatementAST::ColonyExtension { name, rules, .. } =>
-                generate_colony_extension(f, name, rules, &colony_indices)?,
+            ast::StatementAST::ColonyExtension { name, rules, meta, .. } =>
+                generate_colony_extension(f, name, rules, meta, &colony_indices)?,
         }
     }
 
@@ -278,6 +278,7 @@ fn generate_colony_extension(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::RuleSetAST>,
+    meta: &Option<semantics::ColonyExtensionASTMeta>,
     colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
@@ -299,8 +300,8 @@ fn generate_colony_extension(
     }
 
     // 組み込みコロニーのデフォルト規則
-    match name {
-        "print" => {
+    match meta.as_ref().unwrap().builtin_colony {
+        BuiltinColony::Print => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
         ResourceType::String(v) => println!("{{v}}"),
@@ -311,8 +312,8 @@ fn generate_colony_extension(
     }}
     self.resources = vec![];"#)?;
         },
-        "cin" => (),
-        "cout" => {
+        BuiltinColony::Cin => (),
+        BuiltinColony::Cout => {
             writeln!(f, r#"    for resource in &self.resources {{
       match resource {{
         ResourceType::String(v) => {{
@@ -335,7 +336,7 @@ fn generate_colony_extension(
     }}
     self.resources = vec![];"#)?;
         },
-        "exit" => {
+        BuiltinColony::Exit => {
             writeln!(f, r#"    let mut buf = Vec::new();
     for resource in &self.resources {{
       let mut no_match = true;
@@ -351,7 +352,6 @@ fn generate_colony_extension(
     }}
     self.resources = buf;"#)?;
         },
-        _ => panic!("組み込みコロニー {name} は存在しません。")
     }
 
     writeln!(f, "    Ok({})", Identf::V_GIFTS)?;
