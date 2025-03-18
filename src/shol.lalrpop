@@ -43,7 +43,10 @@ MacroOrRuleSet: ast::MacroOrRuleSetAST = {
 Macro: ast::MacroAST = {
     "@debug" <message:"identf"?> "nl"+ => {
         ast::MacroAST::Debug { message: message.unwrap_or_default() }
-    }
+    },
+    "@sleep" <duration:"int"> "nl"+ => {
+        ast::MacroAST::Sleep { duration: duration as usize }
+    },
 }
 
 Resource: ast::ExprAST = {
@@ -330,6 +333,7 @@ extern {
         "." => Token::Dot,
         "," => Token::Comma,
         "@debug" => Token::AtDebug,
+        "@sleep" => Token::AtSleep,
         "#xx" => Token::Destination(<Option<String>>),
         "$xx" => Token::Capture(<String>),
         "nl" => Token::NewLine,

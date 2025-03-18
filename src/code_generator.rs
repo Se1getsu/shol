@@ -137,7 +137,14 @@ pub fn generate(
     writeln!(f, ")]")?;
 
     // use 宣言
-    writeln!(f, "use std::{{collections::HashMap, io::{{self, BufRead, Write}}, process::ExitCode, sync::mpsc, thread}};")?;
+    writeln!(f, "use std::{{\
+        collections::HashMap,\
+        io::{{self, BufRead, Write}},\
+        process::ExitCode,\
+        sync::mpsc,\
+        thread,\
+        time::Duration,
+    }};")?;
     writeln!(f, "")?;
 
     // 型定義
@@ -381,6 +388,9 @@ fn generate_macro(
     match m {
         ast::MacroAST::Debug { message } => {
             writeln!(f, "    println!(\"{} {{:?}}\", self.{});", message, Identf::ME_RESOURCE)?;
+        }
+        ast::MacroAST::Sleep { duration } => {
+            writeln!(f, "    thread::sleep(Duration::from_millis({}));", duration)?;
         }
     }
     Ok(())

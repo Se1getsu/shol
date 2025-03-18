@@ -79,13 +79,18 @@ pub enum MacroAST {
     Debug {
         message: String,
     },
+    Sleep {
+        duration: usize,
+    }
 }
 
 impl fmt::Debug for MacroAST {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             MacroAST::Debug { message } =>
-                write!(f, "{{\"Debug\":{{\".message\":{:?}}}}}", message),
+                write!(f, "{{\"Debug({})\"}}", urlencode(message)),
+            MacroAST::Sleep { duration } =>
+                write!(f, "{{\"Sleep({})\"}}", duration),
         }
     }
 }
