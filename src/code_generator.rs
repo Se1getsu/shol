@@ -35,8 +35,10 @@ struct Identf;
 impl Identf {
     /// リソースの型の列挙型
     const EN_TYPE: &'static str = "ResourceType";
+
     /// コロニーのトレイト
     const TR_COLONY: &'static str = "Colony";
+
     /// fn (&mut self, P_GIFTS) -> ()
     /// : 送られてきたリソースを受信するメソッド
     const FN_RECEIVE: &'static str = "receive";
@@ -49,10 +51,21 @@ impl Identf {
     /// fn (&mut self)
     /// : コロニーのリソースをデバッグ出力するメソッド
     const FN_PRINT: &'static str = "debug_print";
+    /// fn (i32) -> String
+    /// : 整数を文字列に変換するユーティリティ関数
+    const FN_UTIL_CHR: &'static str = "chr";
+    /// fn (String) -> i32
+    /// : 文字列の最初の文字を整数に変換するユーティリティ関数
+    const FN_UTIL_ORD: &'static str = "ord";
+
     /// Vec<EN_TYPE>: リソースのメンバ変数
     const ME_RESOURCE: &'static str = "resources";
+
     /// Vec<EN_TYPE>: 送られてきたリソース
     const P_GIFTS: &'static str = "g";
+    /// &Type::actual: ユーティリティ関数の引数
+    const P_UTIL_ARG: &'static str = "a";
+
     /// [&str;n]: シンボルの名前対応表
     const V_SYMBOLS: &'static str = "SYMBOLS";
     /// HashMap<usize, Vec<ResourceType>>: 関数 FN_RULE が戻り値として返す,
@@ -96,8 +109,10 @@ impl Identf {
     const V_LINE: &'static str = "l";
     /// &mut fmt::Formatter<'_>: fmt::Debug, fmt::Display の impl で使用
     const V_F_MUT: &'static str = "f";
+
     /// usize: for ループで使用
     const V_I: &'static str = "i";
+
     /// コロニーの構造体
     fn st_colony(name: &str) -> String {
         format!("Colony_{}", name)
@@ -209,6 +224,14 @@ pub fn generate(
     writeln!(f, "    }}")?;
     writeln!(f, "  }}")?;
     writeln!(f, "}}")?;
+
+    // ユーティリティ関数
+    writeln!(f, "fn {0}({1}:i32)->String{{\
+        char::from_u32({1} as u32).map(String::from).unwrap_or_default()\
+    }}", Identf::FN_UTIL_CHR, Identf::P_UTIL_ARG)?;
+    writeln!(f, "fn {0}({1}:String)->i32{{\
+        {1}.chars().next().unwrap_or(\'\\0\')as i32\
+    }}", Identf::FN_UTIL_ORD, Identf::P_UTIL_ARG)?;
 
     // コロニートレイト定義
     writeln!(f, "trait {} {{", Identf::TR_COLONY)?;
@@ -919,11 +942,28 @@ fn generate_expr(
                 (operand_type, String::from_utf8(buffer).unwrap())
             };
 
-            match opcode {
-                UnaryOpcode::Neg => write!(f, "(-{})", operand_code)?,
-                UnaryOpcode::LogicalNot => write!(f, "(!{})", operand_code)?,
-                UnaryOpcode::BitNot => write!(f, "(!{})", operand_code)?,
-                UnaryOpcode::As(_) => write!(f, "{}", operand_code)?,
+            match (opcode, operand_type) {
+                (UnaryOpcode::Neg, _) => write!(f, "(-{})", operand_code)?,
+                (UnaryOpcode::LogicalNot, _) => write!(f, "(!{})", operand_code)?,
+                (UnaryOpcode::BitNot, _) => write!(f, "(!{})", operand_code)?,
+                (UnaryOpcode::As(_), _) => write!(f, "{}", operand_code)?,
+
+                (UnaryOpcode::ToInt, Type::String) =>
+                    write!(f, "({}.parse::<i32>().unwrap_or_default())", operand_code)?,
+                (UnaryOpcode::ToInt, _) => write!(f, "({} as i32)", operand_code)?,
+
+                (UnaryOpcode::ToDouble, Type::String) =>
+                    write!(f, "({}.parse::<f64>().unwrap_or_default())", operand_code)?,
+                (UnaryOpcode::ToDouble, _) => write!(f, "({} as f64)", operand_code)?,
+
+                (UnaryOpcode::ToString, _) => write!(f, "({}.to_string())", operand_code)?,
+                (UnaryOpcode::UtilCeil, _) => write!(f, "({}.ceil()as i32)", operand_code)?,
+                (UnaryOpcode::UtilFloor, _) => write!(f, "({}.floor()as i32)", operand_code)?,
+                (UnaryOpcode::UtilRound, _) => write!(f, "({}.round()as i32)", operand_code)?,
+                (UnaryOpcode::UtilAbs, _) => write!(f, "({}.abs())", operand_code)?,
+                (UnaryOpcode::UtilOrd, _) => write!(f, "ord({})", operand_code)?,
+                (UnaryOpcode::UtilChr, _) => write!(f, "chr({})", operand_code)?,
+                (UnaryOpcode::UtilLen, _) => write!(f, "({}.len()as i32)", operand_code)?,
             }
 
             match opcode.result_type(operand_type) {

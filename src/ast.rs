@@ -213,6 +213,16 @@ pub enum UnaryOpcode {
     LogicalNot,
     BitNot,
     As(semantics::Type),
+    ToInt,
+    ToDouble,
+    ToString,
+    UtilCeil,
+    UtilFloor,
+    UtilRound,
+    UtilAbs,
+    UtilOrd,
+    UtilChr,
+    UtilLen,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -149,20 +149,50 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
     <Factor>,
-    <e:Factor> <l:@L> ":int" <r:@R> => {
+    <e:Expr> <l:@L> ":int" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Int), e, l..r))
     },
-    <e:Factor> <l:@L> ":double" <r:@R> => {
+    <e:Expr> <l:@L> ":double" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Double), e, l..r))
     },
-    <e:Factor> <l:@L> ":str" <r:@R> => {
+    <e:Expr> <l:@L> ":str" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::String), e, l..r))
     },
-    <e:Factor> <l:@L> ":bool" <r:@R> => {
+    <e:Expr> <l:@L> ":bool" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Bool), e, l..r))
     },
-    <e:Factor> <l:@L> ":symbol" <r:@R> => {
+    <e:Expr> <l:@L> ":symbol" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Symbol), e, l..r))
+    },
+    <e:Expr> <l:@L> ".int" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::ToInt, e, l..r))
+    },
+    <e:Expr> <l:@L> ".double" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::ToDouble, e, l..r))
+    },
+    <e:Expr> <l:@L> ".str" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::ToString, e, l..r))
+    },
+    <e:Expr> <l:@L> ".ceil" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilCeil, e, l..r))
+    },
+    <e:Expr> <l:@L> ".floor" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilFloor, e, l..r))
+    },
+    <e:Expr> <l:@L> ".round" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilRound, e, l..r))
+    },
+    <e:Expr> <l:@L> ".abs" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilAbs, e, l..r))
+    },
+    <e:Expr> <l:@L> ".ord" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilOrd, e, l..r))
+    },
+    <e:Expr> <l:@L> ".chr" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilChr, e, l..r))
+    },
+    <e:Expr> <l:@L> ".len" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilLen, e, l..r))
     },
 
     #[precedence(level="2")] #[assoc(side="left")]
@@ -337,6 +367,16 @@ extern {
         ":str" => Token::AsStr,
         ":bool" => Token::AsBool,
         ":symbol" => Token::AsSymbol,
+        ".int" => Token::ToInt,
+        ".double" => Token::ToDouble,
+        ".str" => Token::ToString,
+        ".ceil" => Token::UtilCeil,
+        ".floor" => Token::UtilFloor,
+        ".round" => Token::UtilRound,
+        ".abs" => Token::UtilAbs,
+        ".ord" => Token::UtilOrd,
+        ".chr" => Token::UtilChr,
+        ".len" => Token::UtilLen,
         "." => Token::Dot,
         "," => Token::Comma,
         "@debug" => Token::AtDebug,

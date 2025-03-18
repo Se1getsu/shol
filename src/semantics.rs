@@ -142,6 +142,43 @@ impl UnaryOpcodeSignature {
             UnaryOpcode::As(t) => vec![
                 Self { operand: t, result: t },
             ],
+            UnaryOpcode::ToInt => vec![
+                Self { operand: Type::Double, result: Type::Int },
+                Self { operand: Type::String, result: Type::Int },
+                Self { operand: Type::Bool, result: Type::Int },
+            ],
+            UnaryOpcode::ToDouble => vec![
+                Self { operand: Type::Int, result: Type::Double },
+                Self { operand: Type::String, result: Type::Double },
+                Self { operand: Type::Bool, result: Type::Double },
+            ],
+            UnaryOpcode::ToString => vec![
+                Self { operand: Type::Int, result: Type::String },
+                Self { operand: Type::Double, result: Type::String },
+                Self { operand: Type::Bool, result: Type::String },
+            ],
+            UnaryOpcode::UtilCeil => vec![
+                Self { operand: Type::Double, result: Type::Int },
+            ],
+            UnaryOpcode::UtilFloor => vec![
+                Self { operand: Type::Double, result: Type::Int },
+            ],
+            UnaryOpcode::UtilRound => vec![
+                Self { operand: Type::Double, result: Type::Int },
+            ],
+            UnaryOpcode::UtilAbs => vec![
+                Self { operand: Type::Int, result: Type::Int },
+                Self { operand: Type::Double, result: Type::Double },
+            ],
+            UnaryOpcode::UtilOrd => vec![
+                Self { operand: Type::String, result: Type::Int },
+            ],
+            UnaryOpcode::UtilChr => vec![
+                Self { operand: Type::Int, result: Type::String },
+            ],
+            UnaryOpcode::UtilLen => vec![
+                Self { operand: Type::String, result: Type::Int },
+            ],
         }
     }
 }

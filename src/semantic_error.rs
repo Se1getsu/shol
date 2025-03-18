@@ -299,6 +299,16 @@ impl UnaryOpcode {
             | UnaryOpcode::BitNot
             => true,
             UnaryOpcode::As(_)
+            | UnaryOpcode::ToInt
+            | UnaryOpcode::ToDouble
+            | UnaryOpcode::ToString
+            | UnaryOpcode::UtilCeil
+            | UnaryOpcode::UtilFloor
+            | UnaryOpcode::UtilRound
+            | UnaryOpcode::UtilAbs
+            | UnaryOpcode::UtilOrd
+            | UnaryOpcode::UtilChr
+            | UnaryOpcode::UtilLen
             => false,
         }
     }
@@ -335,6 +345,16 @@ impl fmt::Display for UnaryOpcode {
             UnaryOpcode::LogicalNot => write!(f, "!"),
             UnaryOpcode::BitNot => write!(f, "~"),
             UnaryOpcode::As(t) => write!(f, ":{}", t),
+            UnaryOpcode::ToInt => write!(f, ".int"),
+            UnaryOpcode::ToDouble => write!(f, ".double"),
+            UnaryOpcode::ToString => write!(f, ".str"),
+            UnaryOpcode::UtilCeil => write!(f, ".ceil"),
+            UnaryOpcode::UtilFloor => write!(f, ".floor"),
+            UnaryOpcode::UtilRound => write!(f, ".round"),
+            UnaryOpcode::UtilAbs => write!(f, ".abs"),
+            UnaryOpcode::UtilOrd => write!(f, ".ord"),
+            UnaryOpcode::UtilChr => write!(f, ".chr"),
+            UnaryOpcode::UtilLen => write!(f, ".len"),
         }
     }
 }
