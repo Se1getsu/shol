@@ -143,6 +143,8 @@ pub enum Token {
     AsStr,
     #[token(":bool")]
     AsBool,
+    #[token(":symbol")]
+    AsSymbol,
 
     // 構文に使われる記号
     #[token(".")]
