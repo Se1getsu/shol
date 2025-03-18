@@ -305,24 +305,41 @@ fn analyze_statement(
 ) -> Result<(), SemanticError> {
     // 子ノードを探索
     match statement {
-        ast::StatementAST::ColonyDecl { rules, .. } => {
+        ast::StatementAST::ColonyDecl { resources, rules, .. } => {
+            analyze_resources(resources, symbol_values)?;
             for rule_set in rules.iter_mut() {
                 if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
                     analyze_rule_set(rule_set, colony_indices, symbol_values)?;
                 }
             }
         }
-        ast::StatementAST::ColonyExtension { rules, name, location, meta, .. } => {
+        ast::StatementAST::ColonyExtension { resources, rules, name, location, meta, .. } => {
             let builtin_colony = BuiltinColony::from_str(name);
             if let Some(builtin_colony) = builtin_colony {
                 *meta = Some(ColonyExtensionASTMeta { builtin_colony });
             } else {
                 return Err(SemanticError::invalid_builtin_colony(name, &location));
             }
+            analyze_resources(resources, symbol_values)?;
             for rule_set in rules.iter_mut() {
                 if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
                     analyze_rule_set(rule_set, colony_indices, symbol_values)?;
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn analyze_resources(
+    resources: &Vec<ast::ExprAST>,
+    symbol_values: &mut HashMap<String, usize>,
+) -> Result<(), SemanticError> {
+    // シンボルの登録
+    for expr in resources {
+        if let ast::ExprAST::Symbol(name) = expr {
+            if !symbol_values.contains_key(name) {
+                symbol_values.insert(name.clone(), symbol_values.len());
             }
         }
     }
