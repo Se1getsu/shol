@@ -78,6 +78,9 @@ pub enum Token {
     IntegerMin(i32),
     #[regex(r#""([^"\\\x00-\x1F]|\\.)*""#, |lex| decode_string(lex.slice()))]
     StringLiteral(String),
+    #[regex(r"'((\p{XID_Start}|_)\p{XID_Continue}*)?", // 'a -> "a", ' -> ""
+        |lex| lex.slice().strip_prefix('\'').unwrap().to_string())]
+    SymbolLiteral(String),
     #[token("true")]
     True,
     #[token("false")]
@@ -140,6 +143,8 @@ pub enum Token {
     AsStr,
     #[token(":bool")]
     AsBool,
+    #[token(":symbol")]
+    AsSymbol,
 
     // 構文に使われる記号
     #[token(".")]

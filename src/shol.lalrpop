@@ -161,6 +161,9 @@ Expr: Box<ast::ExprAST> = {
     <e:Factor> <l:@L> ":bool" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Bool), e, l..r))
     },
+    <e:Factor> <l:@L> ":symbol" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Symbol), e, l..r))
+    },
 
     #[precedence(level="2")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "*" <r:@R> <rhs:Expr> => {
@@ -260,6 +263,8 @@ Literal: ast::ExprAST = {
         ast::ExprAST::Str(<>),
     "str" =>
         ast::ExprAST::Str(<>),
+    "symbol" =>
+        ast::ExprAST::Symbol(<>),
     "true" =>
         ast::ExprAST::Bool(true),
     "false" =>
@@ -300,6 +305,7 @@ extern {
         "int" => Token::IntegerLiteral(<i32>),
         "intmin" => Token::IntegerMin(<i32>),
         "str" => Token::StringLiteral(<String>),
+        "symbol" => Token::SymbolLiteral(<String>),
         "true" => Token::True,
         "false" => Token::False,
         "(" => Token::LParen,
@@ -330,6 +336,7 @@ extern {
         ":double" => Token::AsDouble,
         ":str" => Token::AsStr,
         ":bool" => Token::AsBool,
+        ":symbol" => Token::AsSymbol,
         "." => Token::Dot,
         "," => Token::Comma,
         "@debug" => Token::AtDebug,
