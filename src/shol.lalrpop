@@ -16,7 +16,7 @@ pub Program: ast::ProgramAST = {
 };
 
 Statement: ast::StatementAST = {
-    <l:@L> "*" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
+    <l:@L> "*" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:MacroOrRuleSet*> => {
         ast::StatementAST::ColonyDecl {
             name,
             resources,
@@ -24,7 +24,7 @@ Statement: ast::StatementAST = {
             location: l..r,
         }
     },
-    <l:@L> "%" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:RuleSet*> => {
+    <l:@L> "%" <name:"identf"> <r:@R> "nl"+ <resources:Resource*> <prules:MacroOrRuleSet*> => {
         ast::StatementAST::ColonyExtension {
             name,
             resources,
@@ -33,6 +33,20 @@ Statement: ast::StatementAST = {
             meta: None
         }
     }
+}
+
+MacroOrRuleSet: ast::MacroOrRuleSetAST = {
+    <Macro> => ast::MacroOrRuleSetAST::Macro(<>),
+    <RuleSet> => ast::MacroOrRuleSetAST::RuleSet(<>),
+}
+
+Macro: ast::MacroAST = {
+    "@debug" <message:"identf"?> "nl"+ => {
+        ast::MacroAST::Debug { message: message.unwrap_or_default() }
+    },
+    "@sleep" <duration:"int"> "nl"+ => {
+        ast::MacroAST::Sleep { duration: duration as usize }
+    },
 }
 
 Resource: ast::ExprAST = {
@@ -318,6 +332,8 @@ extern {
         ":bool" => Token::AsBool,
         "." => Token::Dot,
         "," => Token::Comma,
+        "@debug" => Token::AtDebug,
+        "@sleep" => Token::AtSleep,
         "#xx" => Token::Destination(<Option<String>>),
         "$xx" => Token::Capture(<String>),
         "nl" => Token::NewLine,

@@ -299,7 +299,9 @@ fn analyze_statement(
     match statement {
         ast::StatementAST::ColonyDecl { rules, .. } => {
             for rule_set in rules.iter_mut() {
-                analyze_rule_set(rule_set, colony_indices)?;
+                if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
+                    analyze_rule_set(rule_set, colony_indices)?;
+                }
             }
         }
         ast::StatementAST::ColonyExtension { rules, name, location, meta, .. } => {
@@ -310,7 +312,9 @@ fn analyze_statement(
                 return Err(SemanticError::invalid_builtin_colony(name, &location));
             }
             for rule_set in rules.iter_mut() {
-                analyze_rule_set(rule_set, colony_indices)?;
+                if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
+                    analyze_rule_set(rule_set, colony_indices)?;
+                }
             }
         }
     }

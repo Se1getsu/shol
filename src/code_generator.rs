@@ -137,7 +137,14 @@ pub fn generate(
     writeln!(f, ")]")?;
 
     // use 宣言
-    writeln!(f, "use std::{{collections::HashMap, io::{{self, BufRead, Write}}, process::ExitCode, sync::mpsc, thread}};")?;
+    writeln!(f, "use std::{{\
+        collections::HashMap,\
+        io::{{self, BufRead, Write}},\
+        process::ExitCode,\
+        sync::mpsc,\
+        thread,\
+        time::Duration,
+    }};")?;
     writeln!(f, "")?;
 
     // 型定義
@@ -163,10 +170,12 @@ pub fn generate(
     for stmt in &program.statements {
         writeln!(f, "")?;
         match stmt {
-            ast::StatementAST::ColonyDecl { name, rules, .. } =>
-                generate_colony_decl(f, name, rules, &colony_indices)?,
-            ast::StatementAST::ColonyExtension { name, rules, meta, .. } =>
-                generate_colony_extension(f, name, rules, meta, &colony_indices)?,
+            ast::StatementAST::ColonyDecl { name, rules, .. } => {
+                generate_colony_decl(f, name, rules, &colony_indices)?;
+            },
+            ast::StatementAST::ColonyExtension { name, rules, meta, .. } => {
+                generate_colony_extension(f, name, rules, meta, &colony_indices)?;
+            },
         }
     }
 
@@ -212,11 +221,6 @@ pub fn generate(
     writeln!(f, "  loop {{")?;
     writeln!(f, "    for {} in 0..{}.len() {{", Identf::V_I, Identf::V_COLONIES)?;
 
-    // デバッグ用
-    writeln!(f, "      // for debugging")?;
-    writeln!(f, "      // println!(\"\"); for {0} in 0..{1}.len() {{ {1}[{0}].{2}(); }}",
-        Identf::V_I, Identf::V_COLONIES, Identf::FN_PRINT)?;
-
     // 標準入力を cin コロニーに送信
     if contains_cin {
         writeln!(f, "      if let Ok({}) = {}.try_recv() {{", Identf::V_LINE, Identf::V_RX)?;
@@ -247,7 +251,7 @@ pub fn generate(
 fn generate_colony_decl(
     f: &mut impl Write,
     name: &str,
-    rules: &Vec<ast::RuleSetAST>,
+    rules: &Vec<ast::MacroOrRuleSetAST>,
     colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
@@ -265,7 +269,14 @@ fn generate_colony_decl(
     writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
         Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
-        generate_rule_set(f, rule_set, colony_indices)?;
+        match rule_set {
+            ast::MacroOrRuleSetAST::RuleSet(rule_set) => {
+                generate_rule_set(f, rule_set, colony_indices)?;
+            }
+            ast::MacroOrRuleSetAST::Macro(m) => {
+                generate_macro(f, m)?;
+            }
+        }
     }
     writeln!(f, "    Ok({})", Identf::V_GIFTS)?;
     writeln!(f, "  }}")?;
@@ -277,7 +288,7 @@ fn generate_colony_decl(
 fn generate_colony_extension(
     f: &mut impl Write,
     name: &str,
-    rules: &Vec<ast::RuleSetAST>,
+    rules: &Vec<ast::MacroOrRuleSetAST>,
     meta: &Option<semantics::ColonyExtensionASTMeta>,
     colony_indices: &HashMap<String, usize>,
 ) -> io::Result<()> {
@@ -296,7 +307,14 @@ fn generate_colony_extension(
     writeln!(f, "    let mut {}: HashMap<usize, Vec<{}>> = HashMap::new();",
         Identf::V_GIFTS, Identf::EN_TYPE)?;
     for rule_set in rules {
-        generate_rule_set(f, rule_set, colony_indices)?;
+        match rule_set {
+            ast::MacroOrRuleSetAST::RuleSet(rule_set) => {
+                generate_rule_set(f, rule_set, colony_indices)?;
+            }
+            ast::MacroOrRuleSetAST::Macro(m) => {
+                generate_macro(f, m)?;
+            }
+        }
     }
 
     // 組み込みコロニーのデフォルト規則
@@ -358,6 +376,23 @@ fn generate_colony_extension(
     writeln!(f, "  }}")?; // fn FN_RULE
     writeln!(f, "}}")?; // impl TR_COLONY for st_colony
 
+    Ok(())
+}
+
+// MARK: コード生成 - マクロ
+
+fn generate_macro(
+    f: &mut impl Write,
+    m: &ast::MacroAST,
+) -> io::Result<()> {
+    match m {
+        ast::MacroAST::Debug { message } => {
+            writeln!(f, "    println!(\"{} {{:?}}\", self.{});", message, Identf::ME_RESOURCE)?;
+        }
+        ast::MacroAST::Sleep { duration } => {
+            writeln!(f, "    thread::sleep(Duration::from_millis({}));", duration)?;
+        }
+    }
     Ok(())
 }
 
