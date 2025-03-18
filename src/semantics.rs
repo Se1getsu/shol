@@ -9,6 +9,8 @@ use crate::semantic_error::SemanticError;
 pub struct ProgramASTMeta {
     /// コロニー名と V_COLONIES のインデックスの対応表
     pub colony_indices: HashMap<String, usize>,
+    /// シンボル名と実際の値との対応表
+    pub symbol_values: HashMap<String, usize>,
 }
 
 pub struct ColonyExtensionASTMeta {
@@ -71,6 +73,7 @@ pub enum Type {
     Double,
     String,
     Bool,
+    Symbol,
 }
 
 /// 条件式種別
@@ -106,6 +109,7 @@ impl Type {
         types.insert(Type::Double);
         types.insert(Type::String);
         types.insert(Type::Bool);
+        types.insert(Type::Symbol);
         types
     }
 }
@@ -178,6 +182,7 @@ impl OpcodeSignature {
                 Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
                 Self { lhs: Type::String, rhs: Type::String, result: Type::Bool },
                 Self { lhs: Type::Bool, rhs: Type::Bool, result: Type::Bool },
+                Self { lhs: Type::Symbol, rhs: Type::Symbol, result: Type::Bool },
             ],
             Opcode::Lt | Opcode::Le | Opcode::Gt | Opcode::Ge => vec![
                 Self { lhs: Type::Int, rhs: Type::Int, result: Type::Bool },
@@ -232,6 +237,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
         ast::ExprAST::Double(_) => Ok(Type::Double),
         ast::ExprAST::Str(_) => Ok(Type::String),
         ast::ExprAST::Bool(_) => Ok(Type::Bool),
+        ast::ExprAST::Symbol(_) => Ok(Type::Symbol),
         ast::ExprAST::Capture(name, _) => Ok(captures.get(name).unwrap().clone()),
         ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let operand_type = type_validate_expr(operand, captures)?;
@@ -281,26 +287,28 @@ pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
         }
         colony_indices
     };
-
+    
     // 子ノードを探索
+    let mut symbol_values = HashMap::new();
     for statement in program.statements.iter_mut() {
-        analyze_statement(statement, &colony_indices)?;
+        analyze_statement(statement, &colony_indices, &mut symbol_values)?;
     }
 
-    program.meta = Some(ProgramASTMeta { colony_indices });
+    program.meta = Some(ProgramASTMeta { colony_indices, symbol_values });
     Ok(())
 }
 
 fn analyze_statement(
     statement: &mut ast::StatementAST,
     colony_indices: &HashMap<String, usize>,
+    symbol_values: &mut HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
     // 子ノードを探索
     match statement {
         ast::StatementAST::ColonyDecl { rules, .. } => {
             for rule_set in rules.iter_mut() {
                 if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
-                    analyze_rule_set(rule_set, colony_indices)?;
+                    analyze_rule_set(rule_set, colony_indices, symbol_values)?;
                 }
             }
         }
@@ -313,7 +321,7 @@ fn analyze_statement(
             }
             for rule_set in rules.iter_mut() {
                 if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
-                    analyze_rule_set(rule_set, colony_indices)?;
+                    analyze_rule_set(rule_set, colony_indices, symbol_values)?;
                 }
             }
         }
@@ -325,9 +333,10 @@ fn analyze_statement(
 fn analyze_rule_set(
     rule_set: &mut ast::RuleSetAST,
     colony_indices: &HashMap<String, usize>,
+    symbol_values: &mut HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
     for rule in rule_set.rules.iter_mut() {
-        analyze_rule(rule, colony_indices)?;
+        analyze_rule(rule, colony_indices, symbol_values)?;
     }
     Ok(())
 }
@@ -336,6 +345,7 @@ fn analyze_rule_set(
 fn analyze_rule(
     rule: &mut ast::RuleAST,
     colony_indices: &HashMap<String, usize>,
+    symbol_values: &mut HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
     // メタデータ構造体を作成
     let mut meta = RuleASTMeta {
@@ -344,11 +354,11 @@ fn analyze_rule(
 
     // 条件式を解析
     for condition in rule.conditions.iter_mut() {
-        analyze_condition(condition, &mut meta)?;
+        analyze_condition(condition, &mut meta, symbol_values)?;
     }
 
     // 出力式を解析
-    analyze_output(&mut rule.outputs, &mut meta.captures, colony_indices)?;
+    analyze_output(&mut rule.outputs, &mut meta.captures, colony_indices, symbol_values)?;
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
@@ -358,9 +368,10 @@ fn analyze_rule(
 fn analyze_condition(
     condition: &mut ast::ConditionAST,
     rule_meta: &mut RuleASTMeta,
+    symbol_values: &mut HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
     // 条件式種別を判定
-    let (kind, is_typed_capture) = condition_kind(&condition.expr)?;
+    let (kind, is_typed_capture) = condition_kind(&condition.expr, symbol_values)?;
 
     // キャプチャを rule_meta に登録
     match &kind {
@@ -404,25 +415,39 @@ fn analyze_output(
     outputs: &mut Vec<ast::OutputAST>,
     captures: &mut HashMap<String, TypeHint>,
     colony_indices: &HashMap<String, usize>,
+    symbol_values: &mut HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
-    // 出力式に登場するキャプチャを調べる
-    fn collect_captures(expr: &ast::ExprAST, captures: &mut Vec<String>) {
+    // 出力式に登場するキャプチャとシンボルを調べる
+    fn collect_captures_and_symbols(
+        expr: &ast::ExprAST,
+        captures: &mut Vec<String>,
+        symbol_values: &mut HashMap<String, usize>,
+    ) {
         match expr {
             ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_) => (),
             ast::ExprAST::Capture(name, _) =>
                 if !captures.contains(name) { captures.push(name.clone()); },
             ast::ExprAST::UnaryOp(_, operand, _) => {
-                collect_captures(operand, captures);
+                collect_captures_and_symbols(operand, captures, symbol_values); // 再帰
             },
             ast::ExprAST::BinaryOp(lhs, _, rhs, _) => {
-                collect_captures(lhs, captures);
-                collect_captures(rhs, captures);
+                collect_captures_and_symbols(lhs, captures, symbol_values); // 再帰
+                collect_captures_and_symbols(rhs, captures, symbol_values); // 再帰
+            },
+            ast::ExprAST::Symbol(name) => {
+                if !symbol_values.contains_key(name) {
+                    symbol_values.insert(name.clone(), symbol_values.len());
+                }
             },
         }
     }
     for output in outputs.iter_mut() {
         let mut associated_captures = Vec::new();
-        collect_captures(&output.expr, &mut associated_captures);
+        collect_captures_and_symbols(
+            &output.expr,
+            &mut associated_captures,
+            symbol_values,
+        );
         if let Some(destination) = output.destination.as_ref() {
             if !colony_indices.contains_key(destination) {
                 return Err(SemanticError::undefined_colony(
@@ -473,8 +498,12 @@ impl From<KindWithRange> for ConditionKind {
     }
 }
 
-fn condition_kind(expr: &ast::ExprAST) -> Result<(KindWithRange, bool), SemanticError> {
-    let mut kind = _condition_kind(expr)?;
+/// 条件式の種別を取得 (シンボルの登録も行う)
+fn condition_kind(
+    expr: &ast::ExprAST,
+    symbol_values: &mut HashMap<String, usize>,
+) -> Result<(KindWithRange, bool), SemanticError> {
+    let mut kind = _condition_kind(expr, symbol_values)?;
     let mut is_typed_capture = false;
 
     // $:int のような場合は キャプチャ単体 に変換する
@@ -488,19 +517,28 @@ fn condition_kind(expr: &ast::ExprAST) -> Result<(KindWithRange, bool), Semantic
     Ok((kind, is_typed_capture))
 }
 
-/// 条件式の種別を取得
+/// 条件式の種別を取得 (シンボルの登録も行う)
 /// NOTE: $:int のような場合は キャプチャ条件式 と判定する
-fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> {
+fn _condition_kind(
+    expr: &ast::ExprAST,
+    symbol_values: &mut HashMap<String, usize>,
+) -> Result<KindWithRange, SemanticError> {
     match expr {
         ast::ExprAST::Number(_) => Ok(KindWithRange::Equal(Type::Int)),
         ast::ExprAST::Double(_) => Ok(KindWithRange::Equal(Type::Double)),
         ast::ExprAST::Str(_) => Ok(KindWithRange::Equal(Type::String)),
         ast::ExprAST::Bool(_) => Ok(KindWithRange::Equal(Type::Bool)),
+        ast::ExprAST::Symbol(name) => {
+            if !symbol_values.contains_key(name) {
+                symbol_values.insert(name.clone(), symbol_values.len());
+            }
+            Ok(KindWithRange::Equal(Type::Symbol))
+        },
         ast::ExprAST::Capture(name, cap_loc) =>
             Ok(KindWithRange::Capture(name.clone(), cap_loc.clone())),
         ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
             // オペランドの条件式種別を取得
-            let operand_kind = _condition_kind(operand)?;
+            let operand_kind = _condition_kind(operand, symbol_values)?;
 
             // Equal or キャプチャ条件式 を返す
             match &operand_kind {
@@ -525,8 +563,8 @@ fn _condition_kind(expr: &ast::ExprAST) -> Result<KindWithRange, SemanticError> 
         },
         ast::ExprAST::BinaryOp(lhs, opcode, rhs, location) => {
             // 左辺と右辺の条件式種別を取得
-            let lhs_kind = _condition_kind(lhs)?;
-            let rhs_kind = _condition_kind(rhs)?;
+            let lhs_kind = _condition_kind(lhs, symbol_values)?;
+            let rhs_kind = _condition_kind(rhs, symbol_values)?;
 
             // 左辺と右辺のどちらかがキャプチャ条件式の場合, キャプチャ条件式を返す
             match (&lhs_kind, &rhs_kind) {
@@ -792,6 +830,7 @@ fn analyze_output_ast(
         ast::ExprAST::Double(_) => Ok(AOAResult::Constant(Type::Double)),
         ast::ExprAST::Str(_) => Ok(AOAResult::Constant(Type::String)),
         ast::ExprAST::Bool(_) => Ok(AOAResult::Constant(Type::Bool)),
+        ast::ExprAST::Symbol(_) => Ok(AOAResult::Constant(Type::Symbol)),
 
         // capture_infers に登録されているインデックスを返す
         ast::ExprAST::Capture(name, cap_loc) => {
@@ -1108,7 +1147,7 @@ fn validate_inference(
             if let Err(ast) = type_validate_expr(&output.expr, captures_type) {
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
-                    ast::ExprAST::Capture(_, _) => unreachable!(),
+                    ast::ExprAST::Symbol(_)|ast::ExprAST::Capture(..) => unreachable!(),
                     // 単項演算子ではキャプチャ間の型制約関係は発生し得ない
                     ast::ExprAST::UnaryOp(..) => unreachable!(),
                     ast::ExprAST::BinaryOp(_, opcode, _, op_loc) =>

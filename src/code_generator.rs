@@ -14,6 +14,7 @@ impl Type {
             Type::Int => "i32".to_string(),
             Type::Double => "f64".to_string(),
             Type::Bool => "bool".to_string(),
+            Type::Symbol => "usize".to_string(),
         }
     }
 }
@@ -163,18 +164,18 @@ pub fn generate(
         Identf::FN_RULE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
 
-    // コロニー名と V_COLONIES のインデックス対応表
-    let colony_indices = &program.meta.as_ref().unwrap().colony_indices;
+    // ProgramAST のメタデータを取得
+    let program_meta = program.meta.as_ref().unwrap();
 
     // 各コロニーを定義
     for stmt in &program.statements {
         writeln!(f, "")?;
         match stmt {
             ast::StatementAST::ColonyDecl { name, rules, .. } => {
-                generate_colony_decl(f, name, rules, &colony_indices)?;
+                generate_colony_decl(f, name, rules, program_meta)?;
             },
             ast::StatementAST::ColonyExtension { name, rules, meta, .. } => {
-                generate_colony_extension(f, name, rules, meta, &colony_indices)?;
+                generate_colony_extension(f, name, rules, meta, program_meta)?;
             },
         }
     }
@@ -196,7 +197,7 @@ pub fn generate(
                     generate_resource(f, resource, &|_, name| {
                         // リソースは文法上リテラルしか許容してないので, このクロージャは呼ばれないはず
                         panic!("リソースにキャプチャが含まれます: ${}", name)
-                    })?;
+                    }, program_meta)?;
                     writeln!(f, ",")?;
                 }
                 writeln!(f, "    ],")?;
@@ -206,7 +207,7 @@ pub fn generate(
     }
 
     // 標準入力を受け付けるスレッドを作成
-    let contains_cin = colony_indices.contains_key(&"cin".to_string());
+    let contains_cin = program_meta.colony_indices.contains_key(&"cin".to_string());
     if contains_cin {
         writeln!(f, "  let ({}, {}) = mpsc::channel();", Identf::V_TX, Identf::V_RX)?;
         writeln!(f, "  thread::spawn(move || {{")?;
@@ -224,7 +225,8 @@ pub fn generate(
     // 標準入力を cin コロニーに送信
     if contains_cin {
         writeln!(f, "      if let Ok({}) = {}.try_recv() {{", Identf::V_LINE, Identf::V_RX)?;
-        writeln!(f, "        {}[{}].{}(vec![{}({})]);", Identf::V_COLONIES, colony_indices[&"cin".to_string()],
+        writeln!(f, "        {}[{}].{}(vec![{}({})]);",
+            Identf::V_COLONIES, program_meta.colony_indices[&"cin".to_string()],
             Identf::FN_RECEIVE, Identf::en_type(Type::String), Identf::V_LINE)?;
         writeln!(f, "      }}")?;
     }
@@ -252,7 +254,7 @@ fn generate_colony_decl(
     f: &mut impl Write,
     name: &str,
     rules: &Vec<ast::MacroOrRuleSetAST>,
-    colony_indices: &HashMap<String, usize>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -271,7 +273,7 @@ fn generate_colony_decl(
     for rule_set in rules {
         match rule_set {
             ast::MacroOrRuleSetAST::RuleSet(rule_set) => {
-                generate_rule_set(f, rule_set, colony_indices)?;
+                generate_rule_set(f, rule_set, program_meta)?;
             }
             ast::MacroOrRuleSetAST::Macro(m) => {
                 generate_macro(f, m)?;
@@ -290,7 +292,7 @@ fn generate_colony_extension(
     name: &str,
     rules: &Vec<ast::MacroOrRuleSetAST>,
     meta: &Option<semantics::ColonyExtensionASTMeta>,
-    colony_indices: &HashMap<String, usize>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     let colony_name = Identf::st_colony(name);
 
@@ -309,7 +311,7 @@ fn generate_colony_extension(
     for rule_set in rules {
         match rule_set {
             ast::MacroOrRuleSetAST::RuleSet(rule_set) => {
-                generate_rule_set(f, rule_set, colony_indices)?;
+                generate_rule_set(f, rule_set, program_meta)?;
             }
             ast::MacroOrRuleSetAST::Macro(m) => {
                 generate_macro(f, m)?;
@@ -326,6 +328,7 @@ fn generate_colony_extension(
         ResourceType::Bool(v) => println!("{{v}}"),
         ResourceType::Int(v) => println!("{{v}}"),
         ResourceType::Double(v) => println!("{{v}}"),
+        ResourceType::Symbol(_) => {{}}
       }}
     }}
     self.resources = vec![];"#)?;
@@ -337,19 +340,20 @@ fn generate_colony_extension(
         ResourceType::String(v) => {{
           print!("{{v}}");
           io::stdout().flush().unwrap();
-        }},
+        }}
         ResourceType::Bool(v) => {{
           print!("{{v}}");
           io::stdout().flush().unwrap();
-        }},
+        }}
         ResourceType::Int(v) => {{
           print!("{{v}}");
           io::stdout().flush().unwrap();
-        }},
+        }}
         ResourceType::Double(v) => {{
           print!("{{v}}");
           io::stdout().flush().unwrap();
-        }},
+        }}
+        ResourceType::Symbol(_) => {{}}
       }}
     }}
     self.resources = vec![];"#)?;
@@ -359,10 +363,11 @@ fn generate_colony_extension(
     for resource in &self.resources {{
       let mut no_match = true;
       match resource {{
-        ResourceType::String(v) => (),
-        ResourceType::Bool(v) => (),
+        ResourceType::String(v) => {{}}
+        ResourceType::Bool(v) => {{}}
         ResourceType::Int(v) => return Err(ExitCode::from(*v as u8)),
-        ResourceType::Double(v) => (),
+        ResourceType::Double(v) => {{}}
+        ResourceType::Symbol(_) => {{}}
       }}
       if no_match {{
         buf.push(resource.clone());
@@ -401,7 +406,7 @@ fn generate_macro(
 fn generate_rule_set(
     f: &mut impl Write,
     rule_set: &ast::RuleSetAST,
-    colony_indices: &HashMap<String, usize>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     // 単一条件規則が 1 つ以上存在するか
     let has_single_cond_rule = rule_set.rules
@@ -420,7 +425,7 @@ fn generate_rule_set(
         // 前処理: 複数条件規則を適用して, 上記の変数に結果を格納
         for rule in &rule_set.rules {
             if !(rule.conditions.len() >= 2) { continue; }
-            generate_multi_condition_rule(f, rule, colony_indices)?;
+            generate_multi_condition_rule(f, rule, program_meta)?;
         }
     }
 
@@ -454,7 +459,7 @@ fn generate_rule_set(
                     if !(typehint.possible_types.contains(&t)) { continue; }
                 }
                 // 規則を適用するコードを生成
-                generate_single_condition_rule(f, rule, t, colony_indices)?;
+                generate_single_condition_rule(f, rule, t, program_meta)?;
             }
             writeln!(f, "        }}")?;
         }
@@ -478,7 +483,7 @@ fn generate_rule_set(
 fn generate_multi_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
-    colony_indices: &HashMap<String, usize>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     let captures = &rule.meta.as_ref().unwrap().captures;
 
@@ -510,7 +515,7 @@ fn generate_multi_condition_rule(
         if condition.sqc_start != i {
             write!(f, "{0}[{1}]=={0}[{2}] && ", Identf::V_CAPT_PROG, i, i-1)?;
         }
-        generate_multi_condition_judge(f, condition, i, captures)?;
+        generate_multi_condition_judge(f, condition, i, captures, program_meta)?;
 
         writeln!(f, "            {} = {};", Identf::V_CAPT_IDX, next_idx)?;
         writeln!(f, "            {}[{}[{}]] = true;", Identf::V_USED, Identf::V_CAPT_PROG, i)?;
@@ -524,7 +529,7 @@ fn generate_multi_condition_rule(
                 &rule.outputs,
                 captures,
                 &capts_ref_code,
-                colony_indices,
+                program_meta,
             )?;
         }
         if condition.sqc_end != i {
@@ -566,6 +571,7 @@ fn generate_multi_condition_judge(
     condition: &ast::ConditionAST,
     cond_idx: usize,
     captures: &HashMap<String, TypeHint>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     writeln!(f, "match &self.{}[{}[{}]] {{",
             Identf::ME_RESOURCE, Identf::V_CAPT_PROG, cond_idx)?;
@@ -576,7 +582,7 @@ fn generate_multi_condition_judge(
                 let mut buffer = Vec::new();
                 let result_type = generate_expr(&mut buffer, &condition.expr, &|_, _| {
                     unreachable!()
-                })?;
+                }, program_meta)?;
                 (result_type, String::from_utf8(buffer).unwrap())
             };
             writeln!(f, "            {}({}) => {}.clone() == {},", Identf::en_type(result_type),
@@ -596,7 +602,7 @@ fn generate_multi_condition_judge(
                 generate_expr(f, &condition.expr, &|f, _| {
                     write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
                     Ok(*t)
-                })?;
+                }, program_meta)?;
                 writeln!(f, ",")?;
             }
         }
@@ -635,13 +641,13 @@ fn generate_multi_condition_outputs(
     outputs: &Vec<ast::OutputAST>,
     captures: &HashMap<String, TypeHint>,
     capts_ref_code: &HashMap<String, String>,
-    colony_indices: &HashMap<String, usize>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     let mut prev_cindex: Option<Option<usize>> = None;
     for output in outputs {
         // 出力先コロニーのインデックス
         let cindex: Option<usize> = output.destination.as_ref().map(|dest| {
-            colony_indices[dest]
+            program_meta.colony_indices[dest]
         });
         // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
         if prev_cindex != Some(cindex) {
@@ -654,7 +660,7 @@ fn generate_multi_condition_outputs(
             }
         }
         // 出力コード生成
-        generate_multi_condition_output(f, output, captures, &capts_ref_code)?;
+        generate_multi_condition_output(f, output, captures, &capts_ref_code, program_meta)?;
 
         prev_cindex = Some(cindex);
     }
@@ -667,16 +673,18 @@ fn generate_multi_condition_output(
     output: &ast::OutputAST,
     captures: &HashMap<String, TypeHint>,
     capts_ref_code: &HashMap<String, String>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     /// 出力リソース push 部分のコードを生成
     fn _generate_push_resource(
         f: &mut impl Write,
         output_expr: &ast::ExprAST,
-        generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>
+        generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>,
+        program_meta: &semantics::ProgramASTMeta,
     ) -> io::Result<()> {
         let (result_type, expr_str) = {
             let mut buffer = Vec::new();
-            let result_type = generate_expr(&mut buffer, output_expr, generate_capture)?;
+            let result_type = generate_expr(&mut buffer, output_expr, generate_capture, program_meta)?;
             (result_type, String::from_utf8(buffer).unwrap())
         };
         write!(f, "{}.push({}({}))", Identf::V_ENTRY_MUT, Identf::en_type(result_type), expr_str)?;
@@ -690,6 +698,7 @@ fn generate_multi_condition_output(
         types: &HashMap<String, Type>,
         output_expr: &ast::ExprAST,
         assoc_capts: &Vec<String>,
+        program_meta: &semantics::ProgramASTMeta,
     ) -> io::Result<()> {
         if assoc_captures.is_empty() {
             write!(f, "              (")?;
@@ -701,7 +710,7 @@ fn generate_multi_condition_output(
             _generate_push_resource(f, output_expr, &|f, name| {
                 write!(f, "{}.clone()", Identf::v_value_ref(name))?;
                 Ok(types[name])
-            })?;
+            }, program_meta)?;
             writeln!(f, ",")?;
 
         } else {
@@ -714,7 +723,7 @@ fn generate_multi_condition_output(
             for t in type_hint.possible_types.iter() {
                 let mut types = types.clone();
                 types.insert(name.clone(), *t);
-                backtrack_types(f, &assoc_captures, &types, output_expr, assoc_capts)?; // 再帰
+                backtrack_types(f, &assoc_captures, &types, output_expr, assoc_capts, program_meta)?; // 再帰
             }
         }
         Ok(())
@@ -728,7 +737,7 @@ fn generate_multi_condition_output(
         write!(f, "            ")?;
         _generate_push_resource(f, &output.expr, &|_, _| {
             unreachable!()
-        })?;
+        }, program_meta)?;
         writeln!(f, ";")?;
         return Ok(());
     }
@@ -745,7 +754,7 @@ fn generate_multi_condition_output(
         assoc_captures.insert(capt.clone(), captures[capt].clone());
     }
     let types = HashMap::new();
-    backtrack_types(f, &assoc_captures, &types, &output.expr, assoc_capts)?;
+    backtrack_types(f, &assoc_captures, &types, &output.expr, assoc_capts, program_meta)?;
 
     writeln!(f, "              _ => ()")?;
     writeln!(f, "            }}")?;
@@ -760,7 +769,7 @@ fn generate_single_condition_rule(
     f: &mut impl Write,
     rule: &ast::RuleAST,
     capture_type: Type,
-    colony_indices: &HashMap<String, usize>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     let cond = &rule.conditions[0];
     let cond_meta = cond.meta.as_ref().unwrap();
@@ -773,7 +782,7 @@ fn generate_single_condition_rule(
                 let mut buffer = Vec::new();
                 let result_type = generate_expr(&mut buffer, &cond.expr, &|_, _| {
                     unreachable!()
-                })?;
+                }, program_meta)?;
                 (result_type, String::from_utf8(buffer).unwrap())
             };
             if result_type != capture_type { return Ok(()); }
@@ -789,7 +798,7 @@ fn generate_single_condition_rule(
             generate_expr(f, &cond.expr, &|f, _| {
                 write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
                 Ok(capture_type)
-            })?;
+            }, program_meta)?;
             write!(f, " ")?;
         },
     }
@@ -800,7 +809,7 @@ fn generate_single_condition_rule(
     for output in &rule.outputs {
         // 出力先コロニーのインデックス
         let cindex = output.destination.as_ref().map(|dest| {
-            colony_indices[dest]
+            program_meta.colony_indices[dest]
         });
         // 出力先エントリの取り出し (直前に同じエントリを取り出したならスキップ)
         if let Some(index) = cindex {
@@ -816,7 +825,7 @@ fn generate_single_condition_rule(
         generate_resource(f, &output.expr, &|f, _| {
             write!(f, "{}.clone()", Identf::V_VALUE_REF)?;
             Ok(capture_type)
-        })?;
+        }, program_meta)?;
         writeln!(f, ");")?;
 
         if cindex.is_some() {
@@ -835,10 +844,11 @@ fn generate_resource(
     f: &mut impl Write,
     expr: &ast::ExprAST,
     generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<()> {
     let (result_type, expr_str) = {
         let mut buffer = Vec::new();
-        let result_type = generate_expr(&mut buffer, expr, generate_capture)?;
+        let result_type = generate_expr(&mut buffer, expr, generate_capture, program_meta)?;
         (result_type, String::from_utf8(buffer).unwrap())
     };
     write!(f, "{}({})", Identf::en_type(result_type), expr_str)?;
@@ -849,6 +859,7 @@ fn generate_expr(
     f: &mut impl Write,
     expr: &ast::ExprAST,
     generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>,
+    program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<Type> {
     let result_type: Type;
     match expr {
@@ -868,13 +879,18 @@ fn generate_expr(
             write!(f, "{}", b)?;
             result_type = Type::Bool;
         },
+        ast::ExprAST::Symbol(name) => {
+            let value = program_meta.symbol_values[name];
+            write!(f, "{}", value)?;
+            result_type = Type::Symbol;
+        },
         ast::ExprAST::Capture(name, _) => {
             return generate_capture(f, name);
         },
         ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let (operand_type, operand_code) = {
                 let mut buffer = Vec::new();
-                let operand_type = generate_expr(&mut buffer, operand, generate_capture)?;
+                let operand_type = generate_expr(&mut buffer, operand, generate_capture, program_meta)?;
                 (operand_type, String::from_utf8(buffer).unwrap())
             };
 
@@ -893,12 +909,12 @@ fn generate_expr(
         ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let (lhs_type, mut lhs_code) = {
                 let mut buffer = Vec::new();
-                let lhs_type = generate_expr(&mut buffer, lhs, generate_capture)?;
+                let lhs_type = generate_expr(&mut buffer, lhs, generate_capture, program_meta)?;
                 (lhs_type, String::from_utf8(buffer).unwrap())
             };
             let (rhs_type, mut rhs_code) = {
                 let mut buffer = Vec::new();
-                let rhs_type = generate_expr(&mut buffer, rhs, generate_capture)?;
+                let rhs_type = generate_expr(&mut buffer, rhs, generate_capture, program_meta)?;
                 (rhs_type, String::from_utf8(buffer).unwrap())
             };
 

@@ -371,6 +371,7 @@ impl fmt::Display for Type {
             Type::Double => "double",
             Type::String => "str",
             Type::Bool => "bool",
+            Type::Symbol => "symbol",
         })
     }
 }

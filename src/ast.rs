@@ -176,6 +176,7 @@ pub enum ExprAST {
     Double(f64),
     Str(String),
     Bool(bool),
+    Symbol(String),
     Capture(String, Range<usize>),
     UnaryOp(UnaryOpcode, Box<ExprAST>, Range<usize>),
     BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>, Range<usize>),
@@ -192,6 +193,8 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"Str({})\":{{\"_\":{{}}}}}}", urlencode(s)),
             ExprAST::Bool(b) =>
                 write!(f, "{{\"Bool({})\":{{\"_\":{{}}}}}}", b),
+            ExprAST::Symbol(s) =>
+                write!(f, "{{\"Symbol({})\":{{\"_\":{{}}}}}}", s),
             ExprAST::Capture(s, _) =>
                 write!(f, "{{\"Capture({})\":{{\"_\":{{}}}}}}", s),
             ExprAST::UnaryOp(op, operand, _) =>
