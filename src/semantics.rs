@@ -227,6 +227,9 @@ impl OpcodeSignature {
                 Self { lhs: Type::Double, rhs: Type::Int, result: Type::Bool },
                 Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
             ],
+            Opcode::Nth => vec![
+                Self { lhs: Type::String, rhs: Type::Int, result: Type::String },
+            ],
         }
     }
 }
