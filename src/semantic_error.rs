@@ -150,8 +150,8 @@ impl SemanticError {
         rhs_t: Type,
     ) -> Self {
         let message = format!(
-            "{} {} {} の演算はサポートされていません。",
-            lhs_t, opcode, rhs_t
+            "{} の演算はサポートされていません。",
+            opcode.format(lhs_t.to_string(), rhs_t.to_string()),
         );
         let location = location.clone();
         Self(Box::new(move |source: &str| {
@@ -255,8 +255,8 @@ impl SemanticError {
     ) -> Self {
         let message = format!(
             "出力式の型推論に失敗しました。\n\
-            {} {} {} -> {} は解決できません。",
-            t_lhs.format(), opcode, t_rhs.format(), t_result.format()
+            {} -> {} は解決できません。",
+            opcode.format(t_lhs.format(), t_rhs.format()), t_result.format()
         );
         let location = location.clone();
         Self(Box::new(move |source: &str| {
@@ -454,7 +454,17 @@ impl fmt::Display for Opcode {
             Opcode::Gt => ">",
             Opcode::Le => "<=",
             Opcode::Ge => ">=",
+            Opcode::Nth => "[index]",
         })
+    }
+}
+
+impl Opcode {
+    fn format(&self, lhs: String, rhs: String) -> String {
+        match self {
+            Opcode::Nth => format!("{}[{}]", lhs, rhs),
+            _ => format!("{} {} {}", lhs, self, rhs),
+        }
     }
 }
 
