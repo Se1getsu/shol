@@ -207,6 +207,9 @@ Expr: Box<ast::ExprAST> = {
     <e:Expr> <l:@L> ".len" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilLen, e, l..r))
     },
+    <e:Expr> <l:@L> "[" <index:TopLevelExpr> "]" <r:@R> => {
+        Box::new(ast::ExprAST::BinaryOp(e, ast::Opcode::Nth, index, l..r))
+    },
     <e:Expr> <l:@L> "[" <start:TopLevelExpr?> ":" <end:TopLevelExpr?> "]" <r:@R> => {
         Box::new(ast::ExprAST::Slice(e, start, end, None, l..r))
     },
