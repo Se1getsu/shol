@@ -162,6 +162,35 @@ impl SemanticError {
         }))
     }
 
+    /// スライスの型エラー
+    pub fn type_error_slice(
+        operand: SliceOperand,
+        operand_t: Type,
+        location: &Range<usize>,
+    ) -> Self {
+        let message = match operand {
+            SliceOperand::String => format!(
+                "{operand_t} 型のスライス演算はサポートされていません。"
+            ),
+            SliceOperand::Start => format!(
+                "スライス演算 [start:end:step] の start に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::End => format!(
+                "スライス演算 [start:end:step] の end に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::Step => format!(
+                "スライス演算 [start:end:step] の step に {operand_t} 型は指定できません。"
+            ),
+        };
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
     /// 条件式を評価可能なキャプチャ型が存在しない場合のエラー
     pub fn no_type_matches(
         location: &Range<usize>,
@@ -286,6 +315,17 @@ impl SemanticError {
                 .build()
         }))
     }
+}
+
+// MARK: SliceOperand
+
+/// スライス演算のオペランドの種類
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SliceOperand {
+    String,
+    Start,
+    End,
+    Step,
 }
 
 // MARK: UnaryOpcode::is_prefix

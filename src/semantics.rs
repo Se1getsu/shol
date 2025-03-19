@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
 use std::ops::Range;
 use crate::ast::{self, Opcode, ProgramAST, UnaryOpcode};
-use crate::semantic_error::SemanticError;
+use crate::semantic_error::{SemanticError, SliceOperand};
 
 // MARK: メタデータ
 
@@ -734,23 +734,31 @@ fn _condition_kind(
                 },
             } // match (&lhs_kind, &rhs_kind)
         },
-        ast::ExprAST::Slice(s, start, end, step, _) => {
-            let mut exprs = vec![(0, s)];
-            if let Some(start) = start { exprs.push((1, start)) }
-            if let Some(end) = end { exprs.push((2, end)) }
-            if let Some(step) = step { exprs.push((3, step)) }
+        ast::ExprAST::Slice(s, start, end, step, op_loc) => {
+            let mut exprs = vec![(SliceOperand::String, s)];
+            if let Some(start) = start { exprs.push((SliceOperand::Start, start)) }
+            if let Some(end) = end { exprs.push((SliceOperand::End, end)) }
+            if let Some(step) = step { exprs.push((SliceOperand::Step, step)) }
 
             let mut r_kind = KindWithRange::Equal(Type::String);
-            for (i, expr) in exprs {
+            for (operand, expr) in exprs {
                 let kind = _condition_kind(expr, symbol_values)?;
-                match (i, &kind, &r_kind) {
-                    (0, KindWithRange::Equal(Type::String), _) => {}
-                    (0, KindWithRange::Equal(t), _) => {
-                        panic!("{} 型のスライスはサポートしていません", t)
+                match (operand, &kind, &r_kind) {
+                    (SliceOperand::String, KindWithRange::Equal(Type::String), _) => {}
+                    (SliceOperand::String, KindWithRange::Equal(t), _) => {
+                        return Err(SemanticError::type_error_slice(
+                            operand,
+                            *t,
+                            op_loc,
+                        ));
                     }
                     (_, KindWithRange::Equal(Type::Int), _) => {}
                     (_, KindWithRange::Equal(t), _) => {
-                        panic!("{} 型は start/end/step に指定できません。", t)
+                        return Err(SemanticError::type_error_slice(
+                            operand,
+                            *t,
+                            op_loc,
+                        ));
                     },
                     (_, KindWithRange::Capture(name, cap_loc), KindWithRange::Equal(_)) |
                     (_, KindWithRange::CaptureCondition(name, cap_loc), KindWithRange::Equal(_)) => {
@@ -1067,7 +1075,7 @@ fn analyze_output_ast(
 
             Ok(AOAResult::Infer { index: i_self })
         },
-        ast::ExprAST::Slice(s, start, end, step, _) => {
+        ast::ExprAST::Slice(s, start, end, step, op_loc) => {
             let s = analyze_output_ast(s, infers, capture_infers, captures)?;
             let start = if let Some(start) = start {
                 Some(analyze_output_ast(start, infers, capture_infers, captures)?)
@@ -1091,7 +1099,11 @@ fn analyze_output_ast(
             match &s {
                 AOAResult::Constant(t_s) => {
                     if *t_s != Type::String {
-                        panic!("{} 型のスライスはサポートしていません", t_s);
+                        return Err(SemanticError::type_error_slice(
+                            SliceOperand::String,
+                            *t_s,
+                            op_loc,
+                        ));
                     }
                 }
                 AOAResult::Infer { index } => {
@@ -1102,11 +1114,19 @@ fn analyze_output_ast(
                     request_update(index, &string_t, infers, captures);
                 }
             }
-            for result in [start, end, step] {
+            for (result, operand) in [
+                (start, SliceOperand::Start),
+                (end, SliceOperand::End),
+                (step, SliceOperand::Step),
+            ] {
                 match &result {
                     Some(AOAResult::Constant(t)) => {
                         if *t != Type::Int {
-                            panic!("{} 型は start/end/step に指定できません", t);
+                            return Err(SemanticError::type_error_slice(
+                                operand,
+                                *t,
+                                op_loc,
+                            ));
                         }
                     }
                     Some(AOAResult::Infer { index }) => {
