@@ -259,4 +259,5 @@ pub enum Opcode {
     Gt,
     Le,
     Ge,
+    Nth,
 }
