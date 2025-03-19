@@ -152,6 +152,10 @@ pub enum Token {
     #[token("!")]
     LogicalNot,
 
+    // 文字列スライス
+    #[token(":")]
+    Colon,
+
     // 型ヒント演算子
     #[token(":int")]
     AsInt,

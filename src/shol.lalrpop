@@ -207,6 +207,12 @@ Expr: Box<ast::ExprAST> = {
     <e:Expr> <l:@L> ".len" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilLen, e, l..r))
     },
+    <e:Expr> <l:@L> "[" <start:TopLevelExpr?> ":" <end:TopLevelExpr?> "]" <r:@R> => {
+        Box::new(ast::ExprAST::Slice(e, start, end, None, l..r))
+    },
+    <e:Expr> <l:@L> "[" <start:TopLevelExpr?> ":" <end:TopLevelExpr?> ":" <step:TopLevelExpr?> "]" <r:@R> => {
+        Box::new(ast::ExprAST::Slice(e, start, end, step, l..r))
+    },
 
     #[precedence(level="4")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "*" <r:@R> <rhs:Expr> => {
@@ -367,6 +373,7 @@ extern {
         "&&" => Token::LogicalAnd,
         "||" => Token::LogicalOr,
         "!" => Token::LogicalNot,
+        ":" => Token::Colon,
         ":int" => Token::AsInt,
         ":double" => Token::AsDouble,
         ":str" => Token::AsStr,
