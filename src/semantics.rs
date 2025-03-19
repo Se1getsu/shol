@@ -1161,7 +1161,7 @@ fn infer_infers(
 
                     // 推論
                     for signature in UnaryOpcodeSignature::get_signatures(*opcode) {
-                        if t_operand.contains(&signature.operand) {
+                        if t_operand.contains(&signature.operand) && t_result.contains(&signature.result) {
                             new_t_result.insert(signature.result);
                             new_t_operand.insert(signature.operand);
                         }
