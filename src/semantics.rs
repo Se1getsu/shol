@@ -293,6 +293,23 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
                 Err(expr)
             }
         },
+        ast::ExprAST::Slice(s, start, end, step, _) => {
+            let s_type = type_validate_expr(s, captures)?;
+            if s_type != Type::String { return Err(expr) }
+            if let Some(start) = start {
+                let start_type = type_validate_expr(start, captures)?;
+                if start_type != Type::Int { return Err(expr) }
+            }
+            if let Some(end) = end {
+                let end_type = type_validate_expr(end, captures)?;
+                if end_type != Type::Int { return Err(expr) }
+            }
+            if let Some(step) = step {
+                let step_type = type_validate_expr(step, captures)?;
+                if step_type != Type::Int { return Err(expr) }
+            }
+            Ok(Type::String)
+        },
     }
 }
 
@@ -491,6 +508,18 @@ fn analyze_output(
             ast::ExprAST::Symbol(name) => {
                 if !symbol_values.contains_key(name) {
                     symbol_values.insert(name.clone(), symbol_values.len());
+                }
+            },
+            ast::ExprAST::Slice(s, start, end, step, _) => {
+                collect_captures_and_symbols(s, captures, symbol_values); // 再帰
+                if let Some(start) = start {
+                    collect_captures_and_symbols(start, captures, symbol_values); // 再帰
+                }
+                if let Some(end) = end {
+                    collect_captures_and_symbols(end, captures, symbol_values); // 再帰
+                }
+                if let Some(step) = step {
+                    collect_captures_and_symbols(step, captures, symbol_values); // 再帰
                 }
             },
         }
@@ -705,6 +734,55 @@ fn _condition_kind(
                 },
             } // match (&lhs_kind, &rhs_kind)
         },
+        ast::ExprAST::Slice(s, start, end, step, _) => {
+            let mut exprs = vec![(0, s)];
+            if let Some(start) = start { exprs.push((1, start)) }
+            if let Some(end) = end { exprs.push((2, end)) }
+            if let Some(step) = step { exprs.push((3, step)) }
+
+            let mut r_kind = KindWithRange::Equal(Type::String);
+            for (i, expr) in exprs {
+                let kind = _condition_kind(expr, symbol_values)?;
+                match (i, &kind, &r_kind) {
+                    (0, KindWithRange::Equal(Type::String), _) => {}
+                    (0, KindWithRange::Equal(t), _) => {
+                        panic!("{} 型のスライスはサポートしていません", t)
+                    }
+                    (_, KindWithRange::Equal(Type::Int), _) => {}
+                    (_, KindWithRange::Equal(t), _) => {
+                        panic!("{} 型は start/end/step に指定できません。", t)
+                    },
+                    (_, KindWithRange::Capture(name, cap_loc), KindWithRange::Equal(_)) |
+                    (_, KindWithRange::CaptureCondition(name, cap_loc), KindWithRange::Equal(_)) => {
+                        r_kind = KindWithRange::CaptureCondition(name.clone(), cap_loc.clone());
+                    }
+                    (_, KindWithRange::Capture(name, cap_loc),
+                        KindWithRange::Capture(name_r, cap_loc_r)) |
+                    (_, KindWithRange::CaptureCondition(name, cap_loc),
+                        KindWithRange::Capture(name_r, cap_loc_r)) => {
+                        if name_r != name {
+                            return Err(SemanticError::multiple_captures_in_condition(
+                                (name, name_r),
+                                (cap_loc, cap_loc_r),
+                            ));
+                        }
+                        r_kind = KindWithRange::CaptureCondition(name_r.clone(), cap_loc_r.clone());
+                    }
+                    (_, KindWithRange::Capture(name, cap_loc),
+                        KindWithRange::CaptureCondition(name_r, cap_loc_r)) |
+                    (_, KindWithRange::CaptureCondition(name, cap_loc),
+                        KindWithRange::CaptureCondition(name_r, cap_loc_r)) => {
+                        if name_r != name {
+                            return Err(SemanticError::multiple_captures_in_condition(
+                                (name, name_r),
+                                (cap_loc, cap_loc_r),
+                            ));
+                        }
+                    },
+                }
+            }
+            return Ok(r_kind)
+        },
     } // match expr
 }
 
@@ -790,7 +868,7 @@ impl InferredType {
     /// 親ノードを設定
     fn set_parent(&mut self, parent: &InfersIndex) {
         match self {
-            InferredType::Constant(_) | InferredType::Capture(_) => (),
+            InferredType::Constant(_) | InferredType::Capture(_) => {}
             InferredType::UnaryExpr { parent: p, .. } =>
                 *p = Some(*parent),
             InferredType::BinaryExpr { parent: p, .. } =>
@@ -801,7 +879,7 @@ impl InferredType {
     /// needs_update を設定
     fn set_needs_update(&mut self, needs_update: bool) {
         match self {
-            InferredType::Constant(_) | InferredType::Capture(_) => (),
+            InferredType::Constant(_) | InferredType::Capture(_) => {}
             InferredType::UnaryExpr { needs_update: n, .. } =>
                 *n = needs_update,
             InferredType::BinaryExpr { needs_update: n, .. } =>
@@ -845,7 +923,7 @@ fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) 
 /// infers 配列を作成する
 fn build_infers(
     outputs: &Vec<ast::OutputAST>,
-    captures: &HashMap<String, TypeHint>,
+    captures: &mut HashMap<String, TypeHint>,
 ) -> Result<Vec<InferredType>, SemanticError> {
     // InferredType を保存するベクタ
     let mut infers: Vec<InferredType> = captures.keys()
@@ -861,7 +939,7 @@ fn build_infers(
 
     // AST を探索して infers 配列を作成
     for output in outputs {
-        analyze_output_ast(&output.expr, &mut infers, &capture_infers)?;
+        analyze_output_ast(&output.expr, &mut infers, &capture_infers, captures)?;
     }
     Ok(infers)
 }
@@ -877,6 +955,7 @@ fn analyze_output_ast(
     expr: &ast::ExprAST,
     infers: &mut Vec<InferredType>,
     capture_infers: &HashMap<String, usize>,
+    captures: &mut HashMap<String, TypeHint>,
 ) -> Result<AOAResult, SemanticError> {
     match expr {
         // 定数式の型を返す
@@ -897,7 +976,7 @@ fn analyze_output_ast(
 
         // 自身を infers に追加し, そのインデックスを返す
         ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
-            let operand = analyze_output_ast(operand, infers, capture_infers)?;
+            let operand = analyze_output_ast(operand, infers, capture_infers, captures)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let AOAResult::Constant(t) = &operand {
@@ -937,8 +1016,8 @@ fn analyze_output_ast(
 
         // 自身を infers に追加し, そのインデックスを返す
         ast::ExprAST::BinaryOp(lhs, opcode, rhs, op_loc) => {
-            let lhs = analyze_output_ast(lhs, infers, capture_infers)?;
-            let rhs = analyze_output_ast(rhs, infers, capture_infers)?;
+            let lhs = analyze_output_ast(lhs, infers, capture_infers, captures)?;
+            let rhs = analyze_output_ast(rhs, infers, capture_infers, captures)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let (AOAResult::Constant(t_l), AOAResult::Constant(t_r)) = (&lhs, &rhs) {
@@ -988,6 +1067,62 @@ fn analyze_output_ast(
 
             Ok(AOAResult::Infer { index: i_self })
         },
+        ast::ExprAST::Slice(s, start, end, step, _) => {
+            let s = analyze_output_ast(s, infers, capture_infers, captures)?;
+            let start = if let Some(start) = start {
+                Some(analyze_output_ast(start, infers, capture_infers, captures)?)
+            } else {
+                None
+            };
+            let end = if let Some(end) = end {
+                Some(analyze_output_ast(end, infers, capture_infers, captures)?)
+            } else {
+                None
+            };
+            let step = if let Some(step) = step {
+                Some(analyze_output_ast(step, infers, capture_infers, captures)?)
+            } else {
+                None
+            };
+
+            // オペランドの型を更新
+            let string_t = HashSet::from([Type::String]);
+            let int_t = HashSet::from([Type::Int]);
+            match &s {
+                AOAResult::Constant(t_s) => {
+                    if *t_s != Type::String {
+                        panic!("{} 型のスライスはサポートしていません", t_s);
+                    }
+                }
+                AOAResult::Infer { index } => {
+                    let t_s = infers[index.0].get_types(captures);
+                    if !t_s.contains(&Type::String) {
+                        panic!("{:?} 型のスライスはサポートしていません", t_s);
+                    }
+                    request_update(index, &string_t, infers, captures);
+                }
+            }
+            for result in [start, end, step] {
+                match &result {
+                    Some(AOAResult::Constant(t)) => {
+                        if *t != Type::Int {
+                            panic!("{} 型は start/end/step に指定できません", t);
+                        }
+                    }
+                    Some(AOAResult::Infer { index }) => {
+                        let t_result = infers[index.0].get_types(captures);
+                        if !t_result.contains(&Type::Int) {
+                            panic!("{:?} 型は start/end/step に指定できません", t_result);
+                        }
+                        request_update(index, &int_t, infers, captures);
+                    }
+                    None => {}
+                }
+            }
+
+            // 結果が str 形で固定のため定数扱い
+            Ok(AOAResult::Constant(Type::String))
+        },
     }
 }
 
@@ -1004,8 +1139,8 @@ fn infer_infers(
             let mut updates: HashMap<InfersIndex, HashSet<Type>> = HashMap::new();
 
             match &infers[myself.0] {
-                InferredType::Constant(_) => (),
-                InferredType::Capture(_) => (),
+                InferredType::Constant(_) => {}
+                InferredType::Capture(_) => {}
                 InferredType::UnaryExpr {
                     opcode,
                     operand,
@@ -1202,8 +1337,8 @@ fn validate_inference(
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
                     ast::ExprAST::Symbol(_)|ast::ExprAST::Capture(..) => unreachable!(),
-                    // 単項演算子ではキャプチャ間の型制約関係は発生し得ない
-                    ast::ExprAST::UnaryOp(..) => unreachable!(),
+                    // 単項演算子, スライス式 ではキャプチャ間の型制約関係は発生し得ない
+                    ast::ExprAST::UnaryOp(..) | ast::ExprAST::Slice(..) => unreachable!(),
                     ast::ExprAST::BinaryOp(_, opcode, _, op_loc) =>
                         return Err(FailedCase {
                             captures_type: captures_type.clone(),

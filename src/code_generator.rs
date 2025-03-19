@@ -59,7 +59,7 @@ impl Identf {
     const FN_UTIL_ORD: &'static str = "ord";
     /// fn (&str, Option<i32>, Option<i32>, Option<i32>) -> String
     /// : 文字列のスライスを行うユーティリティ関数
-    const FN_SLICE: &'static str = "slice";
+    const FN_UTIL_SLICE: &'static str = "slice";
 
     /// Vec<EN_TYPE>: リソースのメンバ変数
     const ME_RESOURCE: &'static str = "resources";
@@ -120,9 +120,9 @@ impl Identf {
     const V_LINE: &'static str = "l";
     /// &mut fmt::Formatter<'_>: fmt::Debug, fmt::Display の impl で使用
     const V_F_MUT: &'static str = "f";
-    /// i32: FN_SLICE のローカル変数
+    /// i32: FN_UTIL_SLICE のローカル変数
     const V_SLICE_LEN: &'static str = "len";
-    /// String: FN_SLICE のローカル変数
+    /// String: FN_UTIL_SLICE のローカル変数
     const V_SLICE_R: &'static str = "r";
 
     /// usize: for ループで使用
@@ -278,7 +278,7 @@ pub fn generate(
     }}
   }}
   {r}
-}}", slice=Identf::FN_SLICE, s=Identf::P_SLICE_S, start=Identf::P_SLICE_START, end=Identf::P_SLICE_END, step=Identf::P_SLICE_STEP,
+}}", slice=Identf::FN_UTIL_SLICE, s=Identf::P_SLICE_S, start=Identf::P_SLICE_START, end=Identf::P_SLICE_END, step=Identf::P_SLICE_STEP,
     len=Identf::V_SLICE_LEN, r=Identf::V_SLICE_R, i=Identf::V_I)?;
 
     // コロニートレイト定義
@@ -957,32 +957,31 @@ fn generate_expr(
     generate_capture: &impl Fn(&mut dyn Write, &String) -> io::Result<Type>,
     program_meta: &semantics::ProgramASTMeta,
 ) -> io::Result<Type> {
-    let result_type: Type;
     match expr {
         ast::ExprAST::Number(i) => {
             write!(f, "({})", i)?; // 括弧を外すと負数で無効トークン `<-` が生成される危険あり
-            result_type = Type::Int;
-        },
+            Ok(Type::Int)
+        }
         ast::ExprAST::Double(d) => {
             write!(f, "({:?})", d)?; // 括弧を外すと負数で無効トークン `<-` が生成される危険あり
-            result_type = Type::Double;
-        },
+            Ok(Type::Double)
+        }
         ast::ExprAST::Str(s) => {
             write!(f, "{:?}.to_owned()", s)?;
-            result_type = Type::String;
-        },
+            Ok(Type::String)
+        }
         ast::ExprAST::Bool(b) => {
             write!(f, "{}", b)?;
-            result_type = Type::Bool;
-        },
+            Ok(Type::Bool)
+        }
         ast::ExprAST::Symbol(name) => {
             let value = program_meta.symbol_values[name];
             write!(f, "{}", value)?;
-            result_type = Type::Symbol;
-        },
+            Ok(Type::Symbol)
+        }
         ast::ExprAST::Capture(name, _) => {
-            return generate_capture(f, name);
-        },
+            generate_capture(f, name)
+        }
         ast::ExprAST::UnaryOp(opcode, operand, _) => {
             let (operand_type, operand_code) = {
                 let mut buffer = Vec::new();
@@ -1015,10 +1014,10 @@ fn generate_expr(
             }
 
             match opcode.result_type(operand_type) {
-                Some(t) => result_type = t,
+                Some(t) => Ok(t),
                 None => panic!("不正な型の演算です: {:?} {:?}", opcode, operand_type),
             }
-        },
+        }
         ast::ExprAST::BinaryOp(lhs, opcode, rhs, _) => {
             let (lhs_type, mut lhs_code) = {
                 let mut buffer = Vec::new();
@@ -1062,10 +1061,46 @@ fn generate_expr(
             write!(f, ")",)?;
 
             match opcode.result_type(lhs_type, rhs_type) {
-                Some(t) => result_type = t,
+                Some(t) => Ok(t),
                 None => panic!("不正な型の演算です: {:?} {:?} {:?}", lhs_type, opcode, rhs_type),
             }
         }
+        ast::ExprAST::Slice(s, start, end, step, _) => {
+            let s_code = {
+                let mut buffer = Vec::new();
+                generate_expr(&mut buffer, s, generate_capture, program_meta)?;
+                String::from_utf8(buffer).unwrap()
+            };
+            let start_code = if let Some(start) = start {
+                let mut buffer = Vec::new();
+                write!(buffer, "Some(")?;
+                generate_expr(&mut buffer, start, generate_capture, program_meta)?;
+                write!(buffer, ")")?;
+                String::from_utf8(buffer).unwrap()
+            } else {
+                "None".to_string()
+            };
+            let end_code = if let Some(end) = end {
+                let mut buffer = Vec::new();
+                write!(buffer, "Some(")?;
+                generate_expr(&mut buffer, end, generate_capture, program_meta)?;
+                write!(buffer, ")")?;
+                String::from_utf8(buffer).unwrap()
+            } else {
+                "None".to_string()
+            };
+            let step_code = if let Some(step) = step {
+                let mut buffer = Vec::new();
+                write!(buffer, "Some(")?;
+                generate_expr(&mut buffer, step, generate_capture, program_meta)?;
+                write!(buffer, ")")?;
+                String::from_utf8(buffer).unwrap()
+            } else {
+                "None".to_string()
+            };
+
+            write!(f, "{}(&{},{},{},{})", Identf::FN_UTIL_SLICE, s_code, start_code, end_code, step_code)?;
+            Ok(Type::String)
+        }
     }
-    Ok(result_type)
 }
