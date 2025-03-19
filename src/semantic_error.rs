@@ -267,6 +267,40 @@ impl SemanticError {
         }))
     }
 
+    /// 出力式の型推論に失敗した場合のエラー (スライス演算)
+    pub fn type_inference_failed_slice(
+        operand: SliceOperand,
+        operand_t: HashSet<Type>,
+        location: &Range<usize>,
+    ) -> Self {
+        let operand_t = operand_t.format();
+        let message = match operand {
+            SliceOperand::String => format!(
+                "出力式の型推論に失敗しました。\n\
+                {operand_t} 型のスライス演算はサポートされていません。"
+            ),
+            SliceOperand::Start => format!(
+                "出力式の型推論に失敗しました。\n\
+                スライス演算 [start:end:step] の start に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::End => format!(
+                "出力式の型推論に失敗しました。\n\
+                スライス演算 [start:end:step] の end に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::Step => format!(
+                "出力式の型推論に失敗しました。\n\
+                スライス演算 [start:end:step] の step に {operand_t} 型は指定できません。"
+            ),
+        };
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
     /// 出力式にキャプチャ間の型制約関係が含まれる場合のエラー
     pub fn type_constraint_detected(
         captures: &HashMap<String, TypeHint>,

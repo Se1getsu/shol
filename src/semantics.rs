@@ -1109,7 +1109,11 @@ fn analyze_output_ast(
                 AOAResult::Infer { index } => {
                     let t_s = infers[index.0].get_types(captures);
                     if !t_s.contains(&Type::String) {
-                        panic!("{:?} 型のスライスはサポートしていません", t_s);
+                        return Err(SemanticError::type_inference_failed_slice(
+                            SliceOperand::String,
+                            t_s,
+                            op_loc,
+                        ));
                     }
                     request_update(index, &string_t, infers, captures);
                 }
@@ -1132,7 +1136,11 @@ fn analyze_output_ast(
                     Some(AOAResult::Infer { index }) => {
                         let t_result = infers[index.0].get_types(captures);
                         if !t_result.contains(&Type::Int) {
-                            panic!("{:?} 型は start/end/step に指定できません", t_result);
+                            return Err(SemanticError::type_inference_failed_slice(
+                                operand,
+                                t_result,
+                                op_loc,
+                            ));
                         }
                         request_update(index, &int_t, infers, captures);
                     }
