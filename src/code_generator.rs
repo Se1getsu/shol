@@ -1070,6 +1070,7 @@ fn generate_expr(
                 (Opcode::Gt, _, _) => write!(f, "{}>{}", lhs_code, rhs_code)?,
                 (Opcode::Le, _, _) => write!(f, "{}<={}", lhs_code, rhs_code)?,
                 (Opcode::Ge, _, _) => write!(f, "{}>={}", lhs_code, rhs_code)?,
+                (Opcode::Nth, _, _) => write!(f, "nth({},{})", lhs_code, rhs_code)?,
             }
             write!(f, ")",)?;
 
