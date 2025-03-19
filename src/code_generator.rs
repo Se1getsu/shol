@@ -60,6 +60,9 @@ impl Identf {
     /// fn (&str, Option<i32>, Option<i32>, Option<i32>) -> String
     /// : 文字列のスライスを行うユーティリティ関数
     const FN_UTIL_SLICE: &'static str = "slice";
+    /// fn (String, i32) -> String
+    /// : 文字列の n 番目の文字を取得するユーティリティ関数
+    const FN_UTIL_NTH: &'static str = "nth";
 
     /// Vec<EN_TYPE>: リソースのメンバ変数
     const ME_RESOURCE: &'static str = "resources";
@@ -68,14 +71,18 @@ impl Identf {
     const P_GIFTS: &'static str = "g";
     /// &Type::actual: ユーティリティ関数の引数
     const P_UTIL_ARG: &'static str = "a";
-    /// &str: ユーティリティ関数の引数
+    /// &str: FN_UTIL_SLICE の引数
     const P_SLICE_S: &'static str = "s";
-    /// Option<i32>: ユーティリティ関数の引数
+    /// Option<i32>: FN_UTIL_SLICE の引数
     const P_SLICE_START: &'static str = "start";
-    /// Option<i32>: ユーティリティ関数の引数
+    /// Option<i32>: FN_UTIL_SLICE の引数
     const P_SLICE_END: &'static str = "end";
-    /// Option<i32>: ユーティリティ関数の引数
+    /// Option<i32>: FN_UTIL_SLICE の引数
     const P_SLICE_STEP: &'static str = "step";
+    /// String: FN_UTIL_NTH の引数
+    const P_NTH_S: &'static str = "s";
+    /// i32: FN_UTIL_NTH の引数
+    const P_NTH_N: &'static str = "n";
 
     /// [&str;n]: シンボルの名前対応表
     const V_SYMBOLS: &'static str = "SYMBOLS";
@@ -244,10 +251,16 @@ pub fn generate(
     writeln!(f, "fn {0}({1}:i32)->String{{\
         char::from_u32({1} as u32).map(String::from).unwrap_or_default()\
     }}", Identf::FN_UTIL_CHR, Identf::P_UTIL_ARG)?;
+
     writeln!(f, "fn {0}({1}:String)->i32{{\
         {1}.chars().next().unwrap_or(\'\\0\')as i32\
     }}", Identf::FN_UTIL_ORD, Identf::P_UTIL_ARG)?;
-    writeln!(f, "fn {slice}({s}: &str, {start}: Option<i32>, {end}: Option<i32>, {step}: Option<i32>) -> String {{
+
+    writeln!(f, "fn {nth}({s}:String,{n}:i32)->String{{\
+        {s}.chars().nth({n} as usize).map_or_else(String::new,String::from)\
+    }}", nth=Identf::FN_UTIL_NTH, s=Identf::P_NTH_S, n=Identf::P_NTH_N)?;
+
+    writeln!(f, "fn {slice}({s}:&str,{start}:Option<i32>,{end}:Option<i32>,{step}:Option<i32>)->String{{
   let {s}: Vec<char> = {s}.chars().collect();
   let {len} = {s}.len() as i32;
 
