@@ -23,7 +23,7 @@ struct Config {
     /// 中間生成ファイル名
     rs_file: OutputFile,
     /// 実行ファイル名
-    exe_file: String,
+    exe_file: Option<String>,
     /// ログ出力の有効化
     log_enabled: bool,
 }
@@ -121,9 +121,11 @@ fn main() -> ExitCode {
     }
 
     // コンパイル
-    log!(logger, "\n[*] Compiling...");
-    if let Err(e) = compile_rs_file(&config.rs_file.path(), &config.exe_file) {
-        return e;
+    if let Some(exe_file) = &config.exe_file {
+        log!(logger, "\n[*] Compiling...");
+        if let Err(e) = compile_rs_file(&config.rs_file.path(), exe_file) {
+            return e;
+        }
     }
 
     log!(logger, "[*] Completed.");
@@ -161,6 +163,7 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
     // コマンドラインオプションの設定
     let mut opts = Options::new();
     opts.optflag("h", "help", "このヘルプメッセージを表示します");
+    opts.optflag("", "rs", "Rust プログラムにトランスパイルします");
     opts.optflag("S", "save-temps", "中間生成ファイルを保持します");
     opts.optflag("", "log", "コンパイル過程のログを出力します");
 
@@ -185,11 +188,18 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
     }
 
     let src_file = matches.free[0].clone();
+    let rust_mode = matches.opt_present("rs");
     let save_temps = matches.opt_present("save-temps");
     let log_enabled = matches.opt_present("log");
 
     // 出力ファイル名の設定
-    let rs_file = if save_temps {
+    let shi_file = if save_temps {
+        Some(format!("{}.shi", src_file.trim_end_matches(".shol")))
+    } else {
+        None
+    };
+
+    let rs_file = if save_temps || rust_mode {
         OutputFile::Out(format!("{}.rs", src_file.trim_end_matches(".shol")))
     } else {
         let temp = tempfile::Builder::new()
@@ -199,16 +209,14 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
         OutputFile::Tmp(temp)
     };
 
-    let shi_file = if save_temps {
-        Some(format!("{}.shi", src_file.trim_end_matches(".shol")))
-    } else {
+    let exe_file = if rust_mode {
         None
-    };
-
-    let exe_file = if cfg!(target_os = "windows") {
-        format!("{}.exe", src_file.trim_end_matches(".shol"))
     } else {
-        src_file.trim_end_matches(".shol").to_string()
+        if cfg!(target_os = "windows") {
+            Some(format!("{}.exe", src_file.trim_end_matches(".shol")))
+        } else {
+            Some(src_file.trim_end_matches(".shol").to_string())
+        }
     };
 
     Ok(Config {
