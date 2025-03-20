@@ -163,6 +163,7 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
     // コマンドラインオプションの設定
     let mut opts = Options::new();
     opts.optflag("h", "help", "このヘルプメッセージを表示します");
+    opts.optopt("o", "", "出力ファイル名を指定します", "FILENAME");
     opts.optflag("", "rs", "Rust プログラムにトランスパイルします");
     opts.optflag("S", "save-temps", "中間生成ファイルを保持します");
     opts.optflag("", "log", "コンパイル過程のログを出力します");
@@ -191,6 +192,7 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
     let rust_mode = matches.opt_present("rs");
     let save_temps = matches.opt_present("save-temps");
     let log_enabled = matches.opt_present("log");
+    let output_file = matches.opt_str("o");
 
     // 出力ファイル名の設定
     let shi_file = if save_temps {
@@ -199,25 +201,34 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
         None
     };
 
-    let rs_file = if save_temps || rust_mode {
-        OutputFile::Out(format!("{}.rs", src_file.trim_end_matches(".shol")))
-    } else {
-        let temp = tempfile::Builder::new()
-            .suffix(".rs")
-            .tempfile()
-            .expect("一時ファイルの作成に失敗しました");
-        OutputFile::Tmp(temp)
-    };
-
-    let exe_file = if rust_mode {
-        None
-    } else {
-        if cfg!(target_os = "windows") {
-            Some(format!("{}.exe", src_file.trim_end_matches(".shol")))
+    let (rs_file, exe_file) =
+        if rust_mode {
+            let rs_path = match output_file {
+                Some(path) => path,
+                None => format!("{}.rs", src_file.trim_end_matches(".shol")),
+            };
+            (OutputFile::Out(rs_path), None)
         } else {
-            Some(src_file.trim_end_matches(".shol").to_string())
-        }
-    };
+            let rs_file = if save_temps {
+                OutputFile::Out(format!("{}.rs", src_file.trim_end_matches(".shol")))
+            } else {
+                let temp = tempfile::Builder::new()
+                    .suffix(".rs")
+                    .tempfile()
+                    .expect("一時ファイルの作成に失敗しました");
+                OutputFile::Tmp(temp)
+            };
+
+            let exe_path = match output_file {
+                Some(path) => path,
+                None => if cfg!(target_os = "windows") {
+                    format!("{}.exe", src_file.trim_end_matches(".shol"))
+                } else {
+                    src_file.trim_end_matches(".shol").to_string()
+                },
+            };
+            (rs_file, Some(exe_path))
+        };
 
     Ok(Config {
         src_file,
