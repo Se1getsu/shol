@@ -1,7 +1,14 @@
+%cout
+"最大数を入力: "
+
+%cin
+. $ #nGen 1, $.int
+
 *nGen
-1
-. $ < 100 # $ + 1
-| $ #fizzBuzz $
+. $n, $max # $n+1, $max, $n<$max
+| $n, $max #fizzBuzz $n
+. false #exit 0
+| true #
 
 *fizzBuzz
 . $ % 3 = 0 # Fizz
@@ -10,3 +17,4 @@
 . $ #print $
 
 %print
+%exit
