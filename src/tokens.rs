@@ -157,23 +157,23 @@ pub enum Token {
     Colon,
 
     // 型ヒント演算子
-    #[token(":int")]
+    #[regex(r":i(nt)?")]
     AsInt,
-    #[token(":double")]
+    #[regex(r":d(ouble)?")]
     AsDouble,
-    #[token(":str")]
+    #[regex(r":s(tr)?")]
     AsStr,
-    #[token(":bool")]
+    #[regex(r":b(ool)?")]
     AsBool,
-    #[token(":symbol")]
+    #[regex(r":sym(bol)?")]
     AsSymbol,
 
     // 型変換
-    #[token(".int")]
+    #[regex(r"\.i(nt)?")]
     ToInt,
-    #[token(".double")]
+    #[regex(r"\.d(ouble)?")]
     ToDouble,
-    #[token(".str")]
+    #[regex(r"\.s(tr)?")]
     ToString,
 
     // ユーティリティ演算子
