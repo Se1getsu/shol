@@ -431,8 +431,18 @@ fn analyze_rule(
         analyze_condition(condition, &mut meta, symbol_values)?;
     }
 
+    // 出力先コロニーの存在を検証
+    if let Some(destination) = rule.destination.as_ref() {
+        if !colony_indices.contains_key(destination) {
+            return Err(SemanticError::undefined_colony(
+                destination,
+                &rule.destination_location,
+            ));
+        }
+    }
+
     // 出力式を解析
-    analyze_output(&mut rule.outputs, &mut meta.captures, colony_indices, symbol_values)?;
+    analyze_output(&mut rule.outputs, &mut meta.captures, symbol_values)?;
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
@@ -488,7 +498,6 @@ fn analyze_condition(
 fn analyze_output(
     outputs: &mut Vec<ast::OutputAST>,
     captures: &mut HashMap<String, TypeHint>,
-    colony_indices: &HashMap<String, usize>,
     symbol_values: &mut HashMap<String, usize>,
 ) -> Result<(), SemanticError> {
     // 出力式に登場するキャプチャとシンボルを調べる
@@ -534,14 +543,6 @@ fn analyze_output(
             &mut associated_captures,
             symbol_values,
         );
-        if let Some(destination) = output.destination.as_ref() {
-            if !colony_indices.contains_key(destination) {
-                return Err(SemanticError::undefined_colony(
-                    destination,
-                    &output.destination_location,
-                ));
-            }
-        }
         output.meta = Some(OutputASTMeta { associated_captures });
     }
 
