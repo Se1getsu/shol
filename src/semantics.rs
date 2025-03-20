@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
 use std::ops::Range;
 use crate::ast::{self, Opcode, ProgramAST, UnaryOpcode};
+use crate::{logger::Logger, log};
 use crate::semantic_error::{SemanticError, SliceOperand};
 
 // MARK: メタデータ
@@ -319,7 +320,7 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
 // MARK: AST 探索関数
 
 /// AST を意味解析してメタデータを付与する
-pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
+pub fn analyze_program(program: &mut ProgramAST, logger: &Logger) -> Result<(), SemanticError> {
     // ProgramAST のメタデータを作成
     let colony_indices: HashMap<String, usize> = {
         let mut colony_indices = HashMap::new();
@@ -348,7 +349,7 @@ pub fn analyze_program(program: &mut ProgramAST) -> Result<(), SemanticError> {
     // 子ノードを探索
     let mut symbol_values = HashMap::new();
     for statement in program.statements.iter_mut() {
-        analyze_statement(statement, &colony_indices, &mut symbol_values)?;
+        analyze_statement(statement, &colony_indices, &mut symbol_values, logger)?;
     }
 
     program.meta = Some(ProgramASTMeta { colony_indices, symbol_values });
@@ -359,6 +360,7 @@ fn analyze_statement(
     statement: &mut ast::StatementAST,
     colony_indices: &HashMap<String, usize>,
     symbol_values: &mut HashMap<String, usize>,
+    logger: &Logger,
 ) -> Result<(), SemanticError> {
     // 子ノードを探索
     match statement {
@@ -366,7 +368,7 @@ fn analyze_statement(
             analyze_resources(resources, symbol_values)?;
             for rule_set in rules.iter_mut() {
                 if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
-                    analyze_rule_set(rule_set, colony_indices, symbol_values)?;
+                    analyze_rule_set(rule_set, colony_indices, symbol_values, logger)?;
                 }
             }
         }
@@ -380,7 +382,7 @@ fn analyze_statement(
             analyze_resources(resources, symbol_values)?;
             for rule_set in rules.iter_mut() {
                 if let ast::MacroOrRuleSetAST::RuleSet(rule_set) = rule_set {
-                    analyze_rule_set(rule_set, colony_indices, symbol_values)?;
+                    analyze_rule_set(rule_set, colony_indices, symbol_values, logger)?;
                 }
             }
         }
@@ -408,9 +410,10 @@ fn analyze_rule_set(
     rule_set: &mut ast::RuleSetAST,
     colony_indices: &HashMap<String, usize>,
     symbol_values: &mut HashMap<String, usize>,
+    logger: &Logger,
 ) -> Result<(), SemanticError> {
     for rule in rule_set.rules.iter_mut() {
-        analyze_rule(rule, colony_indices, symbol_values)?;
+        analyze_rule(rule, colony_indices, symbol_values, logger)?;
     }
     Ok(())
 }
@@ -420,6 +423,7 @@ fn analyze_rule(
     rule: &mut ast::RuleAST,
     colony_indices: &HashMap<String, usize>,
     symbol_values: &mut HashMap<String, usize>,
+    logger: &Logger,
 ) -> Result<(), SemanticError> {
     // メタデータ構造体を作成
     let mut meta = RuleASTMeta {
@@ -442,7 +446,7 @@ fn analyze_rule(
     }
 
     // 出力式を解析
-    analyze_output(&mut rule.outputs, &mut meta.captures, symbol_values)?;
+    analyze_output(&mut rule.outputs, &mut meta.captures, symbol_values, logger)?;
 
     // AST にメタデータを追加
     rule.meta = Some(meta);
@@ -499,6 +503,7 @@ fn analyze_output(
     outputs: &mut Vec<ast::OutputAST>,
     captures: &mut HashMap<String, TypeHint>,
     symbol_values: &mut HashMap<String, usize>,
+    logger: &Logger,
 ) -> Result<(), SemanticError> {
     // 出力式に登場するキャプチャとシンボルを調べる
     fn collect_captures_and_symbols(
@@ -548,11 +553,11 @@ fn analyze_output(
 
     // 型推論に必要な InferredType を保存するベクタ
     let mut infers = build_infers(outputs, captures)?;
-    println!("infers 出力式推論前: {}", fmt_infers(&infers, &captures));
+    log!(logger, "infers 出力式推論前: {}", fmt_infers(&infers, &captures));
 
     // 型推論
     infer_infers(&mut infers, captures)?;
-    println!("infers 推論完了: {}", fmt_infers(&infers, &captures));
+    log!(logger, "infers 推論完了: {}", fmt_infers(&infers, &captures));
 
     // 型検証
     validate_inference(captures, outputs)?;
