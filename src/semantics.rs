@@ -1167,7 +1167,7 @@ fn infer_infers(
         updated = false;
         for myself in (0..infers.len()).map(|i| InfersIndex(i)) {
             // ノードの型を更新する際は, ここに insert する
-            let mut updates: HashMap<InfersIndex, HashSet<Type>> = HashMap::new();
+            let mut updates: Vec<(InfersIndex, HashSet<Type>)> = Vec::new();
 
             match &infers[myself.0] {
                 InferredType::Constant(_) => {}
@@ -1210,10 +1210,10 @@ fn infer_infers(
 
                     // 自身と隣接するノードの型を更新
                     if t_operand != new_t_operand {
-                        updates.insert(*operand, new_t_operand);
+                        updates.push((*operand, new_t_operand));
                     }
                     if t_result != &new_t_result {
-                        updates.insert(myself, new_t_result);
+                        updates.push((myself, new_t_result));
                     }
                 },
                 InferredType::BinaryExpr {
@@ -1258,26 +1258,31 @@ fn infer_infers(
 
                     // 自身と隣接するノードの型を更新
                     if t_lhs != new_t_lhs {
-                        updates.insert(*lhs, new_t_lhs);
+                        updates.push((*lhs, new_t_lhs));
                     }
                     if t_rhs != new_t_rhs {
-                        updates.insert(*rhs, new_t_rhs);
+                        updates.push((*rhs, new_t_rhs));
                     }
                     if t_result != &new_t_result {
-                        updates.insert(myself, new_t_result);
+                        updates.push((myself, new_t_result));
                     }
                 },
             } // match infers[myself]
 
             // ノードの型を更新
+            let mut updated_indices: HashSet<InfersIndex> = HashSet::new();
             for (index, types) in &updates {
-                request_update(index, &types, infers, captures);
+                if updated_indices.insert(*index) {
+                    request_update(index, &types, infers, captures);
+                }
             }
 
             // 更新があった場合のフラグ管理
             if !updates.is_empty() {
-                infers[myself.0].set_needs_update(false);
                 updated = true;
+                if updated_indices.len() == updates.len() {
+                    infers[myself.0].set_needs_update(false);
+                }
             }
         } // for myself in index of infers
     } // while updated
