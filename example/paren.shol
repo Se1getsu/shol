@@ -1,5 +1,7 @@
 *cin
-. $ #paren "", $.int, 0
+. $ # $.int
+. $ #paren "", $, 0
+| $ #exit_counter $
 
 *paren
 . [$, $l, $n] # $+"(", $l-1, $n+1
@@ -8,3 +10,9 @@
 . [$:str, 0, $n] #
 
 %print
+
+*exit_counter
+. $ # $-1
+| 0 #exit 0
+
+%exit
