@@ -48,9 +48,6 @@ impl Identf {
     /// >
     /// : コロニーの規則を実行するメソッド. 戻り値は送信先コロニーのインデックスと送信リソース
     const FN_RULE: &'static str = "rule";
-    /// fn (&mut self)
-    /// : コロニーのリソースをデバッグ出力するメソッド
-    const FN_PRINT: &'static str = "debug_print";
     /// fn (i32) -> String
     /// : 整数を文字列に変換するユーティリティ関数
     const FN_UTIL_CHR: &'static str = "chr";
@@ -296,7 +293,6 @@ pub fn generate(
 
     // コロニートレイト定義
     writeln!(f, "trait {} {{", Identf::TR_COLONY)?;
-    writeln!(f, "  fn {}(&mut self);", Identf::FN_PRINT)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>);", Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE)?;
     writeln!(f, "  fn {}(&mut self) -> Result<HashMap<usize, Vec<{}>>, ExitCode>;",
         Identf::FN_RULE, Identf::EN_TYPE)?;
@@ -397,8 +393,6 @@ fn generate_colony_decl(
     writeln!(f, "  {}: Vec<{}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
-    writeln!(f, "  fn {}(&mut self) {{ println!(\"{{:?}}\", self.{}); }}",
-        Identf::FN_PRINT, Identf::ME_RESOURCE)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
     writeln!(f, "  fn {}(&mut self) -> Result<HashMap<usize, Vec<{}>>, ExitCode> {{",
@@ -435,8 +429,6 @@ fn generate_colony_extension(
     writeln!(f, "  {}: Vec<{}>,", Identf::ME_RESOURCE, Identf::EN_TYPE)?;
     writeln!(f, "}}")?;
     writeln!(f, "impl {} for {} {{", Identf::TR_COLONY, colony_name)?;
-    writeln!(f, "  fn {}(&mut self) {{ println!(\"{{:?}}\", self.{}); }}",
-        Identf::FN_PRINT, Identf::ME_RESOURCE)?;
     writeln!(f, "  fn {}(&mut self, {}: Vec<{}>) {{ self.{}.extend({}); }}",
         Identf::FN_RECEIVE, Identf::P_GIFTS, Identf::EN_TYPE, Identf::ME_RESOURCE, Identf::P_GIFTS)?;
     writeln!(f, "  fn {}(&mut self) -> Result<HashMap<usize, Vec<{}>>, ExitCode> {{",
