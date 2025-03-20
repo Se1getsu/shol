@@ -75,7 +75,9 @@ Rule: ast::RuleAST = {
     <conds:Conditions> <outs:Outputs> => {
         ast::RuleAST {
             conditions: conds,
-            outputs: outs,
+            outputs: outs.0,
+            destination: outs.1,
+            destination_location: outs.2,
             meta: None,
         }
     },
@@ -116,9 +118,9 @@ Condition: ast::ConditionAST = {
     },
 }
 
-Outputs: Vec<ast::OutputAST> = {
-    <OutputsEndsWithDest> => <>.0,
-    <OutputsEndsWithExpr> => <>.0,
+Outputs: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
+    <OutputsEndsWithDest>,
+    <OutputsEndsWithExpr>,
 }
 OutputsEndsWithDest: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
     <l:@L> <dest:"#xx"> <r:@R> => (vec![], dest, l..r),
@@ -128,7 +130,6 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
         vd.0.push(ast::OutputAST {
             expr: *expr,
             destination: vd.1.clone(),
-            destination_location: vd.2.clone(),
             meta: None,
         });
         vd
@@ -137,7 +138,6 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
         vd.0.push(ast::OutputAST {
             expr: *expr,
             destination: vd.1.clone(),
-            destination_location: vd.2.clone(),
             meta: None,
         });
         vd
