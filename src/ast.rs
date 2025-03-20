@@ -180,6 +180,7 @@ pub enum ExprAST {
     Capture(String, Range<usize>),
     UnaryOp(UnaryOpcode, Box<ExprAST>, Range<usize>),
     BinaryOp(Box<ExprAST>, Opcode, Box<ExprAST>, Range<usize>),
+    Slice(Box<ExprAST>, Option<Box<ExprAST>>, Option<Box<ExprAST>>, Option<Box<ExprAST>>, Range<usize>),
 }
 
 impl fmt::Debug for ExprAST {
@@ -201,6 +202,19 @@ impl fmt::Debug for ExprAST {
                 write!(f, "{{\"BinaryOp({:?})\":{:?}}}", op, operand),
             ExprAST::BinaryOp(lhs, op, rhs, _) =>
                 write!(f, "{{\"BinaryOp({:?})\":{{\".lhs\":{:?},\".rhs\":{:?}}}}}", op, lhs, rhs),
+            ExprAST::Slice(s, start, end, step, _) => {
+                write!(f, "{{\"Slice\":{{\".s\":{:?}", s)?;
+                if let Some(start) = start {
+                    write!(f, ",\".start\":{:?}", start)?;
+                }
+                if let Some(end) = end {
+                    write!(f, ",\".end\":{:?}", end)?;
+                }
+                if let Some(step) = step {
+                    write!(f, ",\".step\":{:?}", step)?;
+                }
+                write!(f, "}}}}")
+            }
         }
     }
 }
@@ -213,6 +227,16 @@ pub enum UnaryOpcode {
     LogicalNot,
     BitNot,
     As(semantics::Type),
+    ToInt,
+    ToDouble,
+    ToString,
+    UtilCeil,
+    UtilFloor,
+    UtilRound,
+    UtilAbs,
+    UtilOrd,
+    UtilChr,
+    UtilLen,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -235,4 +259,5 @@ pub enum Opcode {
     Gt,
     Le,
     Ge,
+    Nth,
 }

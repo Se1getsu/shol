@@ -148,24 +148,76 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
 
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
-    <Factor>,
-    <e:Factor> <l:@L> ":int" <r:@R> => {
+    <l:@L> <name:"$xx"> <r:@R> =>
+        Box::new(ast::ExprAST::Capture(name, l..r)),
+    "(" <TopLevelExpr> ")",
+    <l:@L> "-" <r:@R> <e:Expr> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, e, l..r)),
+    <l:@L> "!" <r:@R> <e:Expr> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, e, l..r)),
+    <l:@L> "~" <r:@R> <e:Expr> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, e, l..r)),
+
+    #[precedence(level="2")] // Literal の SignedInt を 単項演算子 `-` より優先
+    <Literal> => Box::new(<>),
+
+    #[precedence(level="3")]
+    <e:Expr> <l:@L> ":int" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Int), e, l..r))
     },
-    <e:Factor> <l:@L> ":double" <r:@R> => {
+    <e:Expr> <l:@L> ":double" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Double), e, l..r))
     },
-    <e:Factor> <l:@L> ":str" <r:@R> => {
+    <e:Expr> <l:@L> ":str" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::String), e, l..r))
     },
-    <e:Factor> <l:@L> ":bool" <r:@R> => {
+    <e:Expr> <l:@L> ":bool" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Bool), e, l..r))
     },
-    <e:Factor> <l:@L> ":symbol" <r:@R> => {
+    <e:Expr> <l:@L> ":symbol" <r:@R> => {
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::As(semantics::Type::Symbol), e, l..r))
     },
+    <e:Expr> <l:@L> ".int" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::ToInt, e, l..r))
+    },
+    <e:Expr> <l:@L> ".double" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::ToDouble, e, l..r))
+    },
+    <e:Expr> <l:@L> ".str" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::ToString, e, l..r))
+    },
+    <e:Expr> <l:@L> ".ceil" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilCeil, e, l..r))
+    },
+    <e:Expr> <l:@L> ".floor" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilFloor, e, l..r))
+    },
+    <e:Expr> <l:@L> ".round" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilRound, e, l..r))
+    },
+    <e:Expr> <l:@L> ".abs" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilAbs, e, l..r))
+    },
+    <e:Expr> <l:@L> ".ord" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilOrd, e, l..r))
+    },
+    <e:Expr> <l:@L> ".chr" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilChr, e, l..r))
+    },
+    <e:Expr> <l:@L> ".len" <r:@R> => {
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::UtilLen, e, l..r))
+    },
+    <e:Expr> <l:@L> "[" <index:TopLevelExpr> "]" <r:@R> => {
+        Box::new(ast::ExprAST::BinaryOp(e, ast::Opcode::Nth, index, l..r))
+    },
+    <e:Expr> <l:@L> "[" <start:TopLevelExpr?> ":" <end:TopLevelExpr?> "]" <r:@R> => {
+        Box::new(ast::ExprAST::Slice(e, start, end, None, l..r))
+    },
+    <e:Expr> <l:@L> "[" <start:TopLevelExpr?> ":" <end:TopLevelExpr?> ":" <step:TopLevelExpr?> "]" <r:@R> => {
+        Box::new(ast::ExprAST::Slice(e, start, end, step, l..r))
+    },
 
-    #[precedence(level="2")] #[assoc(side="left")]
+    #[precedence(level="4")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "*" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mul, rhs, l..r))
     },
@@ -176,7 +228,7 @@ Expr: Box<ast::ExprAST> = {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Mod, rhs, l..r))
     },
 
-    #[precedence(level="3")] #[assoc(side="left")]
+    #[precedence(level="5")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "+" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Add, rhs, l..r))
     },
@@ -184,7 +236,7 @@ Expr: Box<ast::ExprAST> = {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Sub, rhs, l..r))
     },
 
-    #[precedence(level="4")] #[assoc(side="left")]
+    #[precedence(level="6")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "<<" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftLeft, rhs, l..r))
     },
@@ -192,7 +244,7 @@ Expr: Box<ast::ExprAST> = {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitShiftRight, rhs, l..r))
     },
 
-    #[precedence(level="5")] #[assoc(side="left")]
+    #[precedence(level="7")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "=" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Eq, rhs, l..r))
     },
@@ -212,47 +264,33 @@ Expr: Box<ast::ExprAST> = {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::Ge, rhs, l..r))
     },
 
-    #[precedence(level="6")] #[assoc(side="left")]
+    #[precedence(level="8")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "&" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitAnd, rhs, l..r))
     },
 
-    #[precedence(level="7")] #[assoc(side="left")]
+    #[precedence(level="9")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "^" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitXor, rhs, l..r))
     },
 
-    #[precedence(level="8")] #[assoc(side="left")]
+    #[precedence(level="10")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "|" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::BitOr, rhs, l..r))
     },
 
-    #[precedence(level="9")] #[assoc(side="left")]
+    #[precedence(level="11")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "&&" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalAnd, rhs, l..r))
     },
 
-    #[precedence(level="10")] #[assoc(side="left")]
+    #[precedence(level="12")] #[assoc(side="left")]
     <lhs:Expr> <l:@L> "||" <r:@R> <rhs:Expr> => {
         Box::new(ast::ExprAST::BinaryOp(lhs, ast::Opcode::LogicalOr, rhs, l..r))
     },
 }
 
-Factor: Box<ast::ExprAST> = {
-    #[precedence(level="1")]
-    <l:@L> <name:"$xx"> <r:@R> =>
-        Box::new(ast::ExprAST::Capture(name, l..r)),
-    "(" <Expr> ")",
-    <l:@L> "-" <r:@R> <e:Factor> =>
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::Neg, e, l..r)),
-    <l:@L> "!" <r:@R> <e:Factor> =>
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, e, l..r)),
-    <l:@L> "~" <r:@R> <e:Factor> =>
-        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, e, l..r)),
-
-    #[precedence(level="2")]
-    <Literal> => Box::new(<>),
-}
+// MARK: リテラル
 
 Literal: ast::ExprAST = {
     <SignedInt> =>
@@ -291,6 +329,12 @@ CommaListing<T>: Vec<T> = {
         v.push(e);
         v
     }
+}
+
+// Expr の内部から #[precedence(level)] 最高レベルにアクセスするために使用
+// Lalrpop の仕様上, 自分より高いレベルの生成規則に直接アクセスすることはできないため
+TopLevelExpr: Box<ast::ExprAST> = {
+    <Expr>,
 }
 
 // MARK: トークン (終端記号)
@@ -332,11 +376,22 @@ extern {
         "&&" => Token::LogicalAnd,
         "||" => Token::LogicalOr,
         "!" => Token::LogicalNot,
+        ":" => Token::Colon,
         ":int" => Token::AsInt,
         ":double" => Token::AsDouble,
         ":str" => Token::AsStr,
         ":bool" => Token::AsBool,
         ":symbol" => Token::AsSymbol,
+        ".int" => Token::ToInt,
+        ".double" => Token::ToDouble,
+        ".str" => Token::ToString,
+        ".ceil" => Token::UtilCeil,
+        ".floor" => Token::UtilFloor,
+        ".round" => Token::UtilRound,
+        ".abs" => Token::UtilAbs,
+        ".ord" => Token::UtilOrd,
+        ".chr" => Token::UtilChr,
+        ".len" => Token::UtilLen,
         "." => Token::Dot,
         "," => Token::Comma,
         "@debug" => Token::AtDebug,

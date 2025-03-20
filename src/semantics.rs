@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Debug};
 use std::ops::Range;
 use crate::ast::{self, Opcode, ProgramAST, UnaryOpcode};
-use crate::semantic_error::SemanticError;
+use crate::semantic_error::{SemanticError, SliceOperand};
 
 // MARK: メタデータ
 
@@ -142,6 +142,43 @@ impl UnaryOpcodeSignature {
             UnaryOpcode::As(t) => vec![
                 Self { operand: t, result: t },
             ],
+            UnaryOpcode::ToInt => vec![
+                Self { operand: Type::Double, result: Type::Int },
+                Self { operand: Type::String, result: Type::Int },
+                Self { operand: Type::Bool, result: Type::Int },
+            ],
+            UnaryOpcode::ToDouble => vec![
+                Self { operand: Type::Int, result: Type::Double },
+                Self { operand: Type::String, result: Type::Double },
+                Self { operand: Type::Bool, result: Type::Double },
+            ],
+            UnaryOpcode::ToString => vec![
+                Self { operand: Type::Int, result: Type::String },
+                Self { operand: Type::Double, result: Type::String },
+                Self { operand: Type::Bool, result: Type::String },
+            ],
+            UnaryOpcode::UtilCeil => vec![
+                Self { operand: Type::Double, result: Type::Int },
+            ],
+            UnaryOpcode::UtilFloor => vec![
+                Self { operand: Type::Double, result: Type::Int },
+            ],
+            UnaryOpcode::UtilRound => vec![
+                Self { operand: Type::Double, result: Type::Int },
+            ],
+            UnaryOpcode::UtilAbs => vec![
+                Self { operand: Type::Int, result: Type::Int },
+                Self { operand: Type::Double, result: Type::Double },
+            ],
+            UnaryOpcode::UtilOrd => vec![
+                Self { operand: Type::String, result: Type::Int },
+            ],
+            UnaryOpcode::UtilChr => vec![
+                Self { operand: Type::Int, result: Type::String },
+            ],
+            UnaryOpcode::UtilLen => vec![
+                Self { operand: Type::String, result: Type::Int },
+            ],
         }
     }
 }
@@ -189,6 +226,9 @@ impl OpcodeSignature {
                 Self { lhs: Type::Int, rhs: Type::Double, result: Type::Bool },
                 Self { lhs: Type::Double, rhs: Type::Int, result: Type::Bool },
                 Self { lhs: Type::Double, rhs: Type::Double, result: Type::Bool },
+            ],
+            Opcode::Nth => vec![
+                Self { lhs: Type::String, rhs: Type::Int, result: Type::String },
             ],
         }
     }
@@ -255,6 +295,23 @@ fn type_validate_expr<'a>(expr: &'a ast::ExprAST, captures: &HashMap<String, Typ
             } else {
                 Err(expr)
             }
+        },
+        ast::ExprAST::Slice(s, start, end, step, _) => {
+            let s_type = type_validate_expr(s, captures)?;
+            if s_type != Type::String { return Err(expr) }
+            if let Some(start) = start {
+                let start_type = type_validate_expr(start, captures)?;
+                if start_type != Type::Int { return Err(expr) }
+            }
+            if let Some(end) = end {
+                let end_type = type_validate_expr(end, captures)?;
+                if end_type != Type::Int { return Err(expr) }
+            }
+            if let Some(step) = step {
+                let step_type = type_validate_expr(step, captures)?;
+                if step_type != Type::Int { return Err(expr) }
+            }
+            Ok(Type::String)
         },
     }
 }
@@ -454,6 +511,18 @@ fn analyze_output(
             ast::ExprAST::Symbol(name) => {
                 if !symbol_values.contains_key(name) {
                     symbol_values.insert(name.clone(), symbol_values.len());
+                }
+            },
+            ast::ExprAST::Slice(s, start, end, step, _) => {
+                collect_captures_and_symbols(s, captures, symbol_values); // 再帰
+                if let Some(start) = start {
+                    collect_captures_and_symbols(start, captures, symbol_values); // 再帰
+                }
+                if let Some(end) = end {
+                    collect_captures_and_symbols(end, captures, symbol_values); // 再帰
+                }
+                if let Some(step) = step {
+                    collect_captures_and_symbols(step, captures, symbol_values); // 再帰
                 }
             },
         }
@@ -668,6 +737,63 @@ fn _condition_kind(
                 },
             } // match (&lhs_kind, &rhs_kind)
         },
+        ast::ExprAST::Slice(s, start, end, step, op_loc) => {
+            let mut exprs = vec![(SliceOperand::String, s)];
+            if let Some(start) = start { exprs.push((SliceOperand::Start, start)) }
+            if let Some(end) = end { exprs.push((SliceOperand::End, end)) }
+            if let Some(step) = step { exprs.push((SliceOperand::Step, step)) }
+
+            let mut r_kind = KindWithRange::Equal(Type::String);
+            for (operand, expr) in exprs {
+                let kind = _condition_kind(expr, symbol_values)?;
+                match (operand, &kind, &r_kind) {
+                    (SliceOperand::String, KindWithRange::Equal(Type::String), _) => {}
+                    (SliceOperand::String, KindWithRange::Equal(t), _) => {
+                        return Err(SemanticError::type_error_slice(
+                            operand,
+                            *t,
+                            op_loc,
+                        ));
+                    }
+                    (_, KindWithRange::Equal(Type::Int), _) => {}
+                    (_, KindWithRange::Equal(t), _) => {
+                        return Err(SemanticError::type_error_slice(
+                            operand,
+                            *t,
+                            op_loc,
+                        ));
+                    },
+                    (_, KindWithRange::Capture(name, cap_loc), KindWithRange::Equal(_)) |
+                    (_, KindWithRange::CaptureCondition(name, cap_loc), KindWithRange::Equal(_)) => {
+                        r_kind = KindWithRange::CaptureCondition(name.clone(), cap_loc.clone());
+                    }
+                    (_, KindWithRange::Capture(name, cap_loc),
+                        KindWithRange::Capture(name_r, cap_loc_r)) |
+                    (_, KindWithRange::CaptureCondition(name, cap_loc),
+                        KindWithRange::Capture(name_r, cap_loc_r)) => {
+                        if name_r != name {
+                            return Err(SemanticError::multiple_captures_in_condition(
+                                (name, name_r),
+                                (cap_loc, cap_loc_r),
+                            ));
+                        }
+                        r_kind = KindWithRange::CaptureCondition(name_r.clone(), cap_loc_r.clone());
+                    }
+                    (_, KindWithRange::Capture(name, cap_loc),
+                        KindWithRange::CaptureCondition(name_r, cap_loc_r)) |
+                    (_, KindWithRange::CaptureCondition(name, cap_loc),
+                        KindWithRange::CaptureCondition(name_r, cap_loc_r)) => {
+                        if name_r != name {
+                            return Err(SemanticError::multiple_captures_in_condition(
+                                (name, name_r),
+                                (cap_loc, cap_loc_r),
+                            ));
+                        }
+                    },
+                }
+            }
+            return Ok(r_kind)
+        },
     } // match expr
 }
 
@@ -753,7 +879,7 @@ impl InferredType {
     /// 親ノードを設定
     fn set_parent(&mut self, parent: &InfersIndex) {
         match self {
-            InferredType::Constant(_) | InferredType::Capture(_) => (),
+            InferredType::Constant(_) | InferredType::Capture(_) => {}
             InferredType::UnaryExpr { parent: p, .. } =>
                 *p = Some(*parent),
             InferredType::BinaryExpr { parent: p, .. } =>
@@ -764,7 +890,7 @@ impl InferredType {
     /// needs_update を設定
     fn set_needs_update(&mut self, needs_update: bool) {
         match self {
-            InferredType::Constant(_) | InferredType::Capture(_) => (),
+            InferredType::Constant(_) | InferredType::Capture(_) => {}
             InferredType::UnaryExpr { needs_update: n, .. } =>
                 *n = needs_update,
             InferredType::BinaryExpr { needs_update: n, .. } =>
@@ -808,7 +934,7 @@ fn fmt_infers(infers: &Vec<InferredType>, captures: &HashMap<String, TypeHint>) 
 /// infers 配列を作成する
 fn build_infers(
     outputs: &Vec<ast::OutputAST>,
-    captures: &HashMap<String, TypeHint>,
+    captures: &mut HashMap<String, TypeHint>,
 ) -> Result<Vec<InferredType>, SemanticError> {
     // InferredType を保存するベクタ
     let mut infers: Vec<InferredType> = captures.keys()
@@ -824,7 +950,7 @@ fn build_infers(
 
     // AST を探索して infers 配列を作成
     for output in outputs {
-        analyze_output_ast(&output.expr, &mut infers, &capture_infers)?;
+        analyze_output_ast(&output.expr, &mut infers, &capture_infers, captures)?;
     }
     Ok(infers)
 }
@@ -840,6 +966,7 @@ fn analyze_output_ast(
     expr: &ast::ExprAST,
     infers: &mut Vec<InferredType>,
     capture_infers: &HashMap<String, usize>,
+    captures: &mut HashMap<String, TypeHint>,
 ) -> Result<AOAResult, SemanticError> {
     match expr {
         // 定数式の型を返す
@@ -860,7 +987,7 @@ fn analyze_output_ast(
 
         // 自身を infers に追加し, そのインデックスを返す
         ast::ExprAST::UnaryOp(opcode, operand, op_loc) => {
-            let operand = analyze_output_ast(operand, infers, capture_infers)?;
+            let operand = analyze_output_ast(operand, infers, capture_infers, captures)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let AOAResult::Constant(t) = &operand {
@@ -900,8 +1027,8 @@ fn analyze_output_ast(
 
         // 自身を infers に追加し, そのインデックスを返す
         ast::ExprAST::BinaryOp(lhs, opcode, rhs, op_loc) => {
-            let lhs = analyze_output_ast(lhs, infers, capture_infers)?;
-            let rhs = analyze_output_ast(rhs, infers, capture_infers)?;
+            let lhs = analyze_output_ast(lhs, infers, capture_infers, captures)?;
+            let rhs = analyze_output_ast(rhs, infers, capture_infers, captures)?;
 
             // 定数式なら AOAResult::Constant を返す
             if let (AOAResult::Constant(t_l), AOAResult::Constant(t_r)) = (&lhs, &rhs) {
@@ -951,6 +1078,82 @@ fn analyze_output_ast(
 
             Ok(AOAResult::Infer { index: i_self })
         },
+        ast::ExprAST::Slice(s, start, end, step, op_loc) => {
+            let s = analyze_output_ast(s, infers, capture_infers, captures)?;
+            let start = if let Some(start) = start {
+                Some(analyze_output_ast(start, infers, capture_infers, captures)?)
+            } else {
+                None
+            };
+            let end = if let Some(end) = end {
+                Some(analyze_output_ast(end, infers, capture_infers, captures)?)
+            } else {
+                None
+            };
+            let step = if let Some(step) = step {
+                Some(analyze_output_ast(step, infers, capture_infers, captures)?)
+            } else {
+                None
+            };
+
+            // オペランドの型を更新
+            let string_t = HashSet::from([Type::String]);
+            let int_t = HashSet::from([Type::Int]);
+            match &s {
+                AOAResult::Constant(t_s) => {
+                    if *t_s != Type::String {
+                        return Err(SemanticError::type_error_slice(
+                            SliceOperand::String,
+                            *t_s,
+                            op_loc,
+                        ));
+                    }
+                }
+                AOAResult::Infer { index } => {
+                    let t_s = infers[index.0].get_types(captures);
+                    if !t_s.contains(&Type::String) {
+                        return Err(SemanticError::type_inference_failed_slice(
+                            SliceOperand::String,
+                            t_s,
+                            op_loc,
+                        ));
+                    }
+                    request_update(index, &string_t, infers, captures);
+                }
+            }
+            for (result, operand) in [
+                (start, SliceOperand::Start),
+                (end, SliceOperand::End),
+                (step, SliceOperand::Step),
+            ] {
+                match &result {
+                    Some(AOAResult::Constant(t)) => {
+                        if *t != Type::Int {
+                            return Err(SemanticError::type_error_slice(
+                                operand,
+                                *t,
+                                op_loc,
+                            ));
+                        }
+                    }
+                    Some(AOAResult::Infer { index }) => {
+                        let t_result = infers[index.0].get_types(captures);
+                        if !t_result.contains(&Type::Int) {
+                            return Err(SemanticError::type_inference_failed_slice(
+                                operand,
+                                t_result,
+                                op_loc,
+                            ));
+                        }
+                        request_update(index, &int_t, infers, captures);
+                    }
+                    None => {}
+                }
+            }
+
+            // 結果が str 形で固定のため定数扱い
+            Ok(AOAResult::Constant(Type::String))
+        },
     }
 }
 
@@ -964,11 +1167,11 @@ fn infer_infers(
         updated = false;
         for myself in (0..infers.len()).map(|i| InfersIndex(i)) {
             // ノードの型を更新する際は, ここに insert する
-            let mut updates: HashMap<InfersIndex, HashSet<Type>> = HashMap::new();
+            let mut updates: Vec<(InfersIndex, HashSet<Type>)> = Vec::new();
 
             match &infers[myself.0] {
-                InferredType::Constant(_) => (),
-                InferredType::Capture(_) => (),
+                InferredType::Constant(_) => {}
+                InferredType::Capture(_) => {}
                 InferredType::UnaryExpr {
                     opcode,
                     operand,
@@ -989,7 +1192,7 @@ fn infer_infers(
 
                     // 推論
                     for signature in UnaryOpcodeSignature::get_signatures(*opcode) {
-                        if t_operand.contains(&signature.operand) {
+                        if t_operand.contains(&signature.operand) && t_result.contains(&signature.result) {
                             new_t_result.insert(signature.result);
                             new_t_operand.insert(signature.operand);
                         }
@@ -1007,10 +1210,10 @@ fn infer_infers(
 
                     // 自身と隣接するノードの型を更新
                     if t_operand != new_t_operand {
-                        updates.insert(*operand, new_t_operand);
+                        updates.push((*operand, new_t_operand));
                     }
                     if t_result != &new_t_result {
-                        updates.insert(myself, new_t_result);
+                        updates.push((myself, new_t_result));
                     }
                 },
                 InferredType::BinaryExpr {
@@ -1055,26 +1258,31 @@ fn infer_infers(
 
                     // 自身と隣接するノードの型を更新
                     if t_lhs != new_t_lhs {
-                        updates.insert(*lhs, new_t_lhs);
+                        updates.push((*lhs, new_t_lhs));
                     }
                     if t_rhs != new_t_rhs {
-                        updates.insert(*rhs, new_t_rhs);
+                        updates.push((*rhs, new_t_rhs));
                     }
                     if t_result != &new_t_result {
-                        updates.insert(myself, new_t_result);
+                        updates.push((myself, new_t_result));
                     }
                 },
             } // match infers[myself]
 
             // ノードの型を更新
+            let mut updated_indices: HashSet<InfersIndex> = HashSet::new();
             for (index, types) in &updates {
-                request_update(index, &types, infers, captures);
+                if updated_indices.insert(*index) {
+                    request_update(index, &types, infers, captures);
+                }
             }
 
             // 更新があった場合のフラグ管理
             if !updates.is_empty() {
-                infers[myself.0].set_needs_update(false);
                 updated = true;
+                if updated_indices.len() == updates.len() {
+                    infers[myself.0].set_needs_update(false);
+                }
             }
         } // for myself in index of infers
     } // while updated
@@ -1165,8 +1373,8 @@ fn validate_inference(
                 match ast {
                     ast::ExprAST::Number(_)|ast::ExprAST::Double(_)|ast::ExprAST::Str(_)|ast::ExprAST::Bool(_)|
                     ast::ExprAST::Symbol(_)|ast::ExprAST::Capture(..) => unreachable!(),
-                    // 単項演算子ではキャプチャ間の型制約関係は発生し得ない
-                    ast::ExprAST::UnaryOp(..) => unreachable!(),
+                    // 単項演算子, スライス式 ではキャプチャ間の型制約関係は発生し得ない
+                    ast::ExprAST::UnaryOp(..) | ast::ExprAST::Slice(..) => unreachable!(),
                     ast::ExprAST::BinaryOp(_, opcode, _, op_loc) =>
                         return Err(FailedCase {
                             captures_type: captures_type.clone(),

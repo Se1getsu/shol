@@ -94,7 +94,7 @@ pub enum Token {
     #[token("false")]
     False,
 
-    // 式に使われる記号
+    // 括弧類
     #[token("(")]
     LParen,
     #[token(")")]
@@ -103,6 +103,8 @@ pub enum Token {
     LBracket,
     #[token("]")]
     RBracket,
+
+    // 比較演算子
     #[token("=")]
     Equal,
     #[token("!=")]
@@ -115,6 +117,8 @@ pub enum Token {
     LessEqual,
     #[token(">=")]
     GreaterEqual,
+
+    // 算術演算子
     #[token("+")]
     Add,
     #[token("-")]
@@ -125,6 +129,8 @@ pub enum Token {
     Div,
     #[token("%")]
     Mod,
+
+    // ビット演算子
     #[token("&")]
     Ampersand,
     #[token("|")]
@@ -137,22 +143,54 @@ pub enum Token {
     BitShiftRight,
     #[token("<<")]
     BitShiftLeft,
+
+    // 論理演算子
     #[token("&&")]
     LogicalAnd,
     #[token("||")]
     LogicalOr,
     #[token("!")]
     LogicalNot,
-    #[token(":int")]
+
+    // 文字列スライス
+    #[token(":")]
+    Colon,
+
+    // 型ヒント演算子
+    #[regex(r":i(nt)?")]
     AsInt,
-    #[token(":double")]
+    #[regex(r":d(ouble)?")]
     AsDouble,
-    #[token(":str")]
+    #[regex(r":s(tr)?")]
     AsStr,
-    #[token(":bool")]
+    #[regex(r":b(ool)?")]
     AsBool,
-    #[token(":symbol")]
+    #[regex(r":sym(bol)?")]
     AsSymbol,
+
+    // 型変換
+    #[regex(r"\.i(nt)?")]
+    ToInt,
+    #[regex(r"\.d(ouble)?")]
+    ToDouble,
+    #[regex(r"\.s(tr)?")]
+    ToString,
+
+    // ユーティリティ演算子
+    #[token(".ceil")]
+    UtilCeil,
+    #[token(".floor")]
+    UtilFloor,
+    #[token(".round")]
+    UtilRound,
+    #[token(".abs")]
+    UtilAbs,
+    #[token(".ord")]
+    UtilOrd,
+    #[token(".chr")]
+    UtilChr,
+    #[token(".len")]
+    UtilLen,
 
     // 構文に使われる記号
     #[token(".")]

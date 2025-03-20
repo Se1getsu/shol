@@ -150,9 +150,38 @@ impl SemanticError {
         rhs_t: Type,
     ) -> Self {
         let message = format!(
-            "{} {} {} の演算はサポートされていません。",
-            lhs_t, opcode, rhs_t
+            "{} の演算はサポートされていません。",
+            opcode.format(lhs_t.to_string(), rhs_t.to_string()),
         );
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
+    /// スライスの型エラー
+    pub fn type_error_slice(
+        operand: SliceOperand,
+        operand_t: Type,
+        location: &Range<usize>,
+    ) -> Self {
+        let message = match operand {
+            SliceOperand::String => format!(
+                "{operand_t} 型のスライス演算はサポートされていません。"
+            ),
+            SliceOperand::Start => format!(
+                "スライス演算 [start:end:step] の start に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::End => format!(
+                "スライス演算 [start:end:step] の end に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::Step => format!(
+                "スライス演算 [start:end:step] の step に {operand_t} 型は指定できません。"
+            ),
+        };
         let location = location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::TypeError)
@@ -226,9 +255,43 @@ impl SemanticError {
     ) -> Self {
         let message = format!(
             "出力式の型推論に失敗しました。\n\
-            {} {} {} -> {} は解決できません。",
-            t_lhs.format(), opcode, t_rhs.format(), t_result.format()
+            {} -> {} は解決できません。",
+            opcode.format(t_lhs.format(), t_rhs.format()), t_result.format()
         );
+        let location = location.clone();
+        Self(Box::new(move |source: &str| {
+            CompileErrorBuilder::new(source, ErrorKind::TypeError)
+                .header(&message, location.start)
+                .location_pointer(&location)
+                .build()
+        }))
+    }
+
+    /// 出力式の型推論に失敗した場合のエラー (スライス演算)
+    pub fn type_inference_failed_slice(
+        operand: SliceOperand,
+        operand_t: HashSet<Type>,
+        location: &Range<usize>,
+    ) -> Self {
+        let operand_t = operand_t.format();
+        let message = match operand {
+            SliceOperand::String => format!(
+                "出力式の型推論に失敗しました。\n\
+                {operand_t} 型のスライス演算はサポートされていません。"
+            ),
+            SliceOperand::Start => format!(
+                "出力式の型推論に失敗しました。\n\
+                スライス演算 [start:end:step] の start に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::End => format!(
+                "出力式の型推論に失敗しました。\n\
+                スライス演算 [start:end:step] の end に {operand_t} 型は指定できません。"
+            ),
+            SliceOperand::Step => format!(
+                "出力式の型推論に失敗しました。\n\
+                スライス演算 [start:end:step] の step に {operand_t} 型は指定できません。"
+            ),
+        };
         let location = location.clone();
         Self(Box::new(move |source: &str| {
             CompileErrorBuilder::new(source, ErrorKind::TypeError)
@@ -288,6 +351,17 @@ impl SemanticError {
     }
 }
 
+// MARK: SliceOperand
+
+/// スライス演算のオペランドの種類
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum SliceOperand {
+    String,
+    Start,
+    End,
+    Step,
+}
+
 // MARK: UnaryOpcode::is_prefix
 
 impl UnaryOpcode {
@@ -299,6 +373,16 @@ impl UnaryOpcode {
             | UnaryOpcode::BitNot
             => true,
             UnaryOpcode::As(_)
+            | UnaryOpcode::ToInt
+            | UnaryOpcode::ToDouble
+            | UnaryOpcode::ToString
+            | UnaryOpcode::UtilCeil
+            | UnaryOpcode::UtilFloor
+            | UnaryOpcode::UtilRound
+            | UnaryOpcode::UtilAbs
+            | UnaryOpcode::UtilOrd
+            | UnaryOpcode::UtilChr
+            | UnaryOpcode::UtilLen
             => false,
         }
     }
@@ -335,6 +419,16 @@ impl fmt::Display for UnaryOpcode {
             UnaryOpcode::LogicalNot => write!(f, "!"),
             UnaryOpcode::BitNot => write!(f, "~"),
             UnaryOpcode::As(t) => write!(f, ":{}", t),
+            UnaryOpcode::ToInt => write!(f, ".int"),
+            UnaryOpcode::ToDouble => write!(f, ".double"),
+            UnaryOpcode::ToString => write!(f, ".str"),
+            UnaryOpcode::UtilCeil => write!(f, ".ceil"),
+            UnaryOpcode::UtilFloor => write!(f, ".floor"),
+            UnaryOpcode::UtilRound => write!(f, ".round"),
+            UnaryOpcode::UtilAbs => write!(f, ".abs"),
+            UnaryOpcode::UtilOrd => write!(f, ".ord"),
+            UnaryOpcode::UtilChr => write!(f, ".chr"),
+            UnaryOpcode::UtilLen => write!(f, ".len"),
         }
     }
 }
@@ -360,7 +454,17 @@ impl fmt::Display for Opcode {
             Opcode::Gt => ">",
             Opcode::Le => "<=",
             Opcode::Ge => ">=",
+            Opcode::Nth => "[index]",
         })
+    }
+}
+
+impl Opcode {
+    fn format(&self, lhs: String, rhs: String) -> String {
+        match self {
+            Opcode::Nth => format!("{}[{}]", lhs, rhs),
+            _ => format!("{} {} {}", lhs, self, rhs),
+        }
     }
 }
 
