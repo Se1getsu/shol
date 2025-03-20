@@ -276,7 +276,7 @@ fn decode_string(input: &str) -> Result<String, LexicalError> {
     let mut chars = input
         .chars()
         .enumerate()
-        .skip(1).take(input.len() - 2); // 両端のクォートを除去
+        .skip(1).take(input.chars().count() - 2); // 両端のクォートを除去
 
     while let Some((start, c)) = chars.next() {
         if c != '\\' {
