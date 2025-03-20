@@ -5,6 +5,7 @@ use tempfile;
 
 pub mod ast;
 pub mod compile_error;
+pub mod logger;
 pub mod tokens;
 pub mod lexer;
 pub mod parser;
@@ -23,6 +24,8 @@ struct Config {
     rs_file: OutputFile,
     /// 実行ファイル名
     exe_file: String,
+    /// ログ出力の有効化
+    log_enabled: bool,
 }
 
 enum OutputFile {
@@ -51,6 +54,9 @@ fn main() -> ExitCode {
     }
     let config = config.unwrap();
 
+    // ロガーの初期化
+    let logger = logger::Logger::new(config.log_enabled);
+
     // 入力ファイルの読み込み
     let program = match std::fs::read_to_string(&config.src_file) {
         Ok(content) => content,
@@ -61,7 +67,7 @@ fn main() -> ExitCode {
     };
 
     // プリプロセス
-    println!("[*] Preprocessing...");
+    log!(logger, "[*] Preprocessing...");
     let program = preprocessor::preprocess(&program);
 
     if let Some(path) = config.shi_file {
@@ -79,7 +85,7 @@ fn main() -> ExitCode {
     }
 
     // AST 生成
-    println!("[*] AST generating...");
+    log!(logger, "[*] AST generating...");
     let mut ast = match parser::parse_program(&program) {
         Ok(ast) => ast,
         Err(e) => {
@@ -87,16 +93,16 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    println!("{{\"AST\":{:?}}}", ast);
+    log!(logger, "{{\"AST\":{:?}}}", ast);
 
     // 意味解析
-    println!("\n[*] Semantics analyzing...");
-    if let Err(e) = semantics::analyze_program(&mut ast) {
+    log!(logger, "\n[*] Semantics analyzing...");
+    if let Err(e) = semantics::analyze_program(&mut ast, &logger) {
         let e = e.build_compile_error(&program);
         eprintln!("{}", e);
         return ExitCode::FAILURE;
     }
-    println!("{{\"AST\":{:?}}}", ast);
+    log!(logger, "{{\"AST\":{:?}}}", ast);
 
     // 出力ファイルを開く
     let mut out_file = match File::create(&config.rs_file.path()) {
@@ -108,19 +114,19 @@ fn main() -> ExitCode {
     };
 
     // コード生成
-    println!("\n[*] Generating code...");
+    log!(logger, "\n[*] Generating code...");
     if let Err(e) = code_generator::generate(&mut out_file, &ast, &config.src_file) {
         eprintln!("出力ファイル書き込みエラー: {}", e);
         return ExitCode::FAILURE;
     }
 
     // コンパイル
-    println!("\n[*] Compiling...");
+    log!(logger, "\n[*] Compiling...");
     if let Err(e) = compile_rs_file(&config.rs_file.path(), &config.exe_file) {
         return e;
     }
 
-    println!("[*] Completed.");
+    log!(logger, "[*] Completed.");
     ExitCode::SUCCESS
 }
 
@@ -156,6 +162,7 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
     let mut opts = Options::new();
     opts.optflag("h", "help", "このヘルプメッセージを表示します");
     opts.optflag("S", "save-temps", "中間生成ファイルを保持します");
+    opts.optflag("", "log", "コンパイル過程のログを出力します");
 
     // オプションのパース
     let matches = match opts.parse(&args[1..]) {
@@ -179,6 +186,7 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
 
     let src_file = matches.free[0].clone();
     let save_temps = matches.opt_present("save-temps");
+    let log_enabled = matches.opt_present("log");
 
     // 出力ファイル名の設定
     let rs_file = if save_temps {
@@ -208,5 +216,6 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
         shi_file,
         rs_file,
         exe_file,
+        log_enabled,
     })
 }
