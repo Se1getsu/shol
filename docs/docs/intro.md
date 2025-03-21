@@ -1,47 +1,46 @@
----
-sidebar_position: 1
----
+# Shol言語について
 
-# Tutorial Intro
+Sholは、パターンマッチングとルールベースのプログラミングを中心とした新しいプログラミング言語です。コードの可読性と表現力を重視し、直感的なプログラミング体験を提供します。
 
-Let's discover **Docusaurus in less than 5 minutes**.
+## 主な特徴
 
-## Getting Started
+### コロニーベースの構造
 
-Get started by **creating a new site**.
+Sholプログラムは「コロニー」と呼ばれる独立した単位で構成されます。各コロニーはリソース（データ）とルール（処理）を持ちます。これにより、プログラムをモジュール化し、再利用性を高めることができます。
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+### パターンマッチングと宣言型プログラミング
 
-### What you'll need
+条件をパターンとして記述し、それに対する出力を定義するスタイルで、宣言的にプログラムを書くことができます。これにより、「何をするか」に焦点を当てたプログラミングが可能です。
 
-- [Node.js](https://nodejs.org/en/download/) version 18.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+### 強力な型システム
 
-## Generate a new site
+静的型付けにより、実行前にエラーを検出します。また、型推論機能によって、不必要な型宣言を省略できる場合もあります。
 
-Generate a new Docusaurus site using the **classic template**.
+### 並行処理のサポート
 
-The classic template will automatically be added to your project after you run the command:
+コロニー間の通信モデルにより、並行処理を自然に記述できます。
 
-```bash
-npm init docusaurus@latest my-website classic
+## Sholの特徴的な文法
+
+```shol
+// Hello, World!
+colony hello {
+  rule {
+    => "Hello, World!" -> cout
+  }
+}
+
+// 簡単な計算機
+colony calculator {
+  rule {
+    $x:int "+" $y:int => ($x + $y) -> cout
+    $x:int "-" $y:int => ($x - $y) -> cout
+  }
+}
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+## 次のステップ
 
-The command also installs all necessary dependencies you need to run Docusaurus.
-
-## Start your site
-
-Run the development server:
-
-```bash
-cd my-website
-npm run start
-```
-
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
-
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+- [インストール](getting-started/installation)方法を学ぶ
+- [クイックスタート](getting-started/quick-start)で基本的な使い方を学ぶ
+- [基本文法](getting-started/basic-syntax)で詳細を確認する
