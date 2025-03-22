@@ -47,6 +47,7 @@ const sidebars: SidebarsConfig = {
   ],
   referenceSidebar: [
     'reference/intro',
+    'reference/compiler',
   ],
 };
 
