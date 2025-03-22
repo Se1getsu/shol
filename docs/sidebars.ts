@@ -48,6 +48,8 @@ const sidebars: SidebarsConfig = {
   referenceSidebar: [
     'reference/intro',
     'reference/compiler',
+    'reference/preprocess',
+    'reference/lexical_analysis',
   ],
 };
 
