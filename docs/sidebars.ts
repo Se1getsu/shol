@@ -50,6 +50,7 @@ const sidebars: SidebarsConfig = {
     'reference/compiler',
     'reference/preprocess',
     'reference/lexical_analysis',
+    `reference/colony_rule`,
   ],
 };
 
