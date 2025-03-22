@@ -80,6 +80,12 @@ const config: Config = {
           position: 'left',
           label: 'チュートリアル',
         },
+        {
+          type: 'docSidebar',
+          sidebarId: 'referenceSidebar',
+          position: 'left',
+          label: 'リファレンス',
+        },
         {to: '/blog', label: 'Blog', position: 'left'},
         {
           href: 'https://github.com/facebook/docusaurus',

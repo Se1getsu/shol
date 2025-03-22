@@ -45,6 +45,9 @@ const sidebars: SidebarsConfig = {
       ],
     },
   ],
+  referenceSidebar: [
+    'reference/intro',
+  ],
 };
 
 export default sidebars;
