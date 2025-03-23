@@ -146,8 +146,18 @@ OutputsEndsWithExpr: (Vec<ast::OutputAST>, Option<String>, Range<usize>) = {
 
 // MARK: 式
 
+// `-` のつかないリテラルの直前には `-` 以外の単項演算子を許容
+PositiveLiteralWithPreUnary: Box<ast::ExprAST> = {
+    <l:@L> "!" <r:@R> <e:PositiveLiteral> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::LogicalNot, Box::new(e), l..r)),
+    <l:@L> "~" <r:@R> <e:PositiveLiteral> =>
+        Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, Box::new(e), l..r)),
+}
+
 Expr: Box<ast::ExprAST> = {
     #[precedence(level="1")]
+    <NonPositiveLiteral> => Box::new(<>),
+    <PositiveLiteralWithPreUnary>,
     <l:@L> <name:"$xx"> <r:@R> =>
         Box::new(ast::ExprAST::Capture(name, l..r)),
     "(" <TopLevelExpr> ")",
@@ -158,8 +168,8 @@ Expr: Box<ast::ExprAST> = {
     <l:@L> "~" <r:@R> <e:Expr> =>
         Box::new(ast::ExprAST::UnaryOp(ast::UnaryOpcode::BitNot, e, l..r)),
 
-    #[precedence(level="2")] // Literal の SignedInt を 単項演算子 `-` より優先
-    <Literal> => Box::new(<>),
+    #[precedence(level="2")]
+    <PositiveLiteral> => Box::new(<>),
 
     #[precedence(level="3")]
     <e:Expr> <l:@L> ":int" <r:@R> => {
@@ -293,10 +303,31 @@ Expr: Box<ast::ExprAST> = {
 // MARK: リテラル
 
 Literal: ast::ExprAST = {
-    <SignedInt> =>
+    <NonPositiveLiteral>,
+    <PositiveLiteral>,
+}
+
+// 直前に `-` をつけたら負のリテラルになるもの
+PositiveLiteral: ast::ExprAST = {
+    <"int"> =>
         ast::ExprAST::Number(<>),
-    <SignedDouble> =>
+    <"double"> =>
         ast::ExprAST::Double(<>),
+    <"int"> "." =>
+        ast::ExprAST::Double(<> as f64),
+}
+
+NonPositiveLiteral: ast::ExprAST = {
+    "-" <"int"> =>
+        ast::ExprAST::Number(-<>),
+    <"intmin"> =>
+        ast::ExprAST::Number(<>),
+    "-" <"double"> =>
+        ast::ExprAST::Double(-<>),
+    "-" <"int"> "." =>
+        ast::ExprAST::Double(-<> as f64),
+    <"intmin"> "." =>
+        ast::ExprAST::Double(<> as f64),
     "identf" =>
         ast::ExprAST::Str(<>),
     "str" =>
@@ -307,18 +338,6 @@ Literal: ast::ExprAST = {
         ast::ExprAST::Bool(true),
     "false" =>
         ast::ExprAST::Bool(false),
-}
-
-SignedInt: i32 = {
-    <"int">,
-    "-" <"int"> => -<>,
-    <"intmin">,
-}
-
-SignedDouble: f64 = {
-    <"double">,
-    "-" <"double"> => -<>,
-    <SignedInt> "." => <> as f64
 }
 
 // MARK: ヘルパー非終端記号
