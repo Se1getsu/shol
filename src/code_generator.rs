@@ -964,11 +964,11 @@ fn generate_expr(
 ) -> io::Result<Type> {
     match expr {
         ast::ExprAST::Number(i) => {
-            write!(f, "({})", i)?; // 括弧を外すと負数で無効トークン `<-` が生成される危険あり
+            write!(f, "({}{})", i, Type::actual(&Type::Int))?;
             Ok(Type::Int)
         }
         ast::ExprAST::Double(d) => {
-            write!(f, "({:?})", d)?; // 括弧を外すと負数で無効トークン `<-` が生成される危険あり
+            write!(f, "({:?}{})", d, Type::actual(&Type::Double))?;
             Ok(Type::Double)
         }
         ast::ExprAST::Str(s) => {
