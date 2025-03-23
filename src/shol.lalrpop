@@ -310,14 +310,15 @@ Literal: ast::ExprAST = {
 }
 
 SignedInt: i32 = {
-    <n:"int"> => n,
-    "-" <n:"int"> => -n,
+    <"int">,
+    "-" <"int"> => -<>,
     <"intmin">,
 }
 
 SignedDouble: f64 = {
-    <n:"double"> => n,
-    "-" <n:"double"> => -n,
+    <"double">,
+    "-" <"double"> => -<>,
+    <SignedInt> "." => <> as f64
 }
 
 // MARK: ヘルパー非終端記号

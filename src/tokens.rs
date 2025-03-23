@@ -73,7 +73,8 @@ impl From<ParseFloatError> for LexicalError {
 #[logos(skip r"//.*")]
 #[logos(subpattern fractional = r"[0-9]+\.|[0-9]*\.[0-9]+")]
 #[logos(subpattern exponent = r"[eE][+-]?[0-9]+")]
-#[logos(subpattern double_literal = r"(?&fractional)(?&exponent)?|[0-9]+(?&exponent)")]
+// r"[0-9]+\." の表記は `5.abs` を `5.`, `abs` にしてしまうので, 文法の方で処理
+#[logos(subpattern double_literal = r"[0-9]*\.[0-9]+|(?&fractional)(?&exponent)|[0-9]+(?&exponent)")]
 pub enum Token {
     // 識別子とリテラル
     #[regex(r"(\p{XID_Start}|_)\p{XID_Continue}*", |lex| lex.slice().to_string())]
