@@ -14,17 +14,18 @@
 `識別子` はダブルクォートが省略された str 型リテラルとして扱われます。
 
 ## 演算子の優先順位
+<!-- no toc -->
 1. [前置修飾の単項演算子](#pre-unary-op)
 2. [後置修飾の単項演算子](#post-unary-op)
-3. 乗除剰余演算子
-4. 加減算演算子
-5. ビットシフト演算子
-6. 比較演算子
-7. ビット演算子 `&`
-8. ビット演算子 `^`
-9. ビット演算子 `|`
-10. 論理演算子 `&&`
-11. 論理演算子 `||`
+3. [乗除剰余演算子](#mul-div-mod-op)
+4. [加減算演算子](#add-sub-op)
+5. [ビットシフト演算子](#bit-shift-op)
+6. [比較演算子](#comparison-op)
+7. [ビット演算子](#bitwise-op) `&`
+8. [ビット演算子](#bitwise-op) `^`
+9.  [ビット演算子](#bitwise-op) `|`
+10. [論理演算子](#logical-op) `&&`
+11. [論理演算子](#logical-op) `||`
 
 ## 単項演算子(前置修飾) {#pre-unary-op}
 
@@ -167,4 +168,108 @@ Python の添え字・スライスの記法とほぼ同じ仕様です。
 
     文字列の長さを取得する。
 
+## 乗除剰余演算子 {#mul-div-mod-op}
 
+- **int `*` int -> int**
+- **int `*` double -> double**
+- **double `*` int -> double**
+- **double `*` double -> double**
+
+    乗算
+
+    以下も同一の型シグネチャで定義されています。
+
+    - **`/`**：除算
+
+    - **`%`**：剰余
+
+## 加減算演算子 {#add-sub-op}
+
+- **int `+` int -> int**
+- **int `+` double -> double**
+- **double `+` int -> double**
+- **double `+` double -> double**
+
+    加算
+
+- **str `+` str -> str**
+
+    文字列の連結
+
+- **str `+` int -> str**
+- **str `+` double -> str**
+- **str `+` bool -> str**
+
+    右側のオペランドを文字列に変換して連結する。
+
+- **int `-` int -> int**
+- **int `-` double -> double**
+- **double `-` int -> double**
+- **double `-` double -> double**
+
+    減算
+
+## ビットシフト演算子 {#bit-shift-op}
+
+- **int `<<` int -> int**
+
+    左シフト
+
+- **int `>>` int -> int**
+
+    右シフト
+
+## 比較演算子 {#comparison-op}
+
+- **int `=` int -> bool**
+- **int `=` double -> bool**
+- **double `=` int -> bool**
+- **double `=` double -> bool**
+- **str `=` str -> bool**
+- **bool `=` bool -> bool**
+- **symbol `=` symbol -> bool**
+
+    等価
+
+    以下も同一の型シグネチャで定義されています。
+
+    - **`!=`**：等価でない
+
+- **int `<` int -> bool**
+- **int `<` double -> bool**
+- **double `<` int -> bool**
+- **double `<` double -> bool**
+
+    小なり
+
+    以下も同一の型シグネチャで定義されています。
+
+    - **`>`**：大なり
+    - **`<=`**：小なりイコール
+    - **`>=`**：大なりイコール
+
+## ビット演算子 {#bitwise-op}
+
+- **int `&` int -> int**
+- **bool `&` bool-> bool**
+
+    ビット AND
+
+- **int `^` int -> int**
+
+    ビット XOR
+
+- **int `|` int -> int**
+- **bool `|` bool-> bool**
+
+    ビット OR
+
+## 論理演算子 {#logical-op}
+
+- **bool `&&` bool -> bool**
+
+    論理 AND
+
+- **bool `||` bool -> bool**
+
+    論理 OR
