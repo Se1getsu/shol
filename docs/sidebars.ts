@@ -52,6 +52,7 @@ const sidebars: SidebarsConfig = {
     'reference/lexical_analysis',
     `reference/colony_rule`,
     'reference/expression',
+    'reference/condition_kind',
     'reference/type_inference',
   ],
 };
