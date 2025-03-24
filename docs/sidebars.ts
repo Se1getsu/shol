@@ -55,6 +55,7 @@ const sidebars: SidebarsConfig = {
     'reference/condition_kind',
     'reference/type_inference',
     'reference/resource_search',
+    'reference/builtin_colony'
   ],
 };
 
