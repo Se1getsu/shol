@@ -15,35 +15,6 @@ import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
     'intro',
-    {
-      type: 'category',
-      label: '入門ガイド',
-      items: [
-        'getting-started/installation',
-        'getting-started/quick-start',
-        'getting-started/basic-syntax',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'チュートリアル基本',
-      items: [
-        'tutorial-basics/create-a-document',
-        'tutorial-basics/create-a-blog-post',
-        'tutorial-basics/create-a-page',
-        'tutorial-basics/markdown-features',
-        'tutorial-basics/deploy-your-site',
-        'tutorial-basics/congratulations',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'チュートリアル応用',
-      items: [
-        'tutorial-extras/manage-docs-versions',
-        'tutorial-extras/translate-your-site',
-      ],
-    },
   ],
   referenceSidebar: [
     'reference/intro',
