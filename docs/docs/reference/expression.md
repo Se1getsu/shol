@@ -49,45 +49,65 @@
 型推論時にのみ効果を発揮する演算子。オペランドの値がそのまま結果の値となる。
 
 - **int `:int` -> int**
+
+- **`:i`**：`:int` のエイリアス
+
 - **double `:double` -> double**
+
+- **`:d`**：`:double` のエイリアス
+
 - **str `:str` -> str**
+
+- **`:d`**：`:str` のエイリアス
+
 - **bool `:bool` -> bool**
+
+- **`:b`**：`:bool` のエイリアス
+
 - **symbol `:symbol` -> symbol**
+
+- **`:sym`**：`:sym` のエイリアス
 
 ### 型変換演算子
 
-- **double `:int` -> int**
+- **double `.int` -> int**
 
     小数点以下を切り捨てる。0 に近い方向に丸められる。
 
-- **str `:int` -> int**
+- **str `.int` -> int**
 
     数値文字列をパースして数値に変換する。変換に失敗したら `0` となる。
 
-- **bool `:int` -> int**
+- **bool `.int` -> int**
 
     `false` は `0` に、`true` は `1` に変換される。
 
-- **int `:double` -> double**
+- **`.i`**：`.int` のエイリアス
+
+- **int `.double` -> double**
 
     整数を浮動小数点数に変換する。
 
-- **str `:double` -> double**
+- **str `.double` -> double**
 
     数値文字列をパースして数値に変換する。変換に失敗したら `0.` となる。
 
-- **bool `:double` -> double**
+- **bool `.double` -> double**
 
     `false` は `0.` に、`true` は `1.` に変換される。
 
-- **int `:str` -> str**
-- **double `:str` -> str**
+- **`.d`**：`.double` のエイリアス
+
+- **int `.str` -> str**
+- **double `.str` -> str**
 
     数値を文字列に変換する。
 
-- **bool `:str` -> str**
+- **bool `.str` -> str**
 
     `false` は `"false"` に、`true` は `"true"` に変換される。
+
+- **`.s`**：`.str` のエイリアス
 
 ### スライス演算子
 
