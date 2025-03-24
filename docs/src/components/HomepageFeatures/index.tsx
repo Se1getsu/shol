@@ -11,32 +11,29 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
+    title: '使いやすさ',
     Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        Shol はシンプルな文法と直感的なルールで、初めての方でもその概念を理解しやすい言語です。
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
+    title: '独自のパラダイム',
     Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        従来の手続き型やオブジェクト指向とは一線を画す、ルールベースの宣言型言語として、全く新しいプログラミング体験を提供します。
       </>
     ),
   },
   {
-    title: 'Powered by React',
+    title: 'Rust へのトランスパイル',
     Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        Shol のコンパイラは Rust のソースコードに変換できるため、Rust 対応の環境での実践利用も可能です。
       </>
     ),
   },
