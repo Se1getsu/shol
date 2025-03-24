@@ -313,9 +313,8 @@ Hello, world!
 
 ## 次のステップ
 
-- [インストール](getting-started/installation)方法を学ぶ
-- [クイックスタート](getting-started/quick-start)で基本的な使い方を学ぶ
-- [基本文法](getting-started/basic-syntax)で詳細を確認する
+- [インストール](install)方法を学ぶ
+- [リファレンス](../reference/intro)で Shol の詳しい文法を学ぶ
 
 ## 蛇足
 
