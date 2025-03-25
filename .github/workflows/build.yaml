@@ -1,0 +1,21 @@
+name: Build
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: rust-lang/setup-rust@v1
+        with:
+          rust-version: stable
+      - run: cargo build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: shol-${{ matrix.os }}
+          path: target/release/shol
