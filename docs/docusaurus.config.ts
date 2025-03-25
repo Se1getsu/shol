@@ -78,37 +78,37 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'ドキュメント',
           items: [
             {
               label: 'チュートリアル',
-              to: '/docs/intro',
+              to: '/docs/tutorial/intro',
+            },
+            {
+              label: 'リファレンス',
+              to: '/docs/reference/intro',
             },
           ],
         },
         {
-          title: 'Community',
+          title: 'コミュニティ',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-            },
-            {
               label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
+              href: 'https://discord.gg/CrsZKZQeWT',
             },
           ],
         },
         {
-          title: 'More',
+          title: 'その他',
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              href: 'https://github.com/Se1getsu/shol',
+            },
+            {
+              label: '制作者 X (旧 Twitter)',
+              href: 'https://x.com/Se1getsu',
             },
           ],
         },
