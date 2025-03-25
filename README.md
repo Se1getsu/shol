@@ -1,71 +1,75 @@
+<img height="120" alt="Sholのロゴ画像" src="docs/static/img/logo.png">
+
 # shol
 
-最高に面白い独自パラダイム言語 Shol のコンパイラを制作中です。
+最高に面白い独自パラダイム言語 Shol のコンパイラです。
 
 Shol は、規則やデータフローを中心にプログラムを表現するルールベースの宣言型言語です。
 
-## 用語と概念
+## インストール
 
-- **コロニー**：リソースキューと規則を持った概念
-- **リソースキュー**：数値や文字列、タプルなどのデータが並んだもの
-- **規則**：リソースキューに含まれるリソースに、変化を与える変換規則
-- **サイクル**：規則が適用される周期
+1. [Releases](https://github.com/Se1getsu/shol/releases) から、`shol-<Sholバージョン名>-<あなたの環境>.zip` をダウンロードし、解凍してください。
 
-これらをオブジェクト指向の概念と対比してみましょう。
+2. 解凍して得られた `shol.exe` または `shol` をパスの通る場所に置いてください。
 
-オブジェクト指向: *オブジェクト* は *属性* とそれを操作する *メソッド* を持ちます。オブジェクトは外部からの *メソッド呼び出し* をトリガーに**受動的に**属性を変化させます。
+   - Windows/Mac/Ubuntu でのパスの通し方 (ChatGPT の回答)\
+   https://chatgpt.com/share/67e2d425-b208-800e-bfa0-1e7f7e77c5a0
 
-Shol: *コロニー* は *リソースキュー* とそれを変化させる *規則* を持ちます。コロニーは *サイクル* ごとに規則を適用し**能動的に**リソースキューを変化させます。
+   - Mac で「"shol" は開いていません」のポップアップが出た場合\
+   https://www.century.co.jp/support/faq/macos-error.html
 
-このような性質から、Shol には Java の main メソッドのようなエントリーポイントは存在しません。
+3. `rustc` コマンドを使用可能にするため、以下のサイトから Rust をインストールします。
 
-- **並列規則**：直前の規則と並列に実行される規則
+   https://www.rust-lang.org/ja/tools/install
 
-1 サイクルの間に、規則は最初に書かれたものから順に逐次的に処理され、各コロニーのリソースキューを変化させます。
+4. `rustc --version` と `shol --version` を実行し、それぞれのバージョンが表示されることを確認してください。
 
-## コード例
 
-### Hello, world!
+## パラダイムの概略
 
-```
-%print
-Hello, world!
-```
+以下は、Shol に登場する概念を、オブジェクト指向の概念と対比させた文章です。
 
-外部コロニーである `print` を拡張し、出力する文字列をリソースとして配置すると、出力が行われます。
+**オブジェクト指向**：*オブジェクト* は *属性* とそれを操作する *メソッド* を持ちます。\
+**Shol**：*コロニー* は *リソースキュー* とそれを変化させる *規則* を持ちます。
 
-### FizzBuzz
+**オブジェクト指向**：*オブジェクト* は外部からの *メソッド呼び出し* をトリガーに**受動的に**属性を変化させます。\
+**Shol**：*コロニー* は *サイクル* ごとに規則を適用し**能動的に**リソースキューを変化させます。
 
-```
-*nGen
-1
-. $<100 # $+1
-| $ #fizzBuzz $
+Shol には if や for のような制御構文や、main メソッドのようなエントリーポイントがない点が特徴的です。
 
-*fizzBuzz
-. $ % 3 = 0 # Fizz
-| $ % 5 = 0 # Buzz
-. Fizz, Buzz # FizzBuzz
-. $ #print $
+さらに詳しく学びたい方は、[チュートリアル](https://se1getsu.github.io/shol/docs/tutorial/intro)をお読みください。
 
-%print
-```
+## サンプルコード
 
-`nGen` コロニーは 1〜100 の整数リソースを `fizzBuzz` コロニーに転送します。
+いくつかのサンプルコードを [`example/`](example/) に置いています。
 
-`fizzBuzz` コロニーは整数リソースを Fizz や Buzz に変換して標準出力に送ります。
+- [`hello_world.shol`](example/hello_world.shol)
 
-コード中に現れるものが、それぞれどの概念に対応するかを以下に示します。
+  「Hello, world!」を出力します。
 
-```
-*nGen   // コロニー定義
-1       // リソース
-. $<100 # $+1       // 規則
-| $ #fizzBuzz $     // 並列規則
+- [`fizzbuzz.shol`](example/fizzbuzz.shol)
 
-*fizzBuzz           // コロニー定義
-. $ % 3 = 0 # Fizz  // 規則
-| $ % 5 = 0 # Buzz  // 並列規則
-. Fizz, Buzz # FizzBuzz  // 規則
-. $ #print $        // 規則
-```
+  入力された数字までの FizzBuzz を出力します。
+
+- [`paren.shol`](example/paren.shol)
+
+  長さ $N$ の正しい括弧列を辞書順で出力するプログラムです。\
+  AtCoder での提出で、合格判定(AC)を受けています：[提出 #64189632 - 競プロ典型 90 問](https://atcoder.jp/contests/typical90/submissions/64189632)
+
+## 貢献
+
+Issue や Pull Request は自由に投げてもらっても OK です。
+
+## リンク集
+
+- **チュートリアル**：初めての方向け
+
+  https://se1getsu.github.io/shol/docs/tutorial/intro
+
+- **言語リファレンス**：チュートリアルを読んだ方向け
+
+  https://se1getsu.github.io/shol/docs/reference/intro
+
+- **Shol コミュニティ (Discord)**：Shol に関する話題はもちろん、質問・バグ報告なども受け付けています。
+
+  https://discord.gg/CrsZKZQeWT
