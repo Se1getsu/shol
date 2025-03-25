@@ -10,13 +10,22 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
       - run: cargo build --release
+      - name: Prepare artifact path
+        id: prepare-path
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            echo "ARTIFACT_PATH=target/release/shol.exe" >> $GITHUB_ENV
+          else
+            echo "ARTIFACT_PATH=target/release/shol" >> $GITHUB_ENV
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: shol-${{ matrix.os }}
-          path: target/release/shol
+          path: ${{ env.ARTIFACT_PATH }}
