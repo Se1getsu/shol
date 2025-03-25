@@ -68,7 +68,7 @@ const config: Config = {
           label: 'リファレンス',
         },
         {
-          href: 'https://github.com/facebook/docusaurus',
+          href: 'https://github.com/Se1getsu/shol',
           label: 'GitHub',
           position: 'right',
         },
