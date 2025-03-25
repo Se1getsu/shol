@@ -42,16 +42,13 @@ Shol には if や for のような制御構文や、main メソッドのよう�
 
 いくつかのサンプルコードを [`example/`](example/) に置いています。
 
-- [`hello_world.shol`](example/hello_world.shol)
-
+- [`hello_world.shol`](example/hello_world.shol)\
   「Hello, world!」を出力します。
 
-- [`fizzbuzz.shol`](example/fizzbuzz.shol)
-
+- [`fizzbuzz.shol`](example/fizzbuzz.shol)\
   入力された数字までの FizzBuzz を出力します。
 
-- [`paren.shol`](example/paren.shol)
-
+- [`paren.shol`](example/paren.shol)\
   長さ $N$ の正しい括弧列を辞書順で出力するプログラムです。\
   AtCoder での提出で、合格判定(AC)を受けています：[提出 #64189632 - 競プロ典型 90 問](https://atcoder.jp/contests/typical90/submissions/64189632)
 
@@ -61,14 +58,11 @@ Issue や Pull Request は自由に投げてもらっても OK です。
 
 ## リンク集
 
-- **チュートリアル**：初めての方向け
-
+- **チュートリアル**：初めての方向け\
   https://se1getsu.github.io/shol/docs/tutorial/intro
 
-- **言語リファレンス**：チュートリアルを読んだ方向け
-
+- **言語リファレンス**：チュートリアルを読んだ方向け\
   https://se1getsu.github.io/shol/docs/reference/intro
 
-- **Shol コミュニティ (Discord)**：Shol に関する話題はもちろん、質問・バグ報告なども受け付けています。
-
+- **Shol コミュニティ (Discord)**：Shol に関する話題はもちろん、質問・バグ報告なども受け付けています。\
   https://discord.gg/CrsZKZQeWT
