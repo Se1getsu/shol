@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-reference/expression" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.7.0">
+<title data-rh="true">式 | Shol</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://se1getsu.github.io/shol/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://se1getsu.github.io/shol/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://se1getsu.github.io/shol/docs/reference/expression"><meta data-rh="true" property="og:locale" content="ja"><meta data-rh="true" name="docusaurus_locale" content="ja"><meta data-rh="true" name="docsearch:language" content="ja"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="式 | Shol"><meta data-rh="true" name="description" content="リテラル"><meta data-rh="true" property="og:description" content="リテラル"><link data-rh="true" rel="icon" href="/shol/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://se1getsu.github.io/shol/docs/reference/expression"><link data-rh="true" rel="alternate" href="https://se1getsu.github.io/shol/docs/reference/expression" hreflang="ja"><link data-rh="true" rel="alternate" href="https://se1getsu.github.io/shol/docs/reference/expression" hreflang="x-default"><link rel="stylesheet" href="/shol/assets/css/styles.278f2ffe.css">
+<script src="/shol/assets/js/runtime~main.c35f8286.js" defer="defer"></script>
+<script src="/shol/assets/js/main.5baa87bd.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<script>!function(){function t(t){document.documentElement.setAttribute("data-theme",t)}var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();t(null!==e?e:"light")}(),function(){try{const n=new URLSearchParams(window.location.search).entries();for(var[t,e]of n)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/shol/img/logo.png"><div role="region" aria-label="メインコンテンツまでスキップ"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">メインコンテンツまでスキップ</a></div><nav aria-label="ナビゲーション" class="navbar navbar--fixed-top"><div class="navbar__inner"><div class="navbar__items"><button aria-label="ナビゲーションバーを開く" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/shol/"><div class="navbar__logo"><img src="/shol/img/logo.png" alt="Shol Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/shol/img/logo.png" alt="Shol Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate">Shol</b></a><a class="navbar__item navbar__link" href="/shol/docs/tutorial/intro">チュートリアル</a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/shol/docs/reference/intro">リファレンス</a></div><div class="navbar__items navbar__items--right"><a href="https://github.com/Se1getsu/shol" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="ダークモードを切り替える(現在はライトモード)" aria-label="ダークモードを切り替える(現在はライトモード)" aria-live="polite" aria-pressed="false"><svg viewBox="0 0 24 24" width="24" height="24" class="lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" class="darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="先頭へ戻る" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="ドキュメントのサイドバー" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/intro">Shol 言語リファレンス</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/compiler">コンパイラについて</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/preprocess">プリプロセス</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/lexical_analysis">字句解析</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/colony_rule">コロニーと規則</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" href="/shol/docs/reference/expression">式</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/condition_kind">条件式種別</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/type_inference">型推論</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/resource_search">リソースの探索と変換</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/shol/docs/reference/builtin_colony">組み込みコロニー</a></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="パンくずリストのナビゲーション"><ul class="breadcrumbs" itemscope="" itemtype="https://schema.org/BreadcrumbList"><li class="breadcrumbs__item"><a aria-label="ホームページ" class="breadcrumbs__link" href="/shol/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li itemscope="" itemprop="itemListElement" itemtype="https://schema.org/ListItem" class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link" itemprop="name">式</span><meta itemprop="position" content="1"></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">このページの見出し</button></div><div class="theme-doc-markdown markdown"><header><h1>式</h1></header>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="リテラル">リテラル<a href="#リテラル" class="hash-link" aria-label="リテラル への直接リンク" title="リテラル への直接リンク">​</a></h2>
+<div class="codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-text codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">リテラル ::= bool型リテラル</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        | &quot;-&quot;? double型リテラル</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        | &quot;-&quot;? int型リテラル</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        | str型リテラル</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        | 識別子</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">        | symbol型リテラル</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="クリップボードにコードをコピー" title="コピー" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
+<p><code>識別子</code> はダブルクォートが省略された str 型リテラルとして扱われます。</p>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="演算子の優先順位">演算子の優先順位<a href="#演算子の優先順位" class="hash-link" aria-label="演算子の優先順位 への直接リンク" title="演算子の優先順位 への直接リンク">​</a></h2>
+<ol>
+<li><a href="#pre-unary-op">前置修飾の単項演算子</a></li>
+<li><a href="#post-unary-op">後置修飾の単項演算子</a></li>
+<li><a href="#mul-div-mod-op">乗除剰余演算子</a></li>
+<li><a href="#add-sub-op">加減算演算子</a></li>
+<li><a href="#bit-shift-op">ビットシフト演算子</a></li>
+<li><a href="#comparison-op">比較演算子</a></li>
+<li><a href="#bitwise-op">ビット演算子</a> <code>&amp;</code></li>
+<li><a href="#bitwise-op">ビット演算子</a> <code>^</code></li>
+<li><a href="#bitwise-op">ビット演算子</a> <code>|</code></li>
+<li><a href="#logical-op">論理演算子</a> <code>&amp;&amp;</code></li>
+<li><a href="#logical-op">論理演算子</a> <code>||</code></li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="pre-unary-op">単項演算子(前置修飾)<a href="#pre-unary-op" class="hash-link" aria-label="単項演算子(前置修飾) への直接リンク" title="単項演算子(前置修飾) への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong><code>-</code> int -&gt; int</strong></p>
+</li>
+<li>
+<p><strong><code>-</code> double -&gt; double</strong></p>
+<p>符号の反転</p>
+</li>
+<li>
+<p><strong><code>!</code> bool -&gt; bool</strong></p>
+<p>論理否定</p>
+</li>
+<li>
+<p><strong><code>~</code> int -&gt; int</strong></p>
+<p>ビット反転</p>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="post-unary-op">単項演算子(後置修飾)<a href="#post-unary-op" class="hash-link" aria-label="単項演算子(後置修飾) への直接リンク" title="単項演算子(後置修飾) への直接リンク">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="型ヒント演算子">型ヒント演算子<a href="#型ヒント演算子" class="hash-link" aria-label="型ヒント演算子 への直接リンク" title="型ヒント演算子 への直接リンク">​</a></h3>
+<p>型推論時にのみ効果を発揮する演算子。オペランドの値がそのまま結果の値となる。</p>
+<ul>
+<li>
+<p><strong>int <code>:int</code> -&gt; int</strong></p>
+</li>
+<li>
+<p><strong><code>:i</code></strong>：<code>:int</code> のエイリアス</p>
+</li>
+<li>
+<p><strong>double <code>:double</code> -&gt; double</strong></p>
+</li>
+<li>
+<p><strong><code>:d</code></strong>：<code>:double</code> のエイリアス</p>
+</li>
+<li>
+<p><strong>str <code>:str</code> -&gt; str</strong></p>
+</li>
+<li>
+<p><strong><code>:d</code></strong>：<code>:str</code> のエイリアス</p>
+</li>
+<li>
+<p><strong>bool <code>:bool</code> -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong><code>:b</code></strong>：<code>:bool</code> のエイリアス</p>
+</li>
+<li>
+<p><strong>symbol <code>:symbol</code> -&gt; symbol</strong></p>
+</li>
+<li>
+<p><strong><code>:sym</code></strong>：<code>:sym</code> のエイリアス</p>
+</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="型変換演算子">型変換演算子<a href="#型変換演算子" class="hash-link" aria-label="型変換演算子 への直接リンク" title="型変換演算子 への直接リンク">​</a></h3>
+<ul>
+<li>
+<p><strong>double <code>.int</code> -&gt; int</strong></p>
+<p>小数点以下を切り捨てる。0 に近い方向に丸められる。</p>
+</li>
+<li>
+<p><strong>str <code>.int</code> -&gt; int</strong></p>
+<p>数値文字列をパースして数値に変換する。変換に失敗したら <code>0</code> となる。</p>
+</li>
+<li>
+<p><strong>bool <code>.int</code> -&gt; int</strong></p>
+<p><code>false</code> は <code>0</code> に、<code>true</code> は <code>1</code> に変換される。</p>
+</li>
+<li>
+<p><strong><code>.i</code></strong>：<code>.int</code> のエイリアス</p>
+</li>
+<li>
+<p><strong>int <code>.double</code> -&gt; double</strong></p>
+<p>整数を浮動小数点数に変換する。</p>
+</li>
+<li>
+<p><strong>str <code>.double</code> -&gt; double</strong></p>
+<p>数値文字列をパースして数値に変換する。変換に失敗したら <code>0.</code> となる。</p>
+</li>
+<li>
+<p><strong>bool <code>.double</code> -&gt; double</strong></p>
+<p><code>false</code> は <code>0.</code> に、<code>true</code> は <code>1.</code> に変換される。</p>
+</li>
+<li>
+<p><strong><code>.d</code></strong>：<code>.double</code> のエイリアス</p>
+</li>
+<li>
+<p><strong>int <code>.str</code> -&gt; str</strong></p>
+</li>
+<li>
+<p><strong>double <code>.str</code> -&gt; str</strong></p>
+<p>数値を文字列に変換する。</p>
+</li>
+<li>
+<p><strong>bool <code>.str</code> -&gt; str</strong></p>
+<p><code>false</code> は <code>&quot;false&quot;</code> に、<code>true</code> は <code>&quot;true&quot;</code> に変換される。</p>
+</li>
+<li>
+<p><strong><code>.s</code></strong>：<code>.str</code> のエイリアス</p>
+</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="スライス演算子">スライス演算子<a href="#スライス演算子" class="hash-link" aria-label="スライス演算子 への直接リンク" title="スライス演算子 への直接リンク">​</a></h3>
+<p>Python の添え字・スライスの記法とほぼ同じ仕様です。</p>
+<ul>
+<li>
+<p><strong>str <code>[</code> int <code>]</code> -&gt; str</strong></p>
+<p>文字列中の 1 文字を取り出す。<br>
+<!-- -->負の添え字を指定すると、文字列の末尾からの位置となる。<br>
+<!-- -->範囲外の添え字を指定した場合は、空文字列になる。</p>
+<div class="language-shol codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-shol codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[2]  // =&gt; &quot;o&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[-2] // =&gt; &quot;o&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[4]  // =&gt; &quot;&quot;</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="クリップボードにコードをコピー" title="コピー" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
+</li>
+<li>
+<p><strong>str <code>[</code> int? <code>:</code> int? <code>]</code> -&gt; str</strong></p>
+<p>文字列中の部分文字列を <code>[start:end]</code> の記法で取り出す。<br>
+<!-- -->負の添え字を指定すると、文字列の末尾からの位置となる。<br>
+<!-- -->範囲外の添え字を指定した場合は、範囲内に収められるように調整される。<br>
+<code>start</code> を省略すると、文字列の先頭から取り出される。<br>
+<code>end</code> を省略すると、文字列の末尾まで取り出される。</p>
+<div class="language-shol codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-shol codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[1:3]   // =&gt; &quot;ho&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[-3:-1] // =&gt; &quot;ho&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[1:10]  // =&gt; &quot;hol&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[:2]    // =&gt; &quot;Sh&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[2:]    // =&gt; &quot;ol&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[:]     // =&gt; &quot;Shol&quot;</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="クリップボードにコードをコピー" title="コピー" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
+</li>
+<li>
+<p><strong>str <code>[</code> int? <code>:</code> int? <code>:</code> int? <code>]</code> -&gt; str</strong></p>
+<p>文字列中の部分文字列を <code>[start:end:step]</code> の記法で取り出す。<br>
+<code>[start:end]</code> の範囲から <code>step</code> 文字ごとに文字列を取り出す。<br>
+<code>step</code> を省略すると、<code>1</code> が指定されたものとして扱われ、<code>[start:end]</code> の挙動と同様になる。<br>
+<!-- -->負のステップ数を指定すると、文字列を逆順に取り出す。</p>
+<div class="language-shol codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#393A34;--prism-background-color:#f6f8fa"><div class="codeBlockContent_biex"><pre tabindex="0" class="prism-code language-shol codeBlock_bY9V thin-scrollbar" style="color:#393A34;background-color:#f6f8fa"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[::2]    // =&gt; &quot;Sl&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[::-1]   // =&gt; &quot;lohS&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[1:4:2]  // =&gt; &quot;hl&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[4::-2]  // =&gt; &quot;lh&quot;</span><br></span><span class="token-line" style="color:#393A34"><span class="token plain">&quot;Shol&quot;[::]     // =&gt; &quot;Shol&quot;</span><br></span></code></pre><div class="buttonGroup__atx"><button type="button" aria-label="クリップボードにコードをコピー" title="コピー" class="clean-btn"><span class="copyButtonIcons_eSgA" aria-hidden="true"><svg viewBox="0 0 24 24" class="copyButtonIcon_y97N"><path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z"></path></svg><svg viewBox="0 0 24 24" class="copyButtonSuccessIcon_LjdS"><path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"></path></svg></span></button></div></div></div>
+</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_LWe7" id="ユーティリティ演算子">ユーティリティ演算子<a href="#ユーティリティ演算子" class="hash-link" aria-label="ユーティリティ演算子 への直接リンク" title="ユーティリティ演算子 への直接リンク">​</a></h3>
+<ul>
+<li>
+<p><strong>double <code>.ceil</code> -&gt; int</strong></p>
+<p>小数点以下を切り上げる。</p>
+</li>
+<li>
+<p><strong>double <code>.floor</code> -&gt; int</strong></p>
+<p>小数点以下を切り捨てる。<code>.int</code> と違って、負の無限大方向に丸められる。</p>
+</li>
+<li>
+<p><strong>double <code>.round</code> -&gt; int</strong></p>
+<p>小数点以下を四捨五入する。</p>
+</li>
+<li>
+<p><strong>int <code>.abs</code> -&gt; int</strong></p>
+</li>
+<li>
+<p><strong>double <code>.abs</code> -&gt; double</strong></p>
+<p>絶対値を取る。</p>
+</li>
+<li>
+<p><strong>str <code>.ord</code> -&gt; int</strong></p>
+<p>文字列中の最初の文字の Unicode コードポイントを取得する。文字列が空の場合は <code>0</code> となる。</p>
+</li>
+<li>
+<p><strong>int <code>.chr</code> -&gt; str</strong></p>
+<p>Unicode コードポイントを文字列に変換する。不正なコードポイントが指定された場合は空文字列になる。</p>
+</li>
+<li>
+<p><strong>str <code>.len</code> -&gt; int</strong></p>
+<p>文字列の長さを取得する。</p>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="mul-div-mod-op">乗除剰余演算子<a href="#mul-div-mod-op" class="hash-link" aria-label="乗除剰余演算子 への直接リンク" title="乗除剰余演算子 への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong>int <code>*</code> int -&gt; int</strong></p>
+</li>
+<li>
+<p><strong>int <code>*</code> double -&gt; double</strong></p>
+</li>
+<li>
+<p><strong>double <code>*</code> int -&gt; double</strong></p>
+</li>
+<li>
+<p><strong>double <code>*</code> double -&gt; double</strong></p>
+<p>乗算</p>
+<p>以下も同一の型シグネチャで定義されています。</p>
+<ul>
+<li>
+<p><strong><code>/</code></strong>：除算</p>
+</li>
+<li>
+<p><strong><code>%</code></strong>：剰余</p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="add-sub-op">加減算演算子<a href="#add-sub-op" class="hash-link" aria-label="加減算演算子 への直接リンク" title="加減算演算子 への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong>int <code>+</code> int -&gt; int</strong></p>
+</li>
+<li>
+<p><strong>int <code>+</code> double -&gt; double</strong></p>
+</li>
+<li>
+<p><strong>double <code>+</code> int -&gt; double</strong></p>
+</li>
+<li>
+<p><strong>double <code>+</code> double -&gt; double</strong></p>
+<p>加算</p>
+</li>
+<li>
+<p><strong>str <code>+</code> str -&gt; str</strong></p>
+<p>文字列の連結</p>
+</li>
+<li>
+<p><strong>str <code>+</code> int -&gt; str</strong></p>
+</li>
+<li>
+<p><strong>str <code>+</code> double -&gt; str</strong></p>
+</li>
+<li>
+<p><strong>str <code>+</code> bool -&gt; str</strong></p>
+<p>右側のオペランドを文字列に変換して連結する。</p>
+</li>
+<li>
+<p><strong>int <code>-</code> int -&gt; int</strong></p>
+</li>
+<li>
+<p><strong>int <code>-</code> double -&gt; double</strong></p>
+</li>
+<li>
+<p><strong>double <code>-</code> int -&gt; double</strong></p>
+</li>
+<li>
+<p><strong>double <code>-</code> double -&gt; double</strong></p>
+<p>減算</p>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="bit-shift-op">ビットシフト演算子<a href="#bit-shift-op" class="hash-link" aria-label="ビットシフト演算子 への直接リンク" title="ビットシフト演算子 への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong>int <code>&lt;&lt;</code> int -&gt; int</strong></p>
+<p>左シフト</p>
+</li>
+<li>
+<p><strong>int <code>&gt;&gt;</code> int -&gt; int</strong></p>
+<p>右シフト</p>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="comparison-op">比較演算子<a href="#comparison-op" class="hash-link" aria-label="比較演算子 への直接リンク" title="比較演算子 への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong>int <code>=</code> int -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>int <code>=</code> double -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>double <code>=</code> int -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>double <code>=</code> double -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>str <code>=</code> str -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>bool <code>=</code> bool -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>symbol <code>=</code> symbol -&gt; bool</strong></p>
+<p>等価</p>
+<p>以下も同一の型シグネチャで定義されています。</p>
+<ul>
+<li><strong><code>!=</code></strong>：等価でない</li>
+</ul>
+</li>
+<li>
+<p><strong>int <code>&lt;</code> int -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>int <code>&lt;</code> double -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>double <code>&lt;</code> int -&gt; bool</strong></p>
+</li>
+<li>
+<p><strong>double <code>&lt;</code> double -&gt; bool</strong></p>
+<p>小なり</p>
+<p>以下も同一の型シグネチャで定義されています。</p>
+<ul>
+<li><strong><code>&gt;</code></strong>：大なり</li>
+<li><strong><code>&lt;=</code></strong>：小なりイコール</li>
+<li><strong><code>&gt;=</code></strong>：大なりイコール</li>
+</ul>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="bitwise-op">ビット演算子<a href="#bitwise-op" class="hash-link" aria-label="ビット演算子 への直接リンク" title="ビット演算子 への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong>int <code>&amp;</code> int -&gt; int</strong></p>
+</li>
+<li>
+<p><strong>bool <code>&amp;</code> bool-&gt; bool</strong></p>
+<p>ビット AND</p>
+</li>
+<li>
+<p><strong>int <code>^</code> int -&gt; int</strong></p>
+<p>ビット XOR</p>
+</li>
+<li>
+<p><strong>int <code>|</code> int -&gt; int</strong></p>
+</li>
+<li>
+<p><strong>bool <code>|</code> bool-&gt; bool</strong></p>
+<p>ビット OR</p>
+</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_LWe7" id="logical-op">論理演算子<a href="#logical-op" class="hash-link" aria-label="論理演算子 への直接リンク" title="論理演算子 への直接リンク">​</a></h2>
+<ul>
+<li>
+<p><strong>bool <code>&amp;&amp;</code> bool -&gt; bool</strong></p>
+<p>論理 AND</p>
+</li>
+<li>
+<p><strong>bool <code>||</code> bool -&gt; bool</strong></p>
+<p>論理 OR</p>
+</li>
+</ul></div></article><nav class="pagination-nav docusaurus-mt-lg" aria-label="ドキュメントページ"><a class="pagination-nav__link pagination-nav__link--prev" href="/shol/docs/reference/colony_rule"><div class="pagination-nav__sublabel">前へ</div><div class="pagination-nav__label">コロニーと規則</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/shol/docs/reference/condition_kind"><div class="pagination-nav__sublabel">次へ</div><div class="pagination-nav__label">条件式種別</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#リテラル" class="table-of-contents__link toc-highlight">リテラル</a></li><li><a href="#演算子の優先順位" class="table-of-contents__link toc-highlight">演算子の優先順位</a></li><li><a href="#pre-unary-op" class="table-of-contents__link toc-highlight">単項演算子(前置修飾)</a></li><li><a href="#post-unary-op" class="table-of-contents__link toc-highlight">単項演算子(後置修飾)</a><ul><li><a href="#型ヒント演算子" class="table-of-contents__link toc-highlight">型ヒント演算子</a></li><li><a href="#型変換演算子" class="table-of-contents__link toc-highlight">型変換演算子</a></li><li><a href="#スライス演算子" class="table-of-contents__link toc-highlight">スライス演算子</a></li><li><a href="#ユーティリティ演算子" class="table-of-contents__link toc-highlight">ユーティリティ演算子</a></li></ul></li><li><a href="#mul-div-mod-op" class="table-of-contents__link toc-highlight">乗除剰余演算子</a></li><li><a href="#add-sub-op" class="table-of-contents__link toc-highlight">加減算演算子</a></li><li><a href="#bit-shift-op" class="table-of-contents__link toc-highlight">ビットシフト演算子</a></li><li><a href="#comparison-op" class="table-of-contents__link toc-highlight">比較演算子</a></li><li><a href="#bitwise-op" class="table-of-contents__link toc-highlight">ビット演算子</a></li><li><a href="#logical-op" class="table-of-contents__link toc-highlight">論理演算子</a></li></ul></div></div></div></div></main></div></div></div><footer class="footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="col footer__col"><div class="footer__title">ドキュメント</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/shol/docs/tutorial/intro">チュートリアル</a></li><li class="footer__item"><a class="footer__link-item" href="/shol/docs/reference/intro">リファレンス</a></li></ul></div><div class="col footer__col"><div class="footer__title">コミュニティ</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://discord.gg/CrsZKZQeWT" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div><div class="col footer__col"><div class="footer__title">その他</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://github.com/Se1getsu/shol" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li><li class="footer__item"><a href="https://x.com/Se1getsu" target="_blank" rel="noopener noreferrer" class="footer__link-item">制作者 X (旧 Twitter)<svg width="13.5" height="13.5" aria-hidden="true" viewBox="0 0 24 24" class="iconExternalLink_nPIU"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"></path></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 霽月.</div></div></div></footer></div>
+</body>
+</html>
