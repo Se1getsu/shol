@@ -18,8 +18,7 @@ Shol は、規則やデータフローを中心にプログラムを表現する
    - Mac で「"shol" は開いていません」のポップアップが出た場合\
    https://www.century.co.jp/support/faq/macos-error.html
 
-3. `rustc` コマンドを使用可能にするため、以下のサイトから Rust をインストールします。
-
+3. `rustc` コマンドを使用可能にするため、以下のサイトから Rust をインストールします。\
    https://www.rust-lang.org/ja/tools/install
 
 4. `rustc --version` と `shol --version` を実行し、それぞれのバージョンが表示されることを確認してください。
