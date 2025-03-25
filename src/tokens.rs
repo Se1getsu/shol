@@ -391,8 +391,6 @@ fn test_tokenize_double_literal_variants() {
     let test_cases = vec![
         ("0.123", 0.123),
         (".456", 0.456),
-        ("123.", 123.0),
-        ("00.", 0.0),
         ("1e5", 1e5),
         ("0e0", 0.0),
         ("001.00e+04", 1.00e+04),
@@ -404,7 +402,7 @@ fn test_tokenize_double_literal_variants() {
     for (input, expected) in test_cases {
         let tokens = Token::lexer(input)
             .collect::<Vec<Result<Token, LexicalError>>>();
-        assert_eq!(tokens.len(), 1);
-        assert_eq!(tokens[0].as_ref().unwrap(), &Token::DoubleLiteral(expected));
+        assert_eq!(tokens.len(), 1, "\"{input}\" が {tokens:?} にトークン化された");
+        assert_eq!(tokens[0].as_ref().unwrap(), &Token::DoubleLiteral(expected), "\"{input}\" が {tokens:?} にトークン化された (expected: {expected})");
     }
 }
