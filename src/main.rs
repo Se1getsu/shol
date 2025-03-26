@@ -163,6 +163,7 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
     // コマンドラインオプションの設定
     let mut opts = Options::new();
     opts.optflag("h", "help", "このヘルプメッセージを表示します");
+    opts.optflag("v", "version", "バージョンを表示します");
     opts.optopt("o", "", "出力ファイル名を指定します", "FILENAME");
     opts.optflag("", "rs", "Rust プログラムにトランスパイルします");
     opts.optflag("S", "save-temps", "中間生成ファイルを保持します");
@@ -179,6 +180,11 @@ fn parse_args(args: Vec<String>) -> Result<Config, ExitCode> {
 
     if matches.opt_present("h") {
         print_usage(&program, &opts);
+        return Err(ExitCode::SUCCESS);
+    }
+
+    if matches.opt_present("v") {
+        println!("Shol {}", env!("CARGO_PKG_VERSION"));
         return Err(ExitCode::SUCCESS);
     }
 
